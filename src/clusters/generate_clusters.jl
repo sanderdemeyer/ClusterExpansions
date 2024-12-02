@@ -47,12 +47,94 @@ end
 
 function get_central_site(cluster)
     bonds = get_bonds(cluster)
-    println(bonds)
-    println(is_horizontal.(bonds))
     findindex
     corner = bonds[findindex()]
 end
 
-function get_level(cluster, current_indices)
-    return 0
+function get_levels_line(n)
+    return Int.([(n+1)/2 - abs((n+1)/2 - i) for i = 1:n])
 end
+
+function get_loops(cluster)
+    _, bonds_indices = get_bonds(cluster)
+    g = SimpleGraph(Graphs.SimpleEdge.(bonds_indices))
+    longest_path = find_longest_path(g)
+    longest_cycle = find_longest_cycle(g)
+    contains_cycle = (longest_cycle.lower_bound > 2)
+    if contains_cycle
+        @warn "Fuck"
+    end
+
+    return cycle_basis(g)
+end
+
+function contains_loops(cluster)
+    return (length(get_loops(cluster)) != 0)
+end
+
+function get_coordination_number(cluster)
+    # Get the coordination number of each site of the cluster
+    _, bonds_indices = get_bonds(cluster)
+    return [sum(i .∈ bonds_indices) for i = 1:length(cluster)]
+end
+
+function get_branch(site1, site2, bonds)
+    branch = [site1, site2]
+    edge_bond = site2
+    prev_bond = site1
+    surroundings = [setdiff(bond, edge_bond)[1] for bond = bonds if ((edge_bond ∈ bond) && !(prev_bond ∈ bond))]
+    while length(surroundings) != 0
+        if length(surroundings) > 1
+            @error "Multiple branches - currently not implemented"
+        end
+        push!(branch, surroundings[1])
+        prev_bond = site2
+        edge_bond = surroundings[1]
+        surroundings = [setdiff(bond, edge_bond)[1] for bond = bonds if ((edge_bond ∈ bond) && !(prev_bond ∈ bond))]
+    end
+    return branch
+end
+
+function get_levels(cluster)
+    # Find the levels of all the bonds of the cluster (in the Type A construction?)
+    _, bonds_indices = get_bonds(cluster)
+    g = SimpleGraph(Graphs.SimpleEdge.(bonds_indices))
+    longest_path = find_longest_path(g, log_level = 0)
+    longest_cycle = find_longest_cycle(g, log_level = 0)
+
+    if (longest_cycle.lower_bound > 2)
+        @warn "Cycles not implemented"
+    end
+
+    lp = longest_path.longest_path
+    n = length(lp)-1
+    levels_line = get_levels_line(n)
+    coo = get_coordination_number(cluster)
+
+    levels_dict = Dict()
+    for i = 1:n
+        indices = [lp[i],lp[i+1]]
+        levels_dict[Tuple(sort(indices))] = levels_line[i]
+    end
+    
+    for (ind,site) in enumerate(lp)
+        if coo[site] > 2
+            start_branches = [setdiff(bond, site)[1] for bond = bonds_indices if ((site ∈ bond) && !(lp[ind-1] ∈ bond) && !(lp[ind+1] ∈ bond))]
+            for start_branch = start_branches
+                branch = get_branch(site, start_branch, bonds_indices)
+                n = length(branch)
+                for i = 1:n-1
+                    indices = [branch[i], branch[i+1]]
+                    levels_dict[Tuple(sort(indices))] = n-i
+                end
+            end
+        end
+    end
+    return [levels_dict[bond] for bond = bonds_indices]
+end
+
+# Some Manual Test
+cluster = sort([(-2, 0), (-1, 0), (0, -1), (0, 0), (1, 0), (2, 0)])
+cluster = sort([(-2, 0), (-1, 0), (0, -2), (0, -1), (0, 0), (1, 0), (2, 0)])
+levels_indices = get_levels(cluster)
+println(levels_indices)

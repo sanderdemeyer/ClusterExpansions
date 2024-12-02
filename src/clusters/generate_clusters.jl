@@ -28,15 +28,17 @@ function distance(ind₁, ind₂)
 end
 
 function get_bonds(cluster)
-    bonds = []
+    bonds_sites = []
+    bonds_indices = []
     for (i,ind₁) = enumerate(cluster)
         for (j,ind₂) = enumerate(cluster)
             if (j > i) && (distance(ind₁, ind₂) == 1)
-                push!(bonds, (ind₁, ind₂))
+                push!(bonds_sites, (ind₁, ind₂))
+                push!(bonds_indices, (i, j))
             end
         end
     end
-    return bonds
+    return bonds_sites, bonds_indices
 end
 
 function is_horizontal(bond)

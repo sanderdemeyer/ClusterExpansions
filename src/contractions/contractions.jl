@@ -1,15 +1,11 @@
 function exponentiate_hamiltonian(twosite_op, cluster, β, N)
-    bonds = get_bonds(cluster)
+    pspace = twosite_op.dom[1]
+    _, bond_indices = get_bonds(cluster)
     H = []
-    for bond = bonds
-        # terms = [(ind in bond) ? ... : id() for ind = cluster]
-        term = ncon(hcat([twosite_op], [id() for _ = 1:N-2]), hcat([], []))
-        push!(H, term)
+    for bond = bond_indices
+        (i,j) = bond
+        term = ncon([twosite_op, [id(pspace) for _ = 1:N-2]...], [[-i, -j, -N-i, -N-j], [[-k, -N-k] for k = setdiff(1:N, (i,j))]...], [false for _ = 1:N-1])
+        push!(H, permute(term, Tuple(1:N), Tuple(N+1:2*N)))
     end
     return exp(-β*sum(H))
 end
-
-current_indices = [(0,0,0,0)]
-
-clusters = get_nontrivial_terms(4)
-exponentiate_hamiltonian(clusters[27])

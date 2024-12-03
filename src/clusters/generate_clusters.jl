@@ -133,6 +133,26 @@ function get_levels(cluster)
     return [levels_dict[bond] for bond = bonds_indices]
 end
 
+function get_direction(site₁, site₂)
+    dir = site₂ - site₁
+    if dir == (0, 1) # to do - other stuff
+        return (2, 4)
+    end
+end
+
+function get_levels_sites(cluster)
+    bonds_sites, bonds_indices = get_bonds(cluster)
+    levels = get_levels(cluster)
+    levels_sites = fill((0,0,0,0), length(cluster))
+
+    for (i,(bond_s, bond_i)) = enumerate(zip(bonds_sites,bonds_indices))
+        dir = get_direction(bond_s[1], bond_s[2])
+        levels_sites[bond_i[1]][dir[1]] = levels[i]
+        levels_sites[bond_i[2]][dir[2]] = levels[i]
+    end
+    return levels_sites
+end
+
 # Some Manual Test
 cluster = sort([(-2, 0), (-1, 0), (0, -1), (0, 0), (1, 0), (2, 0)])
 cluster = sort([(-2, 0), (-1, 0), (0, -2), (0, -1), (0, 0), (1, 0), (2, 0)])

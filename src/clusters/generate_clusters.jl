@@ -95,22 +95,57 @@ function get_branch(site1, site2, bonds)
     return branch
 end
 
+function get_longest_path(g, p)
+    longest_path = find_longest_path(g, 1, 0; log_level = 0, solver_mode = "lp+ip")
+    n = length(longest_path.longest_path) - 1
+
+    for first_vertex = 2:p
+        longest_path_vertex = find_longest_path(g, first_vertex, 0; log_level = 0, solver_mode = "lp+ip")
+        if length(longest_path_vertex.longest_path) - 1 > n
+            longest_path = longest_path_vertex
+            n = length(longest_path_vertex.longest_path) - 1
+        end
+    end
+    return longest_path, n
+end
+
 function get_levels(cluster)
     # Find the levels of all the bonds of the cluster (in the Type A construction?)
     _, bonds_indices = get_bonds(cluster)
-    g = SimpleGraph(Graphs.SimpleEdge.(bonds_indices))
-    longest_path = find_longest_path(g, log_level = 0)
+    # all_bonds = sort(vcat([(u, v) for (u, v) in bonds_indices], [(v, u) for (u, v) in bonds_indices]))
+    all_bonds = bonds_indices
+    g = SimpleGraph(Graphs.SimpleEdge.(all_bonds))
+
+    longest_path, n = get_longest_path(g, length(cluster))
+
     longest_cycle = find_longest_cycle(g, log_level = 0)
 
+    coo = get_coordination_number(cluster)
+
     if (longest_cycle.lower_bound > 2)
+        if longest_cycle.lower_bound >= 6
+            @warn "Cycles of size >= 6 not yet implemented"
+            return nothing
+        end
         @warn "Cycles not implemented"
+        return nothing
+        # branch_starts = [i for i = longest_cycle.longest_path if coo[i] > 2]
+        # println("branch_starts = $(branch_starts)")
+
+        # (length(branch_starts) == 2) && (return nothing)
+
+        # branches = []
+        # for site₁ = branch_starts
+        #     site₂ = [i for i = 1:length(cluster) if ((Tuple(sort([site₁, i])) ∈ bonds_indices) && !(i ∈ longest_cycle.longest_path))]
+        #     push!(branches, get_branch(site₁, site₂, bonds_indices)...)
+        # end
+
+        # println(branches)
+        # return nothing
     end
 
     lp = longest_path.longest_path
-    n = length(lp)-1
     levels_line = get_levels_line(n)
-    coo = get_coordination_number(cluster)
-
     levels_dict = Dict()
     for i = 1:n
         indices = [lp[i],lp[i+1]]
@@ -134,27 +169,108 @@ function get_levels(cluster)
 end
 
 function get_direction(site₁, site₂)
-    dir = site₂ - site₁
-    if dir == (0, 1) # to do - other stuff
+    dir = (site₂[1] - site₁[1], site₂[2] - site₁[2])
+    if dir == (-1, 0)
+        return (1, 3)
+    elseif dir == (0, 1)
         return (2, 4)
+    elseif dir == (1, 0)
+        return (3, 1)
+    elseif dir == (0, -1)
+        return (4, 2)
     end
 end
 
 function get_levels_sites(cluster)
     bonds_sites, bonds_indices = get_bonds(cluster)
     levels = get_levels(cluster)
-    levels_sites = fill((0,0,0,0), length(cluster))
+    (levels === nothing) && (return nothing)
+    levels_sites = fill(0, length(cluster), 4) # fill([0,0,0,0], length(cluster))
+    contraction_indices = fill(0, length(cluster), 4)
+    conjugated = Bool[]
 
     for (i,(bond_s, bond_i)) = enumerate(zip(bonds_sites,bonds_indices))
         dir = get_direction(bond_s[1], bond_s[2])
-        levels_sites[bond_i[1]][dir[1]] = levels[i]
-        levels_sites[bond_i[2]][dir[2]] = levels[i]
+        levels_sites[bond_i[1], dir[1]] = levels[i]
+        levels_sites[bond_i[2], dir[2]] = levels[i]
+        contraction_indices[bond_i[1], dir[1]] = contraction_indices[bond_i[2], dir[2]] = i
     end
-    return levels_sites
+    n = length(bonds_sites)+1 
+    for c = 1:length(cluster)
+        for dir = 1:4
+            if contraction_indices[c, dir] == 0
+                contraction_indices[c, dir] = n
+                n += 1
+                push!(conjugated, dir > 2)
+            end
+        end
+    end
+    levels_sites = [Tuple(levels_sites[i,:]) for i = 1:length(cluster)]
+    contraction_indices = [Tuple(contraction_indices[i,:]) for i = 1:length(cluster)]
+    println("cluster = $(cluster)")
+    println("contraction indices = $(contraction_indices)")
+    println("conjugated = $(conjugated)")
+    return levels_sites, contraction_indices, conjugated
 end
 
-# Some Manual Test
-cluster = sort([(-2, 0), (-1, 0), (0, -1), (0, 0), (1, 0), (2, 0)])
-cluster = sort([(-2, 0), (-1, 0), (0, -2), (0, -1), (0, 0), (1, 0), (2, 0)])
-levels_indices = get_levels(cluster)
-println(levels_indices)
+function new_clusters(cluster, current_indices)
+    levels_sites, contraction_indices, conjugated = get_levels_sites(cluster)
+    (levels_sites === nothing) && (return (current_indices, 0))
+    new_indices = [levels for levels = levels_sites if !(levels ∈ current_indices)]
+    sites_to_update = [i for (i,levels) = enumerate(levels_sites) if !(levels ∈ current_indices)]
+    
+    push!(current_indices, new_indices...)
+    return current_indices, sites_to_update, length(new_indices), contraction_indices, conjugated
+end
+
+function index_to_solve(clusters, current_indices)
+    β = 1
+    pspace = ℂ^2
+    trivspace = ℂ^1
+    PEPO = Dict((0,0,0,0) => TensorMap([1.0 0.0; 0.0 1.0], pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ trivspace ⊗ trivspace))   
+    for c = clusters
+        println("cluster = $(c)")
+        current_indices, sites_to_update, nnew, contraction_indices, conjugated = new_clusters(c, current_indices)
+        levels_sites, contraction_indices, conjugated = get_levels_sites(c)
+        println("site to update = $(sites_to_update)")
+        if nnew == 1
+            @error "TBA"
+        elseif nnew == 2
+            F = get_other_tensors(cluster, PEPO, levels_sites, sites_to_update, contraction_indices, conjugated)
+        elseif nnew > 2
+            error("Too many new levels to implement")
+        end
+        println("New clusters = $(current_indices[end-nnew+1:end])")
+        println("All current indices = $(current_indices)")
+    end
+    return current_indices
+end
+
+function get_all_indices(p)
+    current_indices = Tuple{Int64, Int64, Int64, Int64}[]
+
+    for N = 2:p
+        clusters = get_nontrivial_terms(N)
+        
+        current_indices = index_to_solve(clusters, current_indices)
+    end
+    return current_indices
+end    
+
+# all_indices = get_all_indices(4)
+
+
+# # Some Manual Test
+# cluster = sort([(-2, 0), (-1, 0), (0, -1), (0, 0), (1, 0), (2, 0)])
+# cluster = sort([(-2, 0), (-1, 0), (0, -2), (0, -1), (0, 0), (1, 0), (2, 0)])
+# levels_indices = get_levels(cluster)
+# println(levels_indices)
+
+"""
+Test loop clusters
+# cluster = sort([(0, 0), (1, 0), (0, 1), (1, 1)])
+# cluster = sort([(0, 0), (1, 0), (0, 1), (1, 1), (1, 2)])
+# get_levels(cluster)
+"""
+
+all_indices = get_all_indices(2)

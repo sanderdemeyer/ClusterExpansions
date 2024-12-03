@@ -9,3 +9,9 @@ function exponentiate_hamiltonian(twosite_op, cluster, β, N)
     end
     return exp(-β*sum(H))
 end
+
+function exponentiate_hamiltonian(cluster, β)
+    N = length(cluster)
+    twosite_op = -S_zz()
+    return exponentiate_hamiltonian(twosite_op, cluster, β, N)
+end

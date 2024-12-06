@@ -2,7 +2,7 @@
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "fb8a97392d0f056db4fec1bae883f7de497ac05b"
+project_hash = "0d3492313773a3580611370f8be696108a3039b8"
 
 [[deps.ASL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -477,7 +477,7 @@ version = "0.9.29"
 
 [[deps.KrylovKit]]
 deps = ["LinearAlgebra", "PackageExtensionCompat", "Printf", "Random", "VectorInterface"]
-git-tree-sha1 = "d7ed24a88732689f26d3f12a817d181d4024bf44"
+path = "KrylovKit-lsmr.jl"
 uuid = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
 version = "0.8.3"
 weakdeps = ["ChainRulesCore"]

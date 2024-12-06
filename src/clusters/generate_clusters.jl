@@ -45,12 +45,6 @@ function is_horizontal(bond)
     return (abs(bond[1][2]-bond[2][2]) == 1)*1
 end
 
-function get_central_site(cluster)
-    bonds = get_bonds(cluster)
-    findindex
-    corner = bonds[findindex()]
-end
-
 function get_levels_line(n)
     return Int.([(n+1)/2 - abs((n+1)/2 - i) for i = 1:n])
 end
@@ -62,14 +56,10 @@ function get_loops(cluster)
     longest_cycle = find_longest_cycle(g)
     contains_cycle = (longest_cycle.lower_bound > 2)
     if contains_cycle
-        @warn "Fuck"
+        error("cycles not implemented")
     end
 
     return cycle_basis(g)
-end
-
-function contains_loops(cluster)
-    return (length(get_loops(cluster)) != 0)
 end
 
 function get_coordination_number(cluster)
@@ -85,7 +75,7 @@ function get_branch(site1, site2, bonds)
     surroundings = [setdiff(bond, edge_bond)[1] for bond = bonds if ((edge_bond ∈ bond) && !(prev_bond ∈ bond))]
     while length(surroundings) != 0
         if length(surroundings) > 1
-            @error "Multiple branches - currently not implemented"
+            error("Multiple branches - currently not implemented")
         end
         push!(branch, surroundings[1])
         prev_bond = site2
@@ -112,12 +102,9 @@ end
 function get_levels(cluster)
     # Find the levels of all the bonds of the cluster (in the Type A construction?)
     _, bonds_indices = get_bonds(cluster)
-    # all_bonds = sort(vcat([(u, v) for (u, v) in bonds_indices], [(v, u) for (u, v) in bonds_indices]))
-    all_bonds = bonds_indices
-    g = SimpleGraph(Graphs.SimpleEdge.(all_bonds))
+    g = SimpleGraph(Graphs.SimpleEdge.(bonds_indices))
 
     longest_path, n = get_longest_path(g, length(cluster))
-
     longest_cycle = find_longest_cycle(g, log_level = 0)
 
     coo = get_coordination_number(cluster)
@@ -129,19 +116,6 @@ function get_levels(cluster)
         end
         @warn "Cycles not implemented"
         return nothing
-        # branch_starts = [i for i = longest_cycle.longest_path if coo[i] > 2]
-        # println("branch_starts = $(branch_starts)")
-
-        # (length(branch_starts) == 2) && (return nothing)
-
-        # branches = []
-        # for site₁ = branch_starts
-        #     site₂ = [i for i = 1:length(cluster) if ((Tuple(sort([site₁, i])) ∈ bonds_indices) && !(i ∈ longest_cycle.longest_path))]
-        #     push!(branches, get_branch(site₁, site₂, bonds_indices)...)
-        # end
-
-        # println(branches)
-        # return nothing
     end
 
     lp = longest_path.longest_path
@@ -181,46 +155,144 @@ function get_direction(site₁, site₂)
     end
 end
 
+function get_graph(cluster)
+    bonds_sites, bonds_indices = get_bonds(cluster)
+    graph = fill(0, length(cluster), 4)
+    for (bond_s, bond_i) = zip(bonds_sites,bonds_indices)
+        dir = get_direction(bond_s[1], bond_s[2])
+        graph[bond_i[1], dir[1]] = bond_i[2]
+        graph[bond_i[2], dir[2]] = bond_i[1]
+    end
+    return graph
+end
+
+function get_contraction_order(cluster, sites_to_update)
+    updates = length(sites_to_update)
+    fixed_tensors = length(cluster) - updates 
+    graph = get_graph(cluster)
+    contraction_indices = fill(0, fixed_tensors, 6)
+    for i = 1:fixed_tensors
+        contraction_indices[i,1] = -i
+        contraction_indices[i,2] = -(fixed_tensors+i)
+    end
+    included_sites = setdiff(1:length(cluster)[1], sites_to_update)
+    conv = i -> i-sum([j ∈ sites_to_update for j = 1:i])
+    m = 1
+    for i = included_sites
+        for j = 1:4
+            if !(graph[i,j] ∈ (0, sites_to_update...)) && (contraction_indices[conv(i),j+2] == 0)
+                ind = findall(x -> x == i, graph[graph[i,j],:])[1]
+                contraction_indices[conv(i),j+2] = m 
+                contraction_indices[conv(graph[i,j]),ind+2] = m
+                m += 1
+            end
+        end
+    end
+    number_of_bonds = copy(m)-1
+    conjugated = Bool[]
+    for i = included_sites
+        for j = 1:4
+            if (graph[i,j] == 0)
+                contraction_indices[conv(i),j+2] = m
+                push!(conjugated, j > 2)
+                m += 1
+            end
+        end
+    end
+    open_conjugated = Bool[]
+    open_indices = Int[]
+    spaces = fill((0,0), updates, 5-updates)
+    m = 2*fixed_tensors+1
+    opposite = dir -> 4 - dir + 2*(dir ∈ (2,4))
+    for (enum,i) = enumerate(sites_to_update)
+        kⱼ = 0
+        for j = 1:4
+            if graph[i,j] ∉ sites_to_update
+                kⱼ += 1
+                if graph[i,j] == 0
+                    push!(open_conjugated, j > 2)
+                    push!(open_indices, -m)
+                else
+                    ind = findall(x -> x == i, graph[graph[i,j],:])[1]
+                    contraction_indices[conv(graph[i,j]),ind+2] = -m
+                    spaces[enum, kⱼ] = (graph[i,j],opposite(j))
+                end
+                m += 1
+            end
+        end
+    end
+    return contraction_indices, conjugated, open_conjugated, open_indices, spaces, number_of_bonds
+end
+
 function get_levels_sites(cluster)
     bonds_sites, bonds_indices = get_bonds(cluster)
     levels = get_levels(cluster)
     (levels === nothing) && (return nothing)
     levels_sites = fill(0, length(cluster), 4) # fill([0,0,0,0], length(cluster))
-    contraction_indices = fill(0, length(cluster), 4)
-    conjugated = Bool[]
+    # contraction_indices = fill(0, length(cluster), 4)
+    # conjugated = Bool[]
 
     for (i,(bond_s, bond_i)) = enumerate(zip(bonds_sites,bonds_indices))
         dir = get_direction(bond_s[1], bond_s[2])
         levels_sites[bond_i[1], dir[1]] = levels[i]
         levels_sites[bond_i[2], dir[2]] = levels[i]
-        contraction_indices[bond_i[1], dir[1]] = contraction_indices[bond_i[2], dir[2]] = i
+        # contraction_indices[bond_i[1], dir[1]] = contraction_indices[bond_i[2], dir[2]] = i
     end
-    n = length(bonds_sites)+1 
-    for c = 1:length(cluster)
-        for dir = 1:4
-            if contraction_indices[c, dir] == 0
-                contraction_indices[c, dir] = n
-                n += 1
-                push!(conjugated, dir > 2)
-            end
-        end
-    end
+
     levels_sites = [Tuple(levels_sites[i,:]) for i = 1:length(cluster)]
-    contraction_indices = [Tuple(contraction_indices[i,:]) for i = 1:length(cluster)]
-    println("cluster = $(cluster)")
-    println("contraction indices = $(contraction_indices)")
-    println("conjugated = $(conjugated)")
-    return levels_sites, contraction_indices, conjugated
+    # sites_to_update = [i for (i,levels) = enumerate(levels_sites) if !(levels ∈ current_indices)]
+
+
+    # m = length(bonds_sites)+1 
+    # for c = 1:length(cluster)
+    #     for dir = 1:4
+    #         if contraction_indices[c, dir] == 0
+    #             contraction_indices[c, dir] = m
+    #             m += 1
+    #             push!(conjugated, dir > 2)
+    #         end
+    #     end
+    # end
+    # contraction_indices = [Tuple(contraction_indices[i,:]) for i = 1:length(cluster)]
+    # println("cluster = $(cluster)")
+    # println("contraction indices = $(contraction_indices)")
+    # println("conjugated = $(conjugated)")
+    return levels_sites#, contraction_indices, conjugated, length(bonds_sites)
 end
 
 function new_clusters(cluster, current_indices)
-    levels_sites, contraction_indices, conjugated = get_levels_sites(cluster)
+    levels_sites = get_levels_sites(cluster)
+    # levels_sites, contraction_indices, conjugated, _ = get_levels_sites(cluster)
     (levels_sites === nothing) && (return (current_indices, 0))
     new_indices = [levels for levels = levels_sites if !(levels ∈ current_indices)]
     sites_to_update = [i for (i,levels) = enumerate(levels_sites) if !(levels ∈ current_indices)]
     
     push!(current_indices, new_indices...)
-    return current_indices, sites_to_update, length(new_indices), contraction_indices, conjugated
+    return current_indices, sites_to_update, length(new_indices)# , contraction_indices, conjugated
+end
+
+function get_contraction(cluster, sites_to_update)
+    bonds_sites, bonds_indices = get_bonds(cluster)
+    contraction_indices = fill(0, length(cluster), 4)
+    conjugated = Bool[]
+    for (i,(bond_s, bond_i)) = enumerate(zip(bonds_sites,bonds_indices))
+        if all(sites_to_update .∈ bond_i)
+            0
+        elseif any(sites_to_update .∈ bond_i)
+            0
+        else
+            dir = get_direction(bond_s[1], bond_s[2])
+            contraction_indices[bond_i[1], dir[1]] = contraction_indices[bond_i[2], dir[2]] = i
+        end
+    end
+end
+
+function init_PEPO(pspace, trivspace)
+    return Dict((0,0,0,0) => TensorMap([1.0 0.0; 0.0 1.0], pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ trivspace ⊗ trivspace))   
+end
+
+function init_PEPO()
+    return init_PEPO(ℂ^2, ℂ^1)
 end
 
 function index_to_solve(clusters, current_indices)
@@ -231,12 +303,12 @@ function index_to_solve(clusters, current_indices)
     for c = clusters
         println("cluster = $(c)")
         current_indices, sites_to_update, nnew, contraction_indices, conjugated = new_clusters(c, current_indices)
-        levels_sites, contraction_indices, conjugated = get_levels_sites(c)
+        levels_sites, contraction_indices, conjugated, number_of_bonds = get_levels_sites(c)
         println("site to update = $(sites_to_update)")
         if nnew == 1
             @error "TBA"
         elseif nnew == 2
-            F = get_other_tensors(cluster, PEPO, levels_sites, sites_to_update, contraction_indices, conjugated)
+            A = get_other_tensors(c, PEPO, levels_sites, sites_to_update, contraction_indices, conjugated, number_of_bonds)
         elseif nnew > 2
             error("Too many new levels to implement")
         end
@@ -246,20 +318,51 @@ function index_to_solve(clusters, current_indices)
     return current_indices
 end
 
-function get_all_indices(p)
-    current_indices = Tuple{Int64, Int64, Int64, Int64}[]
-
-    for N = 2:p
-        clusters = get_nontrivial_terms(N)
-        
-        current_indices = index_to_solve(clusters, current_indices)
+function get_conjugated(dir)
+    if dir == (-1, 0) || dir == (0, 1)
+        return [Bool[0, 1, 1],Bool[0, 0, 1]]
+    else
+        return [Bool[0, 0, 1], Bool[0, 1, 1]]
     end
-    return current_indices
+end
+
+function solve_cluster(cluster, PEPO, β)
+    println("in solve cluster - cluster = $(cluster)")
+    exp_H = exponentiate_hamiltonian(cluster, β)
+
+    levels_sites = get_levels_sites(cluster)
+
+    sites_to_update = [i for (i,levels) = enumerate(levels_sites) if !(levels ∈ PEPO.keys)]
+    length(sites_to_update) == 0 && return
+    contraction_indices, conjugated, open_conjugated, open_indices, spaces, number_of_bonds = get_contraction_order(cluster, sites_to_update)
+
+    A = get_A(PEPO, levels_sites, number_of_bonds, sites_to_update, conjugated, open_conjugated, open_indices, contraction_indices)
+
+    println("sites = $(sites_to_update)")
+    dir = (cluster[sites_to_update[2]][1] - cluster[sites_to_update[1]][1], cluster[sites_to_update[2]][2] - cluster[sites_to_update[2]][2])
+    conjugated = get_conjugated(dir)
+
+    levels_to_update = levels_sites[sites_to_update]
+    solution = solve_index(length(sites_to_update), A, exp_H, conjugated, sites_to_update, length(cluster); spaces = levels_to_update)
+    merge!(PEPO, Dict(zip(levels_to_update, solution)))
+end
+
+function get_all_indices(p, β)
+    PEPO = init_PEPO()
+    for N = 2:p
+        println("N = $(N)")
+        clusters = get_nontrivial_terms(N)
+        for cluster = clusters
+            solve_cluster(cluster, PEPO, β)
+        end
+    end
+    return PEPO
 end    
 
-# all_indices = get_all_indices(4)
+β = 1
+result = get_all_indices(3, β)
 
-
+println("done")
 # # Some Manual Test
 # cluster = sort([(-2, 0), (-1, 0), (0, -1), (0, 0), (1, 0), (2, 0)])
 # cluster = sort([(-2, 0), (-1, 0), (0, -2), (0, -1), (0, 0), (1, 0), (2, 0)])
@@ -273,4 +376,12 @@ Test loop clusters
 # get_levels(cluster)
 """
 
-all_indices = get_all_indices(2)
+# all_indices = get_all_indices(2)
+
+# cluster = sort([(-2, 0), (-1, 0), (0, -2), (0, -1), (0, 0), (1, 0), (2, 0)])
+# sites_to_update = [4, 5]
+
+t1 = TensorMap(randn, ℂ^1, ℂ^2)
+t2 = Tensor(randn, (ℂ^1)')
+t3 = Tensor(randn, (ℂ^2))
+ncon([t1, t2, t3], [[-1, 2], [-2], [2]])

@@ -155,6 +155,22 @@ function get_direction(site₁, site₂)
     end
 end
 
+function get_direction(dir::Int64)
+    return 0
+end
+
+function get_direction(dir::Tuple{Int64,Int64})
+    if dir == (-1, 0)
+        return (1, 3)
+    elseif dir == (0, 1)
+        return (2, 4)
+    elseif dir == (1, 0)
+        return (3, 1)
+    elseif dir == (0, -1)
+        return (4, 2)
+    end
+end
+
 function get_graph(cluster)
     bonds_sites, bonds_indices = get_bonds(cluster)
     graph = fill(0, length(cluster), 4)
@@ -288,7 +304,7 @@ function get_contraction(cluster, sites_to_update)
 end
 
 function init_PEPO(pspace, trivspace)
-    return Dict((0,0,0,0) => TensorMap([1.0 0.0; 0.0 1.0], pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ trivspace ⊗ trivspace))   
+    return Dict((0,0,0,0) => TensorMap([1.0 0.0; 0.0 1.0], pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ trivspace' ⊗ trivspace'))   
 end
 
 function init_PEPO()
@@ -301,10 +317,8 @@ function index_to_solve(clusters, current_indices)
     trivspace = ℂ^1
     PEPO = Dict((0,0,0,0) => TensorMap([1.0 0.0; 0.0 1.0], pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ trivspace ⊗ trivspace))   
     for c = clusters
-        println("cluster = $(c)")
         current_indices, sites_to_update, nnew, contraction_indices, conjugated = new_clusters(c, current_indices)
         levels_sites, contraction_indices, conjugated, number_of_bonds = get_levels_sites(c)
-        println("site to update = $(sites_to_update)")
         if nnew == 1
             @error "TBA"
         elseif nnew == 2
@@ -312,8 +326,6 @@ function index_to_solve(clusters, current_indices)
         elseif nnew > 2
             error("Too many new levels to implement")
         end
-        println("New clusters = $(current_indices[end-nnew+1:end])")
-        println("All current indices = $(current_indices)")
     end
     return current_indices
 end
@@ -331,6 +343,7 @@ function solve_cluster(cluster, PEPO, β)
     exp_H = exponentiate_hamiltonian(cluster, β)
 
     levels_sites = get_levels_sites(cluster)
+    (levels_sites === nothing) && (return PEPO)
 
     sites_to_update = [i for (i,levels) = enumerate(levels_sites) if !(levels ∈ PEPO.keys)]
     length(sites_to_update) == 0 && return
@@ -338,12 +351,17 @@ function solve_cluster(cluster, PEPO, β)
 
     A = get_A(PEPO, levels_sites, number_of_bonds, sites_to_update, conjugated, open_conjugated, open_indices, contraction_indices)
 
-    println("sites = $(sites_to_update)")
-    dir = (cluster[sites_to_update[2]][1] - cluster[sites_to_update[1]][1], cluster[sites_to_update[2]][2] - cluster[sites_to_update[2]][2])
-    conjugated = get_conjugated(dir)
-
+    if length(sites_to_update) == 2
+        dir = (cluster[sites_to_update[2]][1] - cluster[sites_to_update[1]][1], cluster[sites_to_update[2]][2] - cluster[sites_to_update[1]][2])
+        conjugated = get_conjugated(dir)
+    elseif length(sites_to_update) == 1
+        dir = 0
+        conjugated = [Bool[0, 0, 1, 1]]
+    else
+        error("Something went terribly wrong")
+    end
     levels_to_update = levels_sites[sites_to_update]
-    solution = solve_index(length(sites_to_update), A, exp_H, conjugated, sites_to_update, length(cluster); spaces = levels_to_update)
+    solution = solve_index(length(sites_to_update), A, exp_H, conjugated, sites_to_update, levels_to_update, get_direction(dir), length(cluster); spaces = i -> ℂ^(2^(2*i)))
     merge!(PEPO, Dict(zip(levels_to_update, solution)))
 end
 
@@ -360,28 +378,6 @@ function get_all_indices(p, β)
 end    
 
 β = 1
-result = get_all_indices(3, β)
+result = get_all_indices(5, β)
 
 println("done")
-# # Some Manual Test
-# cluster = sort([(-2, 0), (-1, 0), (0, -1), (0, 0), (1, 0), (2, 0)])
-# cluster = sort([(-2, 0), (-1, 0), (0, -2), (0, -1), (0, 0), (1, 0), (2, 0)])
-# levels_indices = get_levels(cluster)
-# println(levels_indices)
-
-"""
-Test loop clusters
-# cluster = sort([(0, 0), (1, 0), (0, 1), (1, 1)])
-# cluster = sort([(0, 0), (1, 0), (0, 1), (1, 1), (1, 2)])
-# get_levels(cluster)
-"""
-
-# all_indices = get_all_indices(2)
-
-# cluster = sort([(-2, 0), (-1, 0), (0, -2), (0, -1), (0, 0), (1, 0), (2, 0)])
-# sites_to_update = [4, 5]
-
-t1 = TensorMap(randn, ℂ^1, ℂ^2)
-t2 = Tensor(randn, (ℂ^1)')
-t3 = Tensor(randn, (ℂ^2))
-ncon([t1, t2, t3], [[-1, 2], [-2], [2]])

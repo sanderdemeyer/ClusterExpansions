@@ -41,10 +41,6 @@ function get_bonds(cluster)
     return bonds_sites, bonds_indices
 end
 
-function is_horizontal(bond)
-    return (abs(bond[1][2]-bond[2][2]) == 1)*1
-end
-
 function get_levels_line(n)
     return Int.([(n+1)/2 - abs((n+1)/2 - i) for i = 1:n])
 end
@@ -244,63 +240,16 @@ function get_levels_sites(cluster)
     bonds_sites, bonds_indices = get_bonds(cluster)
     levels = get_levels(cluster)
     (levels === nothing) && (return nothing)
-    levels_sites = fill(0, length(cluster), 4) # fill([0,0,0,0], length(cluster))
-    # contraction_indices = fill(0, length(cluster), 4)
-    # conjugated = Bool[]
+    levels_sites = fill(0, length(cluster), 4)
 
     for (i,(bond_s, bond_i)) = enumerate(zip(bonds_sites,bonds_indices))
         dir = get_direction(bond_s[1], bond_s[2])
         levels_sites[bond_i[1], dir[1]] = levels[i]
         levels_sites[bond_i[2], dir[2]] = levels[i]
-        # contraction_indices[bond_i[1], dir[1]] = contraction_indices[bond_i[2], dir[2]] = i
     end
 
     levels_sites = [Tuple(levels_sites[i,:]) for i = 1:length(cluster)]
-    # sites_to_update = [i for (i,levels) = enumerate(levels_sites) if !(levels ∈ current_indices)]
-
-
-    # m = length(bonds_sites)+1 
-    # for c = 1:length(cluster)
-    #     for dir = 1:4
-    #         if contraction_indices[c, dir] == 0
-    #             contraction_indices[c, dir] = m
-    #             m += 1
-    #             push!(conjugated, dir > 2)
-    #         end
-    #     end
-    # end
-    # contraction_indices = [Tuple(contraction_indices[i,:]) for i = 1:length(cluster)]
-    # println("cluster = $(cluster)")
-    # println("contraction indices = $(contraction_indices)")
-    # println("conjugated = $(conjugated)")
-    return levels_sites#, contraction_indices, conjugated, length(bonds_sites)
-end
-
-function new_clusters(cluster, current_indices)
-    levels_sites = get_levels_sites(cluster)
-    # levels_sites, contraction_indices, conjugated, _ = get_levels_sites(cluster)
-    (levels_sites === nothing) && (return (current_indices, 0))
-    new_indices = [levels for levels = levels_sites if !(levels ∈ current_indices)]
-    sites_to_update = [i for (i,levels) = enumerate(levels_sites) if !(levels ∈ current_indices)]
-    
-    push!(current_indices, new_indices...)
-    return current_indices, sites_to_update, length(new_indices)# , contraction_indices, conjugated
-end
-
-function get_contraction(cluster, sites_to_update)
-    bonds_sites, bonds_indices = get_bonds(cluster)
-    contraction_indices = fill(0, length(cluster), 4)
-    conjugated = Bool[]
-    for (i,(bond_s, bond_i)) = enumerate(zip(bonds_sites,bonds_indices))
-        if all(sites_to_update .∈ bond_i)
-            0
-        elseif any(sites_to_update .∈ bond_i)
-            0
-        else
-            dir = get_direction(bond_s[1], bond_s[2])
-            contraction_indices[bond_i[1], dir[1]] = contraction_indices[bond_i[2], dir[2]] = i
-        end
-    end
+    return levels_sites
 end
 
 function init_PEPO(pspace, trivspace)
@@ -311,23 +260,29 @@ function init_PEPO()
     return init_PEPO(ℂ^2, ℂ^1)
 end
 
-function index_to_solve(clusters, current_indices)
-    β = 1
-    pspace = ℂ^2
-    trivspace = ℂ^1
-    PEPO = Dict((0,0,0,0) => TensorMap([1.0 0.0; 0.0 1.0], pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ trivspace ⊗ trivspace))   
-    for c = clusters
-        current_indices, sites_to_update, nnew, contraction_indices, conjugated = new_clusters(c, current_indices)
-        levels_sites, contraction_indices, conjugated, number_of_bonds = get_levels_sites(c)
-        if nnew == 1
-            @error "TBA"
-        elseif nnew == 2
-            A = get_other_tensors(c, PEPO, levels_sites, sites_to_update, contraction_indices, conjugated, number_of_bonds)
-        elseif nnew > 2
-            error("Too many new levels to implement")
-        end
+function get_size_level(highest)
+    return sum([2^(2*i) for i = 0:highest])
+end
+
+function get_location_PEPO(ind)
+    if ind == 0
+        return 1
     end
-    return current_indices
+    h = get_size_level(ind-1)
+    return h+1:h+2^(2*ind)
+end
+
+function get_PEPO(pspace, PEPO)
+    highest = [get_size_level(maximum([i[dir] for i = keys(PEPO)])) for dir = 1:4]
+    conjugated = Bool[0, 0, 1, 1]
+    O = TensorMap(pspace ⊗ pspace', prod([conj ? (ℂ^h)' : ℂ^h for (conj,h) = zip(conjugated,highest)]))
+
+    for (key, tens) = PEPO
+        places = [get_location_PEPO(ind) for ind = key]
+        O[][:,:,places[1],places[2],places[3],places[4]] = tens[]
+    end
+
+    return O
 end
 
 function get_conjugated(dir)
@@ -378,6 +333,13 @@ function get_all_indices(p, β)
 end    
 
 β = 1
-result = get_all_indices(5, β)
-
+result = get_all_indices(3, β)
+O = get_PEPO(ℂ^2, result)
 println("done")
+
+# x0 = TensorMap(randn, ℂ^2 ⊗ (ℂ^2)' ← ℂ^(7) ⊗ ℂ^(6) ⊗ (ℂ^(8))' ⊗ (ℂ^(4))')
+# summary(x0)
+
+# sol = TensorMap(randn, ℂ^2 ⊗ (ℂ^2)' ← ℂ^(4) ⊗ ℂ^(1) ⊗ (ℂ^(4))' ⊗ (ℂ^(1))')
+
+# x0[][:,:,1:4,1,5:8,1] = sol[];

@@ -97,7 +97,7 @@ function permute_dir(x, dir, second)
     return permute(x, ((1,2).+second, (Tuple(tup))))
 end
 
-function solve_index(updates, A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N; spaces = i -> ℂ^(2^(2*i)))
+function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N; spaces = i -> ℂ^(2^(2*i)))
     pspace = ℂ^2
     trivspace = ℂ^1
     # x0 = TensorMap(randn, pspace ⊗ pspace' ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[1]]), pspace ⊗ pspace' ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))

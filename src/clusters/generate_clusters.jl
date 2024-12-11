@@ -316,7 +316,7 @@ function solve_cluster(cluster, PEPO, β)
         error("Something went terribly wrong")
     end
     levels_to_update = levels_sites[sites_to_update]
-    solution = solve_index(length(sites_to_update), A, exp_H, conjugated, sites_to_update, levels_to_update, get_direction(dir), length(cluster); spaces = i -> ℂ^(2^(2*i)))
+    solution = solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, get_direction(dir), length(cluster); spaces = i -> ℂ^(2^(2*i)))
     merge!(PEPO, Dict(zip(levels_to_update, solution)))
 end
 
@@ -334,12 +334,15 @@ end
 
 β = 1
 result = get_all_indices(3, β)
-O = get_PEPO(ℂ^2, result)
 println("done")
+
+cluster = [(-1, 0), (0, 0), (1, 0)]
 
 # x0 = TensorMap(randn, ℂ^2 ⊗ (ℂ^2)' ← ℂ^(7) ⊗ ℂ^(6) ⊗ (ℂ^(8))' ⊗ (ℂ^(4))')
 # summary(x0)
 
-# sol = TensorMap(randn, ℂ^2 ⊗ (ℂ^2)' ← ℂ^(4) ⊗ ℂ^(1) ⊗ (ℂ^(4))' ⊗ (ℂ^(1))')
 
 # x0[][:,:,1:4,1,5:8,1] = sol[];
+
+# loop = [(0,0),(0,1),(1,0),(1,1)]
+# exp_H = exponentiate_hamiltonian(loop, β)

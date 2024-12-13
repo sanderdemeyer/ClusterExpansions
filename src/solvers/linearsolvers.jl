@@ -1,7 +1,3 @@
-function apply_contraction(x, PEPO, cluster_levels)
-    return nothing
-end
-
 function get_triv_tensors(conjugated, trivspace)
     tensor = Tensor([1.0], trivspace)
     tensor_conj = Tensor([1.0], trivspace')
@@ -100,6 +96,7 @@ end
 function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N; spaces = i -> ℂ^(2^(2*i)))
     pspace = ℂ^2
     trivspace = ℂ^1
+    
     # x0 = TensorMap(randn, pspace ⊗ pspace' ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[1]]), pspace ⊗ pspace' ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
     if N == 2
         x = TensorMap(randn, pspace ⊗ pspace' ⊗ prod([conj ? trivspace : trivspace' for conj = conjugated[1]]), pspace' ⊗ pspace ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
@@ -124,6 +121,7 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
         x1 = apply_A_onesite(A, Ax, sites_to_update, N, Val{true}())
         @assert (x0.dom == x1.dom) && (x0.codom == x1.codom)
         @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
+
 
         x, info = linsolve(apply_A, exp_H, x0, LSMR(verbosity = 1))
         x = [x]
@@ -150,6 +148,7 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
         end
         x = [x1 x2]
     end
+
     return x
     spaces = [(0, 0, 0, 0)]
     sp = spaces[1]

@@ -110,7 +110,9 @@ function get_levels(cluster)
             @warn "Cycles of size >= 6 not yet implemented"
             return nothing
         end
-        @warn "Cycles not implemented"
+        if length(cluster) >= 5
+            @warn "Cycles not implemented for N = $(length(cluster)) >= 5"
+        end
         return nothing
     end
 
@@ -252,21 +254,37 @@ function get_levels_sites(cluster)
     return levels_sites
 end
 
-function init_PEPO(pspace, trivspace)
+function init_PEPO(pspace::ElementarySpace, trivspace::ElementarySpace)
     return Dict((0,0,0,0) => TensorMap([1.0 0.0; 0.0 1.0], pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ trivspace' ⊗ trivspace'))   
+end
+
+function init_PEPO(pspace::ElementarySpace, trivspace::ElementarySpace, onesite_op::AbstractTensorMap)
+    A = TensorMap(zeros, pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ trivspace' ⊗ trivspace')
+    A[][:,:,1,1,1,1] = exp(-onesite_op)[]
+    return Dict((0,0,0,0) => A)
 end
 
 function init_PEPO()
     return init_PEPO(ℂ^2, ℂ^1)
 end
 
+function init_PEPO(onesite_op::AbstractTensorMap)
+    return init_PEPO(ℂ^2, ℂ^1, onesite_op)
+end
+
 function get_size_level(highest)
     return sum([2^(2*i) for i = 0:highest])
 end
 
-function get_location_PEPO(ind)
+function get_size_level_loop(highest)
+    return -10*highest
+end
+
+function get_location_PEPO(ind, highest)
     if ind == 0
         return 1
+    elseif ind < 0
+        return highest+1-10*(ind-1):highest-10*ind
     end
     h = get_size_level(ind-1)
     return h+1:h+2^(2*ind)
@@ -274,14 +292,13 @@ end
 
 function get_PEPO(pspace, PEPO)
     highest = [get_size_level(maximum([i[dir] for i = keys(PEPO)])) for dir = 1:4]
+    highest_loop = [get_size_level_loop(minimum([i[dir] for i = keys(PEPO)])) for dir = 1:4]
     conjugated = Bool[0, 0, 1, 1]
-    O = TensorMap(pspace ⊗ pspace', prod([conj ? (ℂ^h)' : ℂ^h for (conj,h) = zip(conjugated,highest)]))
-
+    O = TensorMap(zeros, pspace ⊗ pspace', prod([conj ? (ℂ^(h+hloop))' : ℂ^(h+hloop) for (conj,h,hloop) = zip(conjugated,highest, highest_loop)]))
     for (key, tens) = PEPO
-        places = [get_location_PEPO(ind) for ind = key]
+        places = [get_location_PEPO(ind, highest) for ind = key]
         O[][:,:,places[1],places[2],places[3],places[4]] = tens[]
     end
-
     return O
 end
 
@@ -293,12 +310,21 @@ function get_conjugated(dir)
     end
 end
 
-function solve_cluster(cluster, PEPO, β)
+function solve_cluster(cluster, PEPO, β, twosite_op)
     println("in solve cluster - cluster = $(cluster)")
-    exp_H = exponentiate_hamiltonian(cluster, β)
+    exp_H = exponentiate_hamiltonian(twosite_op, cluster, β, length(cluster))
+    residual = contract_PEPS(cluster, PEPO)
+    RHS = exp_H - residual
+    @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
 
     levels_sites = get_levels_sites(cluster)
-    (levels_sites === nothing) && (return PEPO)
+    if levels_sites === nothing
+        α = 10
+        (levels_sites === nothing) && (return PEPO)
+        levels_to_update, solution, err = solve_4_loop(α, RHS)
+        merge!(PEPO, Dict(zip(levels_to_update, solution)))
+        return
+    end
 
     sites_to_update = [i for (i,levels) = enumerate(levels_sites) if !(levels ∈ PEPO.keys)]
     length(sites_to_update) == 0 && return
@@ -316,27 +342,29 @@ function solve_cluster(cluster, PEPO, β)
         error("Something went terribly wrong")
     end
     levels_to_update = levels_sites[sites_to_update]
-    solution = solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, get_direction(dir), length(cluster); spaces = i -> ℂ^(2^(2*i)))
+    solution = solve_index(A, exp_H-residual, conjugated, sites_to_update, levels_to_update, get_direction(dir), length(cluster); spaces = i -> ℂ^(2^(2*i)))
     merge!(PEPO, Dict(zip(levels_to_update, solution)))
 end
 
-function get_all_indices(p, β)
-    PEPO = init_PEPO()
+function get_all_indices(PEPO, p, β, twosite_op)
     for N = 2:p
         println("N = $(N)")
         clusters = get_nontrivial_terms(N)
         for cluster = clusters
-            solve_cluster(cluster, PEPO, β)
+            solve_cluster(cluster, PEPO, β, twosite_op)
         end
     end
     return PEPO
 end    
 
-β = 1
-result = get_all_indices(3, β)
-println("done")
+function clusterexpansion(p, β, twosite_op, onesite_op)
+    pspace = onesite_op.dom[1]
+    PEPO₀ = init_PEPO(onesite_op)
+    PEPO = get_all_indices(PEPO₀, p, β, twosite_op)
+    return get_PEPO(pspace, PEPO)
+end
 
-cluster = [(-1, 0), (0, 0), (1, 0)]
+# cluster = [(-1, 0), (0, 0), (1, 0)]
 
 # x0 = TensorMap(randn, ℂ^2 ⊗ (ℂ^2)' ← ℂ^(7) ⊗ ℂ^(6) ⊗ (ℂ^(8))' ⊗ (ℂ^(4))')
 # summary(x0)

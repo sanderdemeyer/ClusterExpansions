@@ -319,11 +319,12 @@ function solve_cluster(cluster, PEPO, β, twosite_op)
 
     levels_sites = get_levels_sites(cluster)
     if levels_sites === nothing
-        α = 10
-        (levels_sites === nothing) && (return PEPO)
-        levels_to_update, solution, err = solve_4_loop(α, RHS)
-        merge!(PEPO, Dict(zip(levels_to_update, solution)))
-        return
+        if N == 4.1
+            levels_to_update, solution, err = solve_4_loop(α, RHS)
+            merge!(PEPO, Dict(zip(levels_to_update, solution)))
+        else
+            (levels_sites === nothing) && (return PEPO)
+        end
     end
 
     sites_to_update = [i for (i,levels) = enumerate(levels_sites) if !(levels ∈ PEPO.keys)]

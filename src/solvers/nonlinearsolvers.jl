@@ -95,62 +95,61 @@ function solve_N_loop(Ns, C, exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_i
     return A
 end
 
-using TensorKit
-using MPSKitModels
-using Graphs
-using LongestPaths
-# using ClusterExpansions
-using OptimKit
-import PEPSKit: rmul!, σᶻᶻ, σˣ
+# using TensorKit
+# using MPSKitModels
+# using Graphs
+# # using ClusterExpansions
+# using OptimKit
+# import PEPSKit: rmul!, σᶻᶻ, σˣ
 
-p = 2
-β = 1
-D = 2
-χenv = 12
+# p = 2
+# β = 1
+# D = 2
+# χenv = 12
 
-J = 1.0
-g = 1.0
-N1, N2 = (1,1)
+# J = 1.0
+# g = 1.0
+# N1, N2 = (1,1)
 
-twosite_op = rmul!(σᶻᶻ(), -1.0)
-onesite_op = rmul!(σˣ(), g * -J)
+# twosite_op = rmul!(σᶻᶻ(), -1.0)
+# onesite_op = rmul!(σˣ(), g * -J)
 
-pspace = ℂ^2
+# pspace = ℂ^2
 
-α = 6
-pspace = ℂ^2
-space = ℂ^α
-A = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
-α = 40
-ϵ = 1e-10
-max_iter = 2000
+# α = 6
+# pspace = ℂ^2
+# space = ℂ^α
+# A = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
+# α = 40
+# ϵ = 1e-10
+# max_iter = 2000
 
-step_size = 1e-5
-Ns = [1, 0, 1, 0]
+# step_size = 1e-5
+# Ns = [1, 0, 1, 0]
 
-cluster = [(0,0)]
-for dir = 1:4
-    for i = 1:Ns[dir]+1
-        latest = cluster[end]
-        if dir == 1
-            push!(cluster, (latest[1]+1, latest[2]))
-        elseif dir == 2
-            push!(cluster, (latest[1], latest[2]+1))
-        elseif dir == 3
-            push!(cluster, (latest[1]-1, latest[2]))
-        else
-            push!(cluster, (latest[1], latest[2]-1))
-        end
-    end
-end      
-cluster = sort(cluster[1:end-1])      
-println("cluster = $(cluster)")
-exp_H = exponentiate_hamiltonian(twosite_op, cluster, β, length(cluster))
+# cluster = [(0,0)]
+# for dir = 1:4
+#     for i = 1:Ns[dir]+1
+#         latest = cluster[end]
+#         if dir == 1
+#             push!(cluster, (latest[1]+1, latest[2]))
+#         elseif dir == 2
+#             push!(cluster, (latest[1], latest[2]+1))
+#         elseif dir == 3
+#             push!(cluster, (latest[1]-1, latest[2]))
+#         else
+#             push!(cluster, (latest[1], latest[2]-1))
+#         end
+#     end
+# end      
+# cluster = sort(cluster[1:end-1])      
+# println("cluster = $(cluster)")
+# exp_H = exponentiate_hamiltonian(twosite_op, cluster, β, length(cluster))
 
 
-# loop = contract_tensors_N_loop([1, 0, 1, 0], A, A);
-# g = get_gradient_N_loop([1, 0, 1, 0], A, A);
-Anew = solve_N_loop(Ns, A, exp_H; α = 10, step_size = 1e-8, ϵ = 1e-9, max_iter = 1000)
+# # loop = contract_tensors_N_loop([1, 0, 1, 0], A, A);
+# # g = get_gradient_N_loop([1, 0, 1, 0], A, A);
+# Anew = solve_N_loop(Ns, A, exp_H; α = 10, step_size = 1e-8, ϵ = 1e-9, max_iter = 1000)
 
-println(summary(loop))
-println(summary(g))
+# println(summary(loop))
+# println(summary(g))

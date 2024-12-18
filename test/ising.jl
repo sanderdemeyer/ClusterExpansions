@@ -1,7 +1,6 @@
 using TensorKit
 using MPSKitModels
 using Graphs
-using LongestPaths
 using ClusterExpansions
 using OptimKit
 import PEPSKit: rmul!, σᶻᶻ, σˣ, InfiniteSquare

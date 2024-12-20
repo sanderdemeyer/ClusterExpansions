@@ -52,12 +52,17 @@ function contract_PEPS(cluster, PEPO)
     end
     # triv_tensors = [conj ? tensor_conj : tensor for conj = conjugated]
     nontriv_tensors = fill(O, N)
-    triv_contractions = [[i] for i = start_count+1:start_count+count-1]
+    # triv_contractions = [[i] for i = start_count+1:start_count+count-1]
+    triv_contractions = [[i] for i = 1:count-1]
 
-    all_contractions = vcat([contraction_indices[i,:] for i = 1:size(contraction_indices)[1]], triv_contractions)
+    # Swap the order, first do the trivial contractions to improve efficiency
+    conversion = merge!(Dict(j => j+count-1 for j = 1:start_count), Dict(j => j-start_count for j = start_count+1:start_count+count-1))
+    nontriv_contractions_base = [contraction_indices[i,:] for i = 1:size(contraction_indices)[1]]
+    nontriv_contractions = [[(j > 0) ? conversion[j] : j for j = contraction] for contraction = nontriv_contractions_base]
+
+    all_contractions = vcat(nontriv_contractions, triv_contractions)
     all_tensors = vcat(nontriv_tensors, triv_tensors)
 
-    contracted = ncon(all_tensors, all_contractions)
-    
-    return permute(contracted, (Tuple(1:N),Tuple(N+1:2*N)))
+    contracted_tens = ncon(all_tensors, all_contractions)
+    return permute(contracted_tens, (Tuple(1:N),Tuple(N+1:2*N)))
 end

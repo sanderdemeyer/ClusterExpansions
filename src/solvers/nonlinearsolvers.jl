@@ -67,7 +67,7 @@ function solve_4_loop(exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1
         end
     end
     error = norm(contract_tensors_symmetric(A) - exp_H)
-    @warn "Not converged after $(max_iter) iterations - error = $(error)"    
+    @warn "Not converged after $(max_iter) iterations - error = $(error)"
     return A
 end
 
@@ -76,12 +76,11 @@ function solve_N_loop(Ns, C, exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_i
     space = ℂ^α
     C = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
     A = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
+    error = ϵ + 1
     for i = 1:max_iter
         for dir = 1:4
             for j = 1:Ns[dir]
                 A_nudge, error = get_A_N_loop(Ns, C, A, exp_H, dir, j)
-                println("norm A = $(norm(A)), norm A_nudge = $(norm(A_nudge)), error = $(error)")
-                println("relative error = $(error/norm(exp_H))")
                 A = A - step_size*A_nudge
             end
         end

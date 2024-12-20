@@ -29,6 +29,7 @@ function get_PEPO(pspace, PEPO)
 end
 
 function solve_cluster(cluster, PEPO, β, twosite_op)
+    N = length(cluster)
     println("in solve cluster - cluster = $(cluster)")
     exp_H = exponentiate_hamiltonian(twosite_op, cluster, β, length(cluster))
     residual = contract_PEPS(cluster, PEPO)
@@ -36,6 +37,14 @@ function solve_cluster(cluster, PEPO, β, twosite_op)
     @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
 
     levels_sites = get_levels_sites(cluster)
+    if N == 4
+        if loops
+            levels_sites = nothing
+            A = solve_4_loop(exp_H; α = 10)
+        else
+            levels_sites = [(0, 1, 0, 0), (0, 0, -2, 1), (-2, 0, 0, 1), (0, 1, 0, 0)]
+        end
+    end
     if levels_sites === nothing
         if N == 4.1
             levels_to_update, solution, err = solve_4_loop(α, RHS)
@@ -66,13 +75,15 @@ function solve_cluster(cluster, PEPO, β, twosite_op)
 end
 
 function get_all_indices(PEPO, p, β, twosite_op)
-    for N = 2:p
+    for N = 2:2
         println("N = $(N)")
         clusters = get_nontrivial_terms(N)
         for cluster = clusters
             solve_cluster(cluster, PEPO, β, twosite_op)
         end
     end
+    cluster = [(0,0),(1,0),(1,1),(0,1)]
+    solve_cluster(cluster, PEPO, β, twosite_op)
     return PEPO
 end    
 
@@ -82,14 +93,3 @@ function clusterexpansion(p, β, twosite_op, onesite_op)
     PEPO = get_all_indices(PEPO₀, p, β, twosite_op)
     return get_PEPO(pspace, PEPO)
 end
-
-# cluster = [(-1, 0), (0, 0), (1, 0)]
-
-# x0 = TensorMap(randn, ℂ^2 ⊗ (ℂ^2)' ← ℂ^(7) ⊗ ℂ^(6) ⊗ (ℂ^(8))' ⊗ (ℂ^(4))')
-# summary(x0)
-
-
-# x0[][:,:,1:4,1,5:8,1] = sol[];
-
-# loop = [(0,0),(0,1),(1,0),(1,1)]
-# exp_H = exponentiate_hamiltonian(loop, β)

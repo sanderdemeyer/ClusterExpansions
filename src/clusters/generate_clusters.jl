@@ -97,11 +97,12 @@ end
 
 function find_longest_path(g, N)
     println("N = $(N)")
-    start_edge = 1
-    max_dist = 1
-    end_edge = 1
+    start_edge = 0
+    max_dist = 0
+    end_edge = 0
     for i = 1:N
         gdist = gdistances(g, i)
+        println("gdist = $(gdist)")
         dist = maximum(gdist)
         if dist > max_dist
             start_edge = i
@@ -109,7 +110,7 @@ function find_longest_path(g, N)
             end_edge = findall(x->x==max_dist, gdist)
         end
     end
-    return a_star(g, start_edge, end_edge[1]), max_dist-1
+    return a_star(g, start_edge, end_edge[1]), max_dist+1
 end
 
 function get_longest_path(cluster)
@@ -117,9 +118,11 @@ function get_longest_path(cluster)
     _, bonds_indices = get_bonds(cluster)
     bonds_rev = [(j,i) for (i,j) = bonds_indices]
     bonds_bi = unique(vcat(bonds_indices, bonds_rev))
+    println("bonds_bi = $(bonds_bi)")
     g_dir = SimpleDiGraph(Graphs.SimpleEdge.(bonds_bi))
 
     longest_path_graph, n = find_longest_path(g_dir, N)
+    println("lpg = $(longest_path_graph), n = $(n)")
     longest_path = vcat([longest_path_graph[1].src], [l.dst for l = longest_path_graph])
     return longest_path, n
 end
@@ -135,7 +138,8 @@ function get_longest_cycle(cluster)
     g_dir = SimpleDiGraph(Graphs.SimpleEdge.(bonds_bi))
     cycles = cycle_basis(g_dir)
 
-    length(cycles) == 1 && return cycles[1]
+    length(cycles) == 0 && return (nothing, 0)
+    length(cycles) == 1 && return (cycles[1], 1)
     edges = []
     for (i,cyc1) = enumerate(cycles)
         for (j,cyc2) = enumerate(cycles[i:end])
@@ -145,11 +149,13 @@ function get_longest_cycle(cluster)
             end
         end
     end
+    println("bonds_bi, edges = $(edges)")
+
     g_dir = SimpleDiGraph(Graphs.SimpleEdge.(edges))
-    longest_cycle_graph, n = find_longest_path(g_dir, length(edges))
+    longest_cycle_graph, m = find_longest_path(g_dir, length(edges))
     println("longest = $(longest_cycle_graph), n = $(n)")
     longest_cycle = vcat([longest_cycle_graph[1].src], [l.dst for l = longest_cycle_graph])
-    return longest_cycle, n
+    return longest_cycle, m
 end
 
 function get_levels(cluster)
@@ -159,10 +165,11 @@ function get_levels(cluster)
 
     longest_path, n = get_longest_path(cluster)
     # longest_cycle = find_longest_cycle(g, log_level = 0)
-    longest_cycle = cycle_basis(g_dir)
+    longest_cycle, m = get_longest_cycle(cluster)
     coo = get_coordination_number(cluster)
-
-    if (longest_cycle.lower_bound > 2)
+    println("lp = $(longest_path), n = $(n)")
+    println("lc = $(longest_cycle), m = $(m)")
+    if m >= 1
         if longest_cycle.lower_bound >= 6
             @warn "Cycles of size >= 6 not yet implemented"
             return nothing
@@ -173,12 +180,12 @@ function get_levels(cluster)
         return nothing
     end
 
-    lp = longest_path.longest_path
-    println("lp = $(lp)")
-    println(a)
+    lp = longest_path
+    println("lp = $(lp), n = $(n)")
     levels_line = get_levels_line(n)
+    println("levels_line = $(levels_line)")
     levels_dict = Dict()
-    for i = 1:n
+    for i = 1:n-1
         indices = [lp[i],lp[i+1]]
         levels_dict[Tuple(sort(indices))] = levels_line[i]
     end
@@ -338,80 +345,3 @@ function get_conjugated(dir)
         return [Bool[0, 0, 1], Bool[0, 1, 1]]
     end
 end
-
-function solve_cluster(cluster, PEPO, β, twosite_op; loops = true)
-    N = length(cluster)
-    println("in solve cluster - cluster = $(cluster)")
-    exp_H = exponentiate_hamiltonian(twosite_op, cluster, β, length(cluster))
-    residual = contract_PEPS(cluster, PEPO)
-    RHS = exp_H - residual
-    @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
-
-    levels_sites = get_levels_sites(cluster)
-    if N == 4
-        if loops
-            levels_sites = nothing
-            A = solve_4_loop(exp_H; α = 10)
-        else
-            levels_sites = [(0, 1, 0, 0), (0, 0, -2, 1), (-2, 0, 0, 1), (0, 1, 0, 0)]
-        end
-    end
-    if levels_sites === nothing
-        if N == 4.1
-            levels_to_update, solution, err = solve_4_loop(α, RHS)
-            merge!(PEPO, Dict(zip(levels_to_update, solution)))
-        else
-            (levels_sites === nothing) && (return PEPO)
-        end
-    end
-
-    sites_to_update = [i for (i,levels) = enumerate(levels_sites) if !(levels ∈ PEPO.keys)]
-    length(sites_to_update) == 0 && return
-    contraction_indices, conjugated, open_conjugated, open_indices, spaces, number_of_bonds = get_contraction_order(cluster, sites_to_update)
-
-    A = get_A(PEPO, levels_sites, number_of_bonds, sites_to_update, conjugated, open_conjugated, open_indices, contraction_indices)
-
-    if length(sites_to_update) == 2
-        dir = (cluster[sites_to_update[2]][1] - cluster[sites_to_update[1]][1], cluster[sites_to_update[2]][2] - cluster[sites_to_update[1]][2])
-        conjugated = get_conjugated(dir)
-    elseif length(sites_to_update) == 1
-        dir = 0
-        conjugated = [Bool[0, 0, 1, 1]]
-    else
-        error("Something went terribly wrong")
-    end
-    levels_to_update = levels_sites[sites_to_update]
-    solution = solve_index(A, exp_H-residual, conjugated, sites_to_update, levels_to_update, get_direction(dir), length(cluster); spaces = i -> ℂ^(2^(2*i)))
-    merge!(PEPO, Dict(zip(levels_to_update, solution)))
-end
-
-function get_all_indices(PEPO, p, β, twosite_op)
-    for N = 2:2
-        println("N = $(N)")
-        clusters = get_nontrivial_terms(N)
-        for cluster = clusters
-            solve_cluster(cluster, PEPO, β, twosite_op)
-        end
-    end
-    cluster = [(0,0),(1,0),(1,1),(0,1)]
-    solve_cluster(cluster, PEPO, β, twosite_op; loops = false)
-    return PEPO
-end    
-
-function clusterexpansion(p, β, twosite_op, onesite_op)
-    pspace = onesite_op.dom[1]
-    PEPO₀ = init_PEPO(onesite_op)
-    PEPO = get_all_indices(PEPO₀, p, β, twosite_op)
-    return get_PEPO(pspace, PEPO)
-end
-
-# cluster = [(-1, 0), (0, 0), (1, 0)]
-
-# x0 = TensorMap(randn, ℂ^2 ⊗ (ℂ^2)' ← ℂ^(7) ⊗ ℂ^(6) ⊗ (ℂ^(8))' ⊗ (ℂ^(4))')
-# summary(x0)
-
-
-# x0[][:,:,1:4,1,5:8,1] = sol[];
-
-# loop = [(0,0),(0,1),(1,0),(1,1)]
-# exp_H = exponentiate_hamiltonian(loop, β)

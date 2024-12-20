@@ -1,10 +1,10 @@
 using TensorKit
 using MPSKitModels
 using Graphs
-using LongestPaths
 using OptimKit
-import ClusterExpansions: clusterexpansion
+using ClusterExpansions
 import PEPSKit: rmul!, σᶻᶻ, σˣ
+
 p = 2
 β = 1
 D = 2

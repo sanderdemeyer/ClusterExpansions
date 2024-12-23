@@ -4,17 +4,71 @@ function get_triv_tensors(conjugated, trivspace)
     return [conj ? tensor_conj : tensor for conj = conjugated] 
 end
 
-function get_A(PEPO, levels_sites, number_of_bonds, sites_to_update, conjugated, open_conjugated, open_indices, contraction_indices)
+function get_F(cluster, PEPO, sites_to_update)
+    updates = length(sites_to_update)
+    fixed_tensors = cluster.N - updates 
+    graph = get_graph(cluster)
+    contraction_indices = fill(0, fixed_tensors, 6)
+    for i = 1:fixed_tensors
+        contraction_indices[i,1] = -i
+        contraction_indices[i,2] = -(fixed_tensors+i)
+    end
+    included_sites = setdiff(1:cluster.N, sites_to_update)
+    conv = i -> i-sum([j ∈ sites_to_update for j = 1:i])
+    m = 1
+    for i = included_sites
+        for j = 1:4
+            if !(graph[i,j] ∈ (0, sites_to_update...)) && (contraction_indices[conv(i),j+2] == 0)
+                ind = findall(x -> x == i, graph[graph[i,j],:])[1]
+                contraction_indices[conv(i),j+2] = m 
+                contraction_indices[conv(graph[i,j]),ind+2] = m
+                m += 1
+            end
+        end
+    end
+    number_of_bonds = copy(m)-1
+    conjugated = Bool[]
+    for i = included_sites
+        for j = 1:4
+            if (graph[i,j] == 0)
+                contraction_indices[conv(i),j+2] = m
+                push!(conjugated, j > 2)
+                m += 1
+            end
+        end
+    end
+    open_conjugated = Bool[]
+    open_indices = Int[]
+    spaces = fill((0,0), updates, 5-updates)
+    m = 2*fixed_tensors+1
+    opposite = dir -> 4 - dir + 2*(dir ∈ (2,4))
+    for (enum,i) = enumerate(sites_to_update)
+        kⱼ = 0
+        for j = 1:4
+            if graph[i,j] ∉ sites_to_update
+                kⱼ += 1
+                if graph[i,j] == 0
+                    push!(open_conjugated, j > 2)
+                    push!(open_indices, -m)
+                else
+                    ind = findall(x -> x == i, graph[graph[i,j],:])[1]
+                    contraction_indices[conv(graph[i,j]),ind+2] = -m
+                    spaces[enum, kⱼ] = (graph[i,j],opposite(j))
+                end
+                m += 1
+            end
+        end
+    end
+
     trivspace = ℂ^1
-    included_sites = setdiff(1:length(levels_sites)[1], sites_to_update)
-    nontriv_tensors = [PEPO[levels_sites[site]] for site = included_sites]
+    included_sites = setdiff(1:length(cluster.levels_sites)[1], sites_to_update)
+    nontriv_tensors = [PEPO[cluster.levels_sites[site]] for site = included_sites]
     triv_tensors = vcat(get_triv_tensors(conjugated, trivspace), get_triv_tensors(open_conjugated, trivspace))
     triv_contractions = vcat([[number_of_bonds+i] for i = 1:length(conjugated)], [[i] for i = open_indices])
     all_contractions = vcat([contraction_indices[i,:] for i = 1:size(contraction_indices)[1]], triv_contractions)
     all_tensors = vcat(nontriv_tensors, triv_tensors)
 
-    A = ncon(all_tensors, all_contractions)
-    return A
+    return ncon(all_tensors, all_contractions)
 end
 
 function apply_A_onesite(A, x::TensorMap, sites_to_update, N, ::Val{false})
@@ -112,7 +166,7 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
         @assert (x0.dom == x1.dom) && (x0.codom == x1.codom)
         @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
 
-        x, info = linsolve(apply_A, exp_H, x0, LSMR(verbosity = 1))
+        x, info = linsolve(apply_A, exp_H, x0, LSMR(verbosity = 1, maxiter = 1000))
     elseif length(sites_to_update) == 1
         x0 = TensorMap(randn, pspace ⊗ pspace', prod([conj ? spaces(levels_to_update[1][i])' : spaces(levels_to_update[1][i]) for (i,conj) = enumerate(conjugated[1])]))
         apply_A = (x, val) -> apply_A_onesite(A, x, sites_to_update, N, val)
@@ -123,7 +177,7 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
         @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
 
 
-        x, info = linsolve(apply_A, exp_H, x0, LSMR(verbosity = 1))
+        x, info = linsolve(apply_A, exp_H, x0, LSMR(verbosity = 1, maxiter = 1000))
         x = [x]
     else
         error("Something went terribly wrong")
@@ -150,24 +204,4 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
     end
 
     return x
-    spaces = [(0, 0, 0, 0)]
-    sp = spaces[1]
-    return [TensorMap(randn, ℂ^2 ⊗ (ℂ^2)' ← ℂ^(1) ⊗ ℂ^(1) ⊗ (ℂ^(1))' ⊗ (ℂ^(1))') for sp in spaces]
-    return [TensorMap(randn, ℂ^2 ⊗ (ℂ^2)' ← ℂ^(sp[1]+1) ⊗ ℂ^(sp[2]+1) ⊗ (ℂ^(sp[3]+1))' ⊗ (ℂ^(sp[4]+1))') for sp in spaces]
-end
-
-function twosite_update(cluster, β, sites_to_update, contraction_indices, conjugated)
-    bonds_sites, bonds_indices = get_bonds(cluster)
-
-    # F = apply_contraction(x, PEPO, )
-
-    current_tensors = []
-
-    RHS = exponentiate_hamiltonian(cluster, β)
-    pspace = ℂ^2
-    edge = Tensor([1.0], ℂ^1)
-    conj_edge = Tensor([1.0], (ℂ^1)')
-    x0 = TensorMap(randn, pspace ⊗ pspace, pspace ⊗ pspace)
-    f = x -> apply_contraction(x, PEPO, cluster_levels)
-    x = linsolve(f, RHS, x0)
 end

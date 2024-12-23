@@ -5,7 +5,7 @@ using OptimKit
 using ClusterExpansions
 import PEPSKit: rmul!, σᶻᶻ, σˣ
 
-p = 2
+p = 4
 β = 1
 D = 2
 χenv = 12
@@ -19,4 +19,9 @@ onesite_op = rmul!(σˣ(), g * -J)
 
 pspace = ℂ^2
 
-O = clusterexpansion(p, β, twosite_op, onesite_op)
+O = clusterexpansion(p, β, twosite_op, onesite_op);
+println(summary(O))
+# using JLD2
+# file = jldopen("Ising_PEPO_p_2.jld2", "w")
+# file["O"] = O
+# close(file)

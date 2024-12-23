@@ -3,6 +3,18 @@ function contract_tensors_symmetric(A)
     return permute(loop, ((1,2,3,4),(5,6,7,8)))
 end
 
+function construct_PEPO_loop(A, pspace, vspace, trivspace)
+    A_NW = TensorMap(zeros, pspace ⊗ pspace', trivspace ⊗ vspace ⊗ vspace' ⊗ trivspace')
+    A_NE = TensorMap(zeros, pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ vspace' ⊗ vspace')
+    A_SE = TensorMap(zeros, pspace ⊗ pspace', vspace ⊗ trivspace ⊗ trivspace' ⊗ vspace')
+    A_SW = TensorMap(zeros, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')
+    A_NW[][:,:,1,:,:,1] = A[]
+    A_NE[][:,:,1,1,:,:] = A[]
+    A_SE[][:,:,:,1,1,:] = A[]
+    A_SW[][:,:,:,:,1,1] = A[]
+    return [A_NW, A_NE, A_SE, A_SW]
+end
+
 function contract_tensors_N_loop(Ns, C, A)
     N = sum(Ns) + 4
     tens = vcat([C], fill(A, Ns[1]), [C], fill(A, Ns[2]), [C], fill(A, Ns[3]), [C], fill(A, Ns[4]))
@@ -57,6 +69,7 @@ end
 function solve_4_loop(exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1000)
     pspace = ℂ^2
     space = ℂ^α
+    trivspace = ℂ^1
     A = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
     for i = 1:max_iter
         A_nudge, error = get_A(A, exp_H)
@@ -68,7 +81,8 @@ function solve_4_loop(exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1
     end
     error = norm(contract_tensors_symmetric(A) - exp_H)
     @warn "Not converged after $(max_iter) iterations - error = $(error)"
-    return A
+    As = construct_PEPO_loop(A, pspace, space, trivspace)
+    return As
 end
 
 function solve_N_loop(Ns, C, exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1000)
@@ -93,62 +107,3 @@ function solve_N_loop(Ns, C, exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_i
     @warn "Not converged after $(max_iter) iterations - error = $(error)"    
     return A
 end
-
-# using TensorKit
-# using MPSKitModels
-# using Graphs
-# # using ClusterExpansions
-# using OptimKit
-# import PEPSKit: rmul!, σᶻᶻ, σˣ
-
-# p = 2
-# β = 1
-# D = 2
-# χenv = 12
-
-# J = 1.0
-# g = 1.0
-# N1, N2 = (1,1)
-
-# twosite_op = rmul!(σᶻᶻ(), -1.0)
-# onesite_op = rmul!(σˣ(), g * -J)
-
-# pspace = ℂ^2
-
-# α = 6
-# pspace = ℂ^2
-# space = ℂ^α
-# A = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
-# α = 40
-# ϵ = 1e-10
-# max_iter = 2000
-
-# step_size = 1e-5
-# Ns = [1, 0, 1, 0]
-
-# cluster = [(0,0)]
-# for dir = 1:4
-#     for i = 1:Ns[dir]+1
-#         latest = cluster[end]
-#         if dir == 1
-#             push!(cluster, (latest[1]+1, latest[2]))
-#         elseif dir == 2
-#             push!(cluster, (latest[1], latest[2]+1))
-#         elseif dir == 3
-#             push!(cluster, (latest[1]-1, latest[2]))
-#         else
-#             push!(cluster, (latest[1], latest[2]-1))
-#         end
-#     end
-# end      
-# cluster = sort(cluster[1:end-1])      
-# println("cluster = $(cluster)")
-# exp_H = exponentiate_hamiltonian(twosite_op, cluster, β, length(cluster))
-
-
-# # loop = contract_tensors_N_loop([1, 0, 1, 0], A, A);
-# # g = get_gradient_N_loop([1, 0, 1, 0], A, A);
-# Anew = solve_N_loop(Ns, A, exp_H; α = 10, step_size = 1e-8, ϵ = 1e-9, max_iter = 1000)
-
-# println(summary(loop))
-# println(summary(g))

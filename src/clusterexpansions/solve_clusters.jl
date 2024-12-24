@@ -38,6 +38,31 @@ function solve_cluster(c, PEPO, β, twosite_op)
     merge!(PEPO, Dict(zip(levels_to_update, solution)))
 end
 
+function get_nontrivial_terms(N)
+    if N == 1
+        return [[(0,0)]]
+    end
+    prev_clusters = get_nontrivial_terms(N-1) # get all the clusters of size N-1
+    
+    # initialize new list of clusters
+    clusters = []
+
+    for cluster_indices = prev_clusters # iterate over all previous clusters
+        new_indices = []
+        # get all the possible new values for the new index
+        for (k₁,j₁) in cluster_indices
+            for (k₂,j₂) = [(k₁+1,j₁), (k₁-1,j₁), (k₁,j₁+1), (k₁,j₁-1)]
+                proposed_cluster = sort(vcat(cluster_indices, ((k₂,j₂))))
+                if !(((k₂,j₂) in new_indices) || ((k₂,j₂) in cluster_indices) || proposed_cluster in clusters)
+                    push!(clusters, proposed_cluster)
+                    push!(new_indices, (k₂,j₂))
+                end
+            end
+        end
+    end
+    return clusters
+end
+
 function get_all_indices(PEPO, p, β, twosite_op)
     for N = 2:p
         println("N = $(N)")

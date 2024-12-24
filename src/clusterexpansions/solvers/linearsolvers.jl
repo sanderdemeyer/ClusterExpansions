@@ -4,6 +4,16 @@ function get_triv_tensors(conjugated, trivspace)
     return [conj ? tensor_conj : tensor for conj = conjugated] 
 end
 
+function get_graph(cluster)
+    graph = fill(0, cluster.N, 4)
+    for (bond_s, bond_i) = zip(cluster.bonds_sites,cluster.bonds_indices)
+        dir = get_direction(bond_s[1], bond_s[2])
+        graph[bond_i[1], dir[1]] = bond_i[2]
+        graph[bond_i[2], dir[2]] = bond_i[1]
+    end
+    return graph
+end
+
 function get_F(cluster, PEPO, sites_to_update)
     updates = length(sites_to_update)
     fixed_tensors = cluster.N - updates 

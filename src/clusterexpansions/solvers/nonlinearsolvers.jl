@@ -26,6 +26,18 @@ function get_gradient(A)
     return ncon([A, A, A], [[-3 -6 -2 1], [-4 -7 1 2], [-5 -8 2 -1]])
 end
 
+function get_step_size(A, A_nudge, exp_H, step_size, linesearch_options::Int)
+    αs = step_size .* [10.0^(i) for i = -linesearch_options:linesearch_options]
+    errors = [norm(contract_tensors_symmetric(A-α*A_nudge)-exp_H) for α in αs]
+    return αs[argmin(errors)]
+end
+
+function get_step_size_N_loop(Ns, C, A, A_nudge, exp_H, step_size, linesearch_options::Int)
+    αs = step_size .* [10.0^(i) for i = -linesearch_options:linesearch_options]
+    errors = [norm(contract_tensors_N_loop(Ns, C, A-α*A_nudge)-exp_H) for α in αs]
+    return αs[argmin(errors)]
+end
+
 function get_gradient_N_loop(Ns, C, A, dir, i)
     N = sum(Ns) + 4
     Ns_g = copy(Ns)
@@ -66,44 +78,54 @@ function get_A_N_loop(Ns, C, A, exp_H, dir, i)
     return permute(x, ((1,2),(3,4))), norm(D)
 end
 
-function solve_4_loop(exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1000)
+function solve_4_loop(exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1000, line_search = false, linesearch_options = 3)
     pspace = ℂ^2
     space = ℂ^α
     trivspace = ℂ^1
     A = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
+    errors = []
     for i = 1:max_iter
         A_nudge, error = get_A(A, exp_H)
+        if line_search
+            step_size = get_step_size(A, A_nudge, exp_H, step_size, linesearch_options)
+        end
         A = A - step_size*A_nudge
         if error < ϵ
             println("Converged after $(i) iterations - error = $(error)")
-            return A
+            return A, errors
         end
+        push!(errors, error)
     end
     error = norm(contract_tensors_symmetric(A) - exp_H)
     @warn "Not converged after $(max_iter) iterations - error = $(error)"
     As = construct_PEPO_loop(A, pspace, space, trivspace)
-    return As
+    return As, errors
 end
 
-function solve_N_loop(Ns, C, exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1000)
+function solve_N_loop(Ns, C, exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1000, line_search = true, linesearch_options = 3)
     pspace = ℂ^2
     space = ℂ^α
     C = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
     A = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
+    errors = []
     error = ϵ + 1
     for i = 1:max_iter
         for dir = 1:4
             for j = 1:Ns[dir]
                 A_nudge, error = get_A_N_loop(Ns, C, A, exp_H, dir, j)
+                if line_search
+                    step_size = get_step_size_N_loop(Ns, C, A, A_nudge, exp_H, step_size, linesearch_options)
+                end
                 A = A - step_size*A_nudge
+                push!(errors, error)
             end
         end
         if error < ϵ
             println("Converged after $(i) iterations - error = $(error)")
-            return A
+            return A, errors
         end
     end
     error = norm(contract_tensors_N_loop(Ns, C, A) - exp_H)
     @warn "Not converged after $(max_iter) iterations - error = $(error)"    
-    return A
+    return A, errors
 end

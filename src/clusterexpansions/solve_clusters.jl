@@ -10,6 +10,7 @@ function solve_cluster(c, PEPO, β, twosite_op)
         loops = true
         if loops
             levels_to_update = [(0, -1, -1, 0), (0, 0, -1, -1), (-1, 0, 0, -1), (-1, -1, 0, 0)]
+            return
             solution = solve_4_loop(exp_H; α = 10)
             merge!(PEPO, Dict(zip(levels_to_update, solution)))
             return
@@ -18,10 +19,9 @@ function solve_cluster(c, PEPO, β, twosite_op)
         end
     end
 
-    sites_to_update = [i for (i,levels) = enumerate(cluster.levels_sites) if !(levels ∈ PEPO.keys)]
+    sites_to_update = [i for (i,levels) = enumerate(cluster.levels_sites) if !(levels ∈ keys(PEPO))]
     length(sites_to_update) == 0 && return
-
-    A = get_F(cluster, PEPO, sites_to_update)
+    A = get_A(cluster, PEPO, sites_to_update)
 
     if length(sites_to_update) == 2
         dir = (c[sites_to_update[2]][1] - c[sites_to_update[1]][1], c[sites_to_update[2]][2] - c[sites_to_update[1]][2])
@@ -30,11 +30,17 @@ function solve_cluster(c, PEPO, β, twosite_op)
         dir = 0
         conjugated = [Bool[0, 0, 1, 1]]
     else
-        println(cluster.levels_sites)
         error("Something went terribly wrong, sites_to_update = $(sites_to_update)")
     end
     levels_to_update = cluster.levels_sites[sites_to_update]
     solution = solve_index(A, exp_H-residual, conjugated, sites_to_update, levels_to_update, get_direction(dir), cluster.N; spaces = i -> ℂ^(2^(2*i)))
+
+    # The solution should have a norm as small as possible - fix this
+    ker = solve_index(A, 0*exp_H, conjugated, sites_to_update, levels_to_update, get_direction(dir), cluster.N; spaces = i -> ℂ^(2^(2*i)))
+    println("norm of ker = $(norm(ker[1]))")
+    println("norm of solution = $(norm(solution[1]))")
+    println("norm of RHS = $(norm(RHS))")
+
     merge!(PEPO, Dict(zip(levels_to_update, solution)))
 end
 
@@ -69,6 +75,10 @@ function get_all_indices(PEPO, p, β, twosite_op)
         clusters = get_nontrivial_terms(N)
         for cluster = clusters
             solve_cluster(cluster, PEPO, β, twosite_op)
+        end
+        for (key, tens) = PEPO
+            println("key = $(key)")
+            println("norm of tensor = $(norm(tens))")
         end
     end
     # cluster = [(0,0),(1,0),(1,1),(0,1)]

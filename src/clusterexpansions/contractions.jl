@@ -25,7 +25,6 @@ function contract_PEPO(cluster, PEPO)
     for dir = 1:4
         triv_tensors_dir[dir][][1] = 1.0
     end
-
     O = get_PEPO(ℂ^2, PEPO)
 
     N = cluster.N

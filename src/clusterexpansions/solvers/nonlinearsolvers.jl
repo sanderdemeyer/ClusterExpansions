@@ -92,7 +92,8 @@ function solve_4_loop(exp_H; α = 10, step_size = 1e-10, ϵ = 1e-10, max_iter = 
         A = A - step_size*A_nudge
         if error < ϵ
             println("Converged after $(i) iterations - error = $(error)")
-            return A, errors
+            As = construct_PEPO_loop(A, pspace, space, trivspace)
+            return As, errors
         end
         push!(errors, error)
     end

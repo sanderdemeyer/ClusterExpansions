@@ -10,8 +10,7 @@ function solve_cluster(c, PEPO, β, twosite_op)
         loops = true
         if loops
             levels_to_update = [(0, -1, -1, 0), (0, 0, -1, -1), (-1, 0, 0, -1), (-1, -1, 0, 0)]
-            return
-            solution = solve_4_loop(exp_H; α = 10)
+            solution, errors = solve_4_loop(RHS; α = 10)
             merge!(PEPO, Dict(zip(levels_to_update, solution)))
             return
         else
@@ -34,13 +33,6 @@ function solve_cluster(c, PEPO, β, twosite_op)
     end
     levels_to_update = cluster.levels_sites[sites_to_update]
     solution = solve_index(A, exp_H-residual, conjugated, sites_to_update, levels_to_update, get_direction(dir), cluster.N; spaces = i -> ℂ^(2^(2*i)))
-
-    # The solution should have a norm as small as possible - fix this
-    ker = solve_index(A, 0*exp_H, conjugated, sites_to_update, levels_to_update, get_direction(dir), cluster.N; spaces = i -> ℂ^(2^(2*i)))
-    println("norm of ker = $(norm(ker[1]))")
-    println("norm of solution = $(norm(solution[1]))")
-    println("norm of RHS = $(norm(RHS))")
-
     merge!(PEPO, Dict(zip(levels_to_update, solution)))
 end
 

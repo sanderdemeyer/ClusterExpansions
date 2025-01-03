@@ -140,7 +140,6 @@ function apply_A_twosite(A, Ax::TensorMap, sites_to_update, N, ::Val{true})
 
     x = ncon([A, Ax], [vcat(1:2*length(included_sites), [-3, -4, -5, -8, -9, -10]), contracted_b], [true false])
     x = permute(x, ((Tuple(1:5)), (Tuple(6:10))))    
-    # println("backward - contractions are $(vcat(1:2*length(included_sites), [-3, -4, -5, -8, -9, -10]))\n and $(contracted_b)")
     return x
 end
 
@@ -168,7 +167,7 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
         x[][:,:,1,1,1,:,:,1,1,1] = b[]
     elseif length(sites_to_update) == 2
         init_spaces = [[spaces(levels_to_update[1][i]) for i = 1:4 if (i != dir[1])], [spaces(levels_to_update[2][i]) for i = 1:4 if (i != dir[2])]]
-        x0 = TensorMap(randn, pspace ⊗ pspace' ⊗ prod([conj ? space : space' for (conj,space) = zip(conjugated[1], init_spaces[1])]), pspace' ⊗ pspace ⊗ prod([conj ? space' : space for (conj,space) = zip(conjugated[2], init_spaces[2])]))
+        x0 = TensorMap(zeros, pspace ⊗ pspace' ⊗ prod([conj ? space : space' for (conj,space) = zip(conjugated[1], init_spaces[1])]), pspace' ⊗ pspace ⊗ prod([conj ? space' : space for (conj,space) = zip(conjugated[2], init_spaces[2])]))
         apply_A = (x, val) -> apply_A_twosite(A, x, sites_to_update, N, val)
 
         Ax = apply_A_twosite(A, x0, sites_to_update, N, Val{false}())
@@ -177,19 +176,15 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
         @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
 
         x, info = linsolve(apply_A, exp_H, x0, LSMR(verbosity = 1, maxiter = 1000))
-        RHS_new = apply_A(x, Val{true}())
     elseif length(sites_to_update) == 1
-        x0 = TensorMap(randn, pspace ⊗ pspace', prod([conj ? spaces(levels_to_update[1][i])' : spaces(levels_to_update[1][i]) for (i,conj) = enumerate(conjugated[1])]))
+        x0 = TensorMap(zeros, pspace ⊗ pspace', prod([conj ? spaces(levels_to_update[1][i])' : spaces(levels_to_update[1][i]) for (i,conj) = enumerate(conjugated[1])]))
         apply_A = (x, val) -> apply_A_onesite(A, x, sites_to_update, N, val)
         
         Ax = apply_A_onesite(A, x0, sites_to_update, N, Val{false}())
         x1 = apply_A_onesite(A, Ax, sites_to_update, N, Val{true}())
         @assert (x0.dom == x1.dom) && (x0.codom == x1.codom)
         @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
-
         x, info = linsolve(apply_A, exp_H, x0, LSMR(verbosity = 1, maxiter = 1000))
-        RHS_new = apply_A(x, Val{false}())
-
         x = [x]
     else
         error("Something went terribly wrong")

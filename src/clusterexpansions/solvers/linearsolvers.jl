@@ -14,6 +14,37 @@ function get_graph(cluster)
     return graph
 end
 
+function symmetrize_cluster(x1, x2)
+    bond_space = x2.codom[1]
+    x0 = TensorMap(bond_space', bond_space)
+
+    println("this is the summary:")
+    println(summary(x1))
+    println(summary(x2))
+    println(summary(x0))
+
+    result = apply_A_N_2(x2, x0, Val(false))
+    println("result = $(summary(result))")
+
+    apply_A = (x, val) -> apply_A_N_2(x2, x, val)
+    x, info = linsolve(apply_A, x1, x0, LSMR(verbosity = 1, maxiter = 1000))
+    println("done - x = $(x)")
+
+    return [x1 x2]
+end
+
+function apply_A_N_2(A, x, ::Val{false})
+    @tensor Ax[-1 -2 -3 -4 -5; -6] := A[1; -1 -2 -4 -5 -3] * x[-6; 1]
+    return Ax
+end
+
+function apply_A_N_2(x1, y ::Val{true})
+    trivspace = x1.dom[1]
+    I = isometry(trivspace', trivspace)
+    @tensor x2_new[-1 -2; -3 -4 -5 -6] := conj(y[1; -6]) * x1[-1 -2; -5 1 -3 2] * conj(I[-4; 2])
+    return x2_new
+end
+
 function get_A(cluster, PEPO, sites_to_update)
     updates = length(sites_to_update)
     fixed_tensors = cluster.N - updates 
@@ -162,7 +193,7 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
     
     # x0 = TensorMap(randn, pspace ⊗ pspace' ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[1]]), pspace ⊗ pspace' ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
     if N == 2
-        x = TensorMap(randn, pspace ⊗ pspace' ⊗ prod([conj ? trivspace : trivspace' for conj = conjugated[1]]), pspace' ⊗ pspace ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
+        x = TensorMap(zeros, pspace ⊗ pspace' ⊗ prod([conj ? trivspace : trivspace' for conj = conjugated[1]]), pspace' ⊗ pspace ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
         b = permute(exp_H, ((1,3), (2,4)))
         x[][:,:,1,1,1,:,:,1,1,1] = b[]
     elseif length(sites_to_update) == 2
@@ -195,6 +226,10 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
         x1 = x1 * sqrt(Σ)
         x2 = sqrt(Σ) * x2
         @assert norm(x - x1 * x2) < 1e-10
+        println("summaries")
+        println(summary(x1))
+        println(summary(x2))
+        x1, x2 = symmetrize_cluster(x1, x2)
 
         x1 = permute_dir(x1, dir[1], 0)
         x2 = permute_dir(x2, dir[2], 1)
@@ -208,6 +243,7 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
             x2 = permute(ncon([x2, I₂], [vcat([-1, -2], ind₂), [1, -2-dir[2]]]), ((1,2),(3,4,5,6)))
         end
         x = [x1 x2]
+        # x = symmetrize_cluster!(x1, x2, dir)
     end
 
     return x

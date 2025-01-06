@@ -7,10 +7,10 @@ using OptimKit
 using PEPSKit
 import PEPSKit: rmul!, σᶻᶻ, σˣ, InfiniteSquare, InfinitePartitionFunction
 
-p = 3
-β = 1e-3
+p = 2
+β = 1e-1
 D = 2
-χenv = 12
+χenv = 6
 
 J = 1.0
 g = 0.0
@@ -41,7 +41,6 @@ partfunc = InfinitePartitionFunction(Z)
 @tensor A_M[-3 -4; -1 -2] := O[1 2; -1 -2 -3 -4] * Magn[2; 1]
 partfunc_M = InfinitePartitionFunction(A_M)
 
-χenv = 6
 envtest = CTMRGEnv(test, ComplexSpace(χenv));
 env0 = CTMRGEnv(partfunc, ComplexSpace(χenv));
 
@@ -61,6 +60,7 @@ Z = norm(partfunc, env);
 magn = norm(partfunc_M, env);
 println("magn should be zero, is $(magn)");
 println("Z should be $(2*(cosh(β*J)^2)), is $(Z)");
+println("relative error on Z = $(abs(Z - 2*(cosh(β*J)^2))/Z)");
 
 """
 ctm_alg = SimultaneousCTMRG(; tol=1e-10, trscheme=truncdim(χenv))

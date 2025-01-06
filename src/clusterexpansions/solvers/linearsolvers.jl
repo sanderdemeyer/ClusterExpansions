@@ -226,10 +226,10 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
         x1 = x1 * sqrt(Σ)
         x2 = sqrt(Σ) * x2
         @assert norm(x - x1 * x2) < 1e-10
-        println("summaries")
-        println(summary(x1))
-        println(summary(x2))
-        x1, x2 = symmetrize_cluster(x1, x2)
+        # println("summaries")
+        # println(summary(x1))
+        # println(summary(x2))
+        # x1, x2 = symmetrize_cluster(x1, x2)
 
         x1 = permute_dir(x1, dir[1], 0)
         x2 = permute_dir(x2, dir[2], 1)

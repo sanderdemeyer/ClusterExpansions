@@ -48,13 +48,18 @@ function test_ising(p, β, χenv)
 end
 
 βs = [10.0^(-i/3) for i = -3:10]
+βs = [exp(i) for i = LinRange(-2, -0.25, 30)]
 
-Z_num_12 = [test_ising(2, β, 12)[1] for β = βs]
-Z_num_24 = [test_ising(4, β, 24)[1] for β = βs]
+χenv = 24
+
+Z_2 = [test_ising(2, β, χenv)[1] for β = βs]
+Z_3 = [test_ising(3, β, χenv)[1] for β = βs]
+Z_4 = [test_ising(4, β, χenv)[1] for β = βs]
 Z_exact = [2*(cosh(β)^2) for β = βs]
 
 using Plots
-plt = scatter(log.(βs), real.(Z_num_12), label = "p = 2, chi = 12", ylims = (1,5), xlabel = "log(β)", ylabel = "Partition function Z")
-# scatter!(log.(βs), real.(Z_num_24), label = "p = 2, chi = 24", ylims = (1,5))
+plt = scatter(log.(βs), real.(Z_2), label = "p = 2, chi = $(χenv)", ylims = (1,5), xlabel = "β", ylabel = "Partition function Z")
+scatter!(log.(βs), real.(Z_3), label = "p = 3, chi = $(χenv)", ylims = (1,5))
+scatter!(log.(βs), real.(Z_4), label = "p = 4, chi = $(χenv)", ylims = (1,5))
 scatter!(log.(βs), Z_exact, label = "exact", ylims = (1,5))
 display(plt)

@@ -5,6 +5,7 @@ using MPSKit, MPSKitModels
 using PEPSKit
 using Graphs
 
+include("clusterexpansions/generate_trees.jl")
 include("clusterexpansions/clusters.jl")
 include("clusterexpansions/contractions.jl")
 include("clusterexpansions/PEPOs.jl")

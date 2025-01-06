@@ -6,10 +6,9 @@ struct Cluster
     levels_sites
     m
     n        
-    # levels_to_update
 end
 
-function Cluster(cluster)
+function Cluster(cluster; levels_convention = "initial")
     N = length(cluster)
     bonds_sites, bonds_indices = get_bonds(cluster)
     
@@ -29,11 +28,19 @@ function Cluster(cluster)
     else
         coo = get_coordination_number(bonds_indices, N)
 
-        levels = get_levels(longest_path, n, bonds_indices, coo)
+        if levels_convention == "initial"
+            levels = get_levels(longest_path, n, bonds_indices, coo)
+        elseif levels_convention == "tree_depth"
+            println("bonds_indices = $(bonds_indices)")
+            println(typeof(bonds_indices))
+            levels = get_tree_depths(g, bonds_indices)
+        else
+            error("Levels convention $(levels_convention) not implemented")
+        end
         levels_sites = get_levels_sites(bonds_sites, bonds_indices, levels, N)
     end
 
-    Cluster(N, cluster, bonds_sites, bonds_indices, levels_sites, m, n)
+    return Cluster(N, cluster, bonds_sites, bonds_indices, levels_sites, m, n)
 end
 
 function distance(ind₁, ind₂)
@@ -78,11 +85,12 @@ function get_conjugated(dir)
 end
 
 function get_bonds(cluster)
-    bonds_sites = []
-    bonds_indices = []
+    bonds_sites = Vector{Tuple{Tuple{Int,Int},Tuple{Int,Int}}}()
+    bonds_indices = Vector{Tuple{Int,Int}}()
     for (i,ind₁) = enumerate(cluster)
         for (j,ind₂) = enumerate(cluster)
             if (j > i) && (distance(ind₁, ind₂) == 1)
+                println("indices = $(ind₁), $(ind₂)")
                 push!(bonds_sites, (ind₁, ind₂))
                 push!(bonds_indices, (i, j))
             end
@@ -149,7 +157,7 @@ function get_longest_cycle(g_dir)
 
     length(cycles) == 0 && return (nothing, 0)
     length(cycles) == 1 && return (cycles[1], 1)
-    edges = []
+    edges = Vector{Int}()
     for (i,cyc1) = enumerate(cycles)
         for (j,cyc2) = enumerate(cycles[i:end])
             if check_connectedness(cyc1, cyc2)
@@ -194,7 +202,6 @@ function get_levels(lp, n, bonds_indices, coo)
 end
 
 function get_levels_sites(bonds_sites, bonds_indices, levels, N)
-    (levels === nothing) && (return nothing, m)
     levels_sites = fill(0, N, 4)
 
     for (i,(bond_s, bond_i)) = enumerate(zip(bonds_sites,bonds_indices))

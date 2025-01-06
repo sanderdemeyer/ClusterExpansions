@@ -1,5 +1,5 @@
-function solve_cluster(c, PEPO, β, twosite_op)
-    cluster = Cluster(c)
+function solve_cluster(c, PEPO, β, twosite_op; levels_convention = "initial")
+    cluster = Cluster(c; levels_convention = levels_convention)
     exp_H = exponentiate_hamiltonian(twosite_op, cluster, β)
     residual = contract_PEPO(cluster, PEPO)
     RHS = exp_H - residual
@@ -61,12 +61,12 @@ function get_nontrivial_terms(N)
     return clusters
 end
 
-function get_all_indices(PEPO, p, β, twosite_op)
+function get_all_indices(PEPO, p, β, twosite_op; levels_convention = "initial")
     for N = 2:p
         println("N = $(N)")
         clusters = get_nontrivial_terms(N)
         for cluster = clusters
-            solve_cluster(cluster, PEPO, β, twosite_op)
+            solve_cluster(cluster, PEPO, β, twosite_op; levels_convention = levels_convention)
         end
         for (key, tens) = PEPO
             println("key = $(key)")
@@ -78,9 +78,9 @@ function get_all_indices(PEPO, p, β, twosite_op)
     return PEPO
 end    
 
-function clusterexpansion(p, β, twosite_op, onesite_op)
+function clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "initial")
     pspace = onesite_op.dom[1]
     PEPO₀ = init_PEPO(onesite_op)
-    PEPO = get_all_indices(PEPO₀, p, β, twosite_op)
+    PEPO = get_all_indices(PEPO₀, p, β, twosite_op; levels_convention = levels_convention)
     return get_PEPO(pspace, PEPO)
 end

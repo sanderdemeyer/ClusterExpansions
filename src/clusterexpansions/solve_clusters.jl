@@ -73,8 +73,6 @@ function get_all_indices(PEPO, p, β, twosite_op; levels_convention = "initial")
             println("norm of tensor = $(norm(tens))")
         end
     end
-    # cluster = [(0,0),(1,0),(1,1),(0,1)]
-    # solve_cluster(cluster, PEPO, β, twosite_op)
     return PEPO
 end    
 

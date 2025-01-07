@@ -18,28 +18,43 @@ function Cluster(cluster; levels_convention = "initial")
     g_dir = get_directed_graph(bonds_indices)
 
     longest_path, n = get_longest_path(g_dir, N)
-    longest_cycle, m = get_longest_cycle(g_dir)
+    # longest_cycle, m = get_longest_cycle(g_dir)
+    cycles = cycle_basis(g_dir)
+    m = length(cycles)
 
+    # if m > 1
+    #     println("for m = $(m), the longest cycle = $(longest_cycle)")
+    # end
     if m >= 1
-        @warn("Big cycles not implemented yet")
-        coo = nothing
-        levels = nothing
-        levels_sites = nothing
+        # @warn("Big cycles not implemented yet")
+        coo = get_coordination_number(bonds_indices, N)
+        if levels_convention == "initial"
+            levels = get_levels(longest_path, n, bonds_indices, coo)
+        elseif levels_convention == "tree_depth"
+            levels = get_tree_depths(g, bonds_indices, cycles[1])
+        else
+            error("Levels convention $(levels_convention) not implemented")
+        end
+        for (i,(u,v)) = enumerate(bonds_indices)
+            if u ∈ cycles[1] && v ∈ cycles[1]
+                levels[i] = -1
+            end
+        end
+        println("levels = $(levels)")
+        levels_sites = get_levels_sites(bonds_sites, bonds_indices, levels, N)
+
     else
         coo = get_coordination_number(bonds_indices, N)
 
         if levels_convention == "initial"
             levels = get_levels(longest_path, n, bonds_indices, coo)
         elseif levels_convention == "tree_depth"
-            println("bonds_indices = $(bonds_indices)")
-            println(typeof(bonds_indices))
             levels = get_tree_depths(g, bonds_indices)
         else
             error("Levels convention $(levels_convention) not implemented")
         end
         levels_sites = get_levels_sites(bonds_sites, bonds_indices, levels, N)
     end
-
     return Cluster(N, cluster, bonds_sites, bonds_indices, levels_sites, m, n)
 end
 
@@ -90,7 +105,6 @@ function get_bonds(cluster)
     for (i,ind₁) = enumerate(cluster)
         for (j,ind₂) = enumerate(cluster)
             if (j > i) && (distance(ind₁, ind₂) == 1)
-                println("indices = $(ind₁), $(ind₂)")
                 push!(bonds_sites, (ind₁, ind₂))
                 push!(bonds_indices, (i, j))
             end
@@ -153,10 +167,11 @@ function check_connectedness(cycle₁, cycle₂)
 end
 
 function get_longest_cycle(g_dir)
+    @error "Don't use this"
     cycles = cycle_basis(g_dir)
-
     length(cycles) == 0 && return (nothing, 0)
     length(cycles) == 1 && return (cycles[1], 1)
+    length(cycles) >= 2 && return (cycles, 2)
     edges = Vector{Int}()
     for (i,cyc1) = enumerate(cycles)
         for (j,cyc2) = enumerate(cycles[i:end])
@@ -202,6 +217,7 @@ function get_levels(lp, n, bonds_indices, coo)
 end
 
 function get_levels_sites(bonds_sites, bonds_indices, levels, N)
+    println("levels = $(levels)")
     levels_sites = fill(0, N, 4)
 
     for (i,(bond_s, bond_i)) = enumerate(zip(bonds_sites,bonds_indices))

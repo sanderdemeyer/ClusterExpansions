@@ -41,23 +41,12 @@ function get_tree_depths(graph::Graph, bonds_indices::Vector{Tuple{Int64, Int64}
     # Calculate subtree depths
     subtree_depths = get_subtree_depths(tree, root)
 
-    # # Assign edge labels based on subtree depths
-    # edge_labels = Dict{Tuple{Int, Int}, Int}()
-    # for edge in edges(tree)
-    #     u, v = src(edge), dst(edge)
-    #     if parent[v] == u  # Edge points from parent to child
-    #         edge_labels[(u, v)] = subtree_depths[v]
-    #     elseif parent[u] == v  # Edge points from child to parent
-    #         edge_labels[(v, u)] = subtree_depths[u]
-    #     end
-    # end
-
     levels = Vector{Int}()
     for edge in bonds_indices
         u, v = edge
         if parent[v] == u  # Edge points from parent to child
             push!(levels, subtree_depths[v])
-        elseif parent[u] == v  # Edge points from child to parent
+        else # if parent[u] == v  # Edge points from child to parent -- include cycles
             push!(levels, subtree_depths[u])
         end
     end
@@ -76,9 +65,10 @@ function get_tree_depths(graph::Graph, bonds_indices::Vector{Tuple{Int64, Int64}
         elseif depth == max_depth
             levels = min.(levels, new_levels)
         end
-        println("for site = $(site), new_levels = $new_levels")
-        println("depth = $depth")
     end
-    println("bond_indices = $bonds_indices, levels = $levels")
     return levels
+end
+
+function get_tree_depths(graph::Graph, bonds_indices::Vector{Tuple{Int64, Int64}}, roots::Vector{Int})
+    return min.([get_tree_depths(graph, bonds_indices, root)[1] for root = roots]...)
 end

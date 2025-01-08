@@ -7,7 +7,7 @@ using OptimKit
 using PEPSKit
 import PEPSKit: rmul!, σᶻᶻ, σˣ
 
-function solve_cluster(c, PEPO, β, twosite_op; levels_convention = "initial")
+function solve_cluster_test(c, PEPO, β, twosite_op; levels_convention = "initial")
     cluster = Cluster(c; levels_convention = levels_convention)
 
     if cluster.m >= 1
@@ -31,24 +31,24 @@ function solve_cluster(c, PEPO, β, twosite_op; levels_convention = "initial")
     merge!(PEPO, Dict(zip(levels_to_update, solution)))
 end
 
-function get_all_indices(PEPO, p, β, twosite_op; levels_convention = "initial")
+function get_all_indices_test(PEPO, p, β, twosite_op; levels_convention = "initial")
     prev_clusters = [[(0,0)]]
     for N = 2:p
         println("N = $(N)")
         clusters = get_nontrivial_terms(N; prev_clusters = prev_clusters)
         for cluster = clusters
-            solve_cluster(cluster, PEPO, β, twosite_op; levels_convention = levels_convention)
+            solve_cluster_test(cluster, PEPO, β, twosite_op; levels_convention = levels_convention)
         end
         prev_clusters = clusters
     end
     return PEPO
 end    
 
-function clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "initial")
+function clusterexpansion_test(p, β, twosite_op, onesite_op; levels_convention = "initial")
     (p < 10) || error("Only cluster up until 9th order are implemented correctly")
     pspace = onesite_op.dom[1]
     PEPO₀ = Dict((0,0,0,0) => 0)
-    PEPO = get_all_indices(PEPO₀, p, β, twosite_op; levels_convention = levels_convention)
+    PEPO = get_all_indices_test(PEPO₀, p, β, twosite_op; levels_convention = levels_convention)
     return PEPO
 end
 
@@ -63,4 +63,4 @@ N1, N2 = (1,1)
 twosite_op = rmul!(σᶻᶻ(), -1.0)
 onesite_op = rmul!(σˣ(), g * -J)
 
-PEPO = clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = levels_convention)
+PEPO = clusterexpansion_test(p, β, twosite_op, onesite_op; levels_convention = levels_convention)

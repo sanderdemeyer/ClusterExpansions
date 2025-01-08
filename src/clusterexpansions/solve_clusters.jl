@@ -1,27 +1,4 @@
-function solve_cluster(c, PEPO, β, twosite_op; levels_convention = "initial")
-    cluster = Cluster(c; levels_convention = levels_convention)
-    exp_H = exponentiate_hamiltonian(twosite_op, cluster, β)
-    residual = contract_PEPO(cluster, PEPO)
-    RHS = exp_H - residual
-    @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
-    # levels_sites, m = get_levels_sites(cluster)
-
-    if cluster.m >= 1
-        loops = true
-        if loops
-            levels_to_update = [(0, -1, -1, 0), (0, 0, -1, -1), (-1, 0, 0, -1), (-1, -1, 0, 0)]
-            solution, errors = solve_4_loop(RHS; α = 10)
-            merge!(PEPO, Dict(zip(levels_to_update, solution)))
-            return
-        else
-            levels_sites = [(0, 1, 0, 0), (0, 0, -2, 1), (-2, 0, 0, 1), (0, 1, 0, 0)]
-        end
-    end
-
-    sites_to_update = [i for (i,levels) = enumerate(cluster.levels_sites) if !(levels ∈ keys(PEPO))]
-    length(sites_to_update) == 0 && return
-    A = get_A(cluster, PEPO, sites_to_update)
-
+function get_update_dir(c, sites_to_update)
     if length(sites_to_update) == 2
         dir = (c[sites_to_update[2]][1] - c[sites_to_update[1]][1], c[sites_to_update[2]][2] - c[sites_to_update[1]][2])
         conjugated = get_conjugated(dir)
@@ -29,10 +6,31 @@ function solve_cluster(c, PEPO, β, twosite_op; levels_convention = "initial")
         dir = 0
         conjugated = [Bool[0, 0, 1, 1]]
     else
-        error("Something went terribly wrong, sites_to_update = $(sites_to_update)")
+        error("Number of sites to update $(length(sites_to_update)) not implemented")
     end
+    return dir, conjugated
+end
+
+function solve_cluster(c, PEPO, β, twosite_op; levels_convention = "tree_depth")
+    cluster = Cluster(c; levels_convention = levels_convention)
+    exp_H = exponentiate_hamiltonian(twosite_op, cluster, β)
+    residual = contract_PEPO(cluster, PEPO)
+    RHS = exp_H - residual
+    @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
+
+    sites_to_update = [i for (i,levels) = enumerate(cluster.levels_sites) if !(levels ∈ keys(PEPO))]
+    length(sites_to_update) == 0 && return
     levels_to_update = cluster.levels_sites[sites_to_update]
-    solution = solve_index(A, exp_H-residual, conjugated, sites_to_update, levels_to_update, get_direction(dir), cluster.N; spaces = i -> ℂ^(2^(2*i)))
+
+    println("for cluster = $(c), levels = $(cluster.levels_sites), sites to update = $(sites_to_update)")
+
+    if length(sites_to_update) == 4
+        solution, _ = solve_4_loop(RHS; α = 10)
+    elseif length(sites_to_update) ∈ [1, 2]
+        A = get_A(cluster, PEPO, sites_to_update)
+        dir, conjugated = get_update_dir(c, sites_to_update)
+        solution = solve_index(A, exp_H-residual, conjugated, sites_to_update, levels_to_update, get_direction(dir), cluster.N; spaces = i -> ℂ^(2^(2*i)))
+    end
     merge!(PEPO, Dict(zip(levels_to_update, solution)))
 end
 
@@ -41,8 +39,6 @@ function get_nontrivial_terms(N; prev_clusters = [[(0,0)]])
         return [[(0,0)]]
     end
     
-    # prev_clusters = get_nontrivial_terms(N-1) # get all the clusters of size N-1
-
     # initialize new list of clusters
     clusters = []
     for cluster_indices = prev_clusters # iterate over all previous clusters
@@ -61,7 +57,7 @@ function get_nontrivial_terms(N; prev_clusters = [[(0,0)]])
     return clusters
 end
 
-function get_all_indices(PEPO, p, β, twosite_op; levels_convention = "initial")
+function get_all_indices(PEPO, p, β, twosite_op; levels_convention = "tree_depth")
     previous_clusters = [[(0,0)]]
     for N = 2:p
         println("N = $(N)")
@@ -78,7 +74,7 @@ function get_all_indices(PEPO, p, β, twosite_op; levels_convention = "initial")
     return PEPO
 end    
 
-function clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "initial")
+function clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tree_depth")
     (p < 10) || error("Only cluster up until 9th order are implemented correctly")
     pspace = onesite_op.dom[1]
     PEPO₀ = init_PEPO(onesite_op)

@@ -7,8 +7,8 @@ using OptimKit
 using PEPSKit
 import PEPSKit: rmul!, σᶻᶻ, σˣ, InfiniteSquare, InfinitePartitionFunction
 
-p = 2
-β = 1e-1
+p = 4
+β = 1e-3
 D = 2
 χenv = 6
 
@@ -27,7 +27,7 @@ pspace = ℂ^2
 H = transverse_field_ising(ComplexF64, Trivial, InfiniteSquare(N1,N2); J = J, g = g)
 ψ₀ = InfinitePEPS(2, D; unitcell=(N1,N2))
 
-O = clusterexpansion(p, β, twosite_op, onesite_op)
+O = clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tree_depth")
 Magn = TensorMap([1.0 0.0; 0.0 -1.0], pspace, pspace)
 PEPO = InfinitePEPO(O)
 

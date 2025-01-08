@@ -16,6 +16,8 @@ include("clusterexpansions/solvers/nonlinearsolvers.jl")
 
 include("clusterexpansions/solve_clusters.jl")
 
+include("clusterexpansions/utility/truncations.jl")
+
 export exponentiate_hamiltonian, contract_PEPO
 
 export Cluster
@@ -23,5 +25,6 @@ export get_nontrivial_terms, get_levels
 export solve_4_loop, solve_N_loop
 export init_PEPO, get_PEPO
 export solve_cluster, get_all_indices, clusterexpansion
+export truncate_tensor, truncate_hor, truncate_ver
 
 end # module ClusterExpansions

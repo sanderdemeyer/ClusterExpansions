@@ -51,11 +51,11 @@ function get_gradient_N_loop(Ns, C, A, dir, i)
     return g
 end
 
-function get_A_nudge(A, exp_H)
+function get_A_nudge(A, exp_H; c = 1)
     D = contract_tensors_symmetric(A) - exp_H
     g = get_gradient(A)
     x = ncon([D, g], [[-1 1 2 3 -2 4 5 6], [-3 -4 1 2 3 4 5 6]], [false true])
-    return permute(x, ((1,2),(3,4))), norm(D)
+    return permute(x, ((1,2),(3,4))) + c*A, norm(D)
 end
 
 function get_A_nudge_N_loop(Ns, C, A, exp_H, dir, i)
@@ -84,8 +84,9 @@ function solve_4_loop(exp_H; α = 10, step_size = 1e-10, ϵ = 1e-10, max_iter = 
     trivspace = ℂ^1
     A = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
     errors = []
+    c = 9
     for i = 1:max_iter
-        A_nudge, error = get_A_nudge(A, exp_H)
+        A_nudge, error = get_A_nudge(A, exp_H; c = c)
         if line_search
             step_size = get_step_size(A, A_nudge, exp_H, step_size, linesearch_options)
         end
@@ -106,7 +107,7 @@ end
 function solve_N_loop(Ns, C, exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1000, line_search = true, linesearch_options = 3)
     pspace = ℂ^2
     space = ℂ^α
-    C = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
+    # C = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
     A = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
     errors = []
     error = ϵ + 1

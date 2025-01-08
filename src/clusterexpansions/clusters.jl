@@ -5,7 +5,7 @@ struct Cluster
     bonds_indices
     levels_sites
     m
-    n        
+    n
 end
 
 function Cluster(cluster; levels_convention = "initial")
@@ -22,27 +22,23 @@ function Cluster(cluster; levels_convention = "initial")
     cycles = cycle_basis(g_dir)
     m = length(cycles)
 
-    # if m > 1
-    #     println("for m = $(m), the longest cycle = $(longest_cycle)")
-    # end
     if m >= 1
         # @warn("Big cycles not implemented yet")
         coo = get_coordination_number(bonds_indices, N)
         if levels_convention == "initial"
             levels = get_levels(longest_path, n, bonds_indices, coo)
         elseif levels_convention == "tree_depth"
-            levels = get_tree_depths(g, bonds_indices, cycles[1])
+            levels = get_tree_depths(g, bonds_indices, vcat(cycles...))
         else
             error("Levels convention $(levels_convention) not implemented")
         end
+        levels = update_levels_loops(levels, cycles, m, bonds_indices, cluster)
         for (i,(u,v)) = enumerate(bonds_indices)
             if u ∈ cycles[1] && v ∈ cycles[1]
                 levels[i] = -1
             end
         end
-        println("levels = $(levels)")
         levels_sites = get_levels_sites(bonds_sites, bonds_indices, levels, N)
-
     else
         coo = get_coordination_number(bonds_indices, N)
 
@@ -217,7 +213,6 @@ function get_levels(lp, n, bonds_indices, coo)
 end
 
 function get_levels_sites(bonds_sites, bonds_indices, levels, N)
-    println("levels = $(levels)")
     levels_sites = fill(0, N, 4)
 
     for (i,(bond_s, bond_i)) = enumerate(zip(bonds_sites,bonds_indices))

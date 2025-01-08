@@ -32,22 +32,26 @@ function solve_cluster(c, PEPO, β, twosite_op; levels_convention = "initial")
 end
 
 function get_all_indices(PEPO, p, β, twosite_op; levels_convention = "initial")
+    prev_clusters = [[(0,0)]]
     for N = 2:p
         println("N = $(N)")
-        clusters = get_nontrivial_terms(N)
+        clusters = get_nontrivial_terms(N; prev_clusters = prev_clusters)
         for cluster = clusters
             solve_cluster(cluster, PEPO, β, twosite_op; levels_convention = levels_convention)
         end
+        prev_clusters = clusters
     end
     return PEPO
 end    
 
 function clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "initial")
+    (p < 10) || error("Only cluster up until 9th order are implemented correctly")
     pspace = onesite_op.dom[1]
     PEPO₀ = Dict((0,0,0,0) => 0)
     PEPO = get_all_indices(PEPO₀, p, β, twosite_op; levels_convention = levels_convention)
     return PEPO
 end
+
 p = 4
 β = 1e-4
 

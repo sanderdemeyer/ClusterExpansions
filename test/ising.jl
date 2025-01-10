@@ -48,7 +48,7 @@ function test_ising(p, β, χenv)
 end
 
 βs = [10.0^(-i/3) for i = -3:10]
-βs = [exp(i) for i = LinRange(-2, -0.25, 30)]
+βs = [exp(i) for i = LinRange(-1, -0.25, 10)]
 
 χenv = 24
 

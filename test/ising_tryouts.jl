@@ -10,38 +10,32 @@ import PEPSKit: rmul!, σᶻᶻ, σˣ, InfiniteSquare, InfinitePartitionFunction
 p = 4
 β = 1e-3
 D = 2
-χenv = 6
+χenv = 8
 
 J = 1.0
 g = 0.0
 N1, N2 = (1,1)
 
-# PEPO_dict = get_all_indices(3, β)
-# O = get_PEPO(ℂ^2, PEPO_dict)
-# println("done")
-
+pspace = ℂ^2
 twosite_op = rmul!(σᶻᶻ(), -1.0)
 onesite_op = rmul!(σˣ(), g * -J)
 
-pspace = ℂ^2
-H = transverse_field_ising(ComplexF64, Trivial, InfiniteSquare(N1,N2); J = J, g = g)
-ψ₀ = InfinitePEPS(2, D; unitcell=(N1,N2))
-
-O = clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tree_depth")
+spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10
+# spaces = i -> (i >= 0) ? ℂ^(1+2*i) : ℂ^(-10*i)
+O_clust = clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces)
 Magn = TensorMap([1.0 0.0; 0.0 -1.0], pspace, pspace)
-PEPO = InfinitePEPO(O)
+PEPO = InfinitePEPO(O_clust)
 
-@tensor Z[-3 -4; -1 -2] := O[1 1; -1 -2 -3 -4]
+@tensor Z[-3 -4; -1 -2] := O_clust[1 1; -1 -2 -3 -4]
 
 pspace = ℂ^2
 T = TensorMap(randn, pspace, pspace ⊗ pspace ⊗ pspace' ⊗ pspace')
 test = InfinitePEPS(T)
 
 partfunc = InfinitePartitionFunction(Z)
-@tensor A_M[-3 -4; -1 -2] := O[1 2; -1 -2 -3 -4] * Magn[2; 1]
+@tensor A_M[-3 -4; -1 -2] := O_clust[1 2; -1 -2 -3 -4] * Magn[2; 1]
 partfunc_M = InfinitePartitionFunction(A_M)
 
-envtest = CTMRGEnv(test, ComplexSpace(χenv));
 env0 = CTMRGEnv(partfunc, ComplexSpace(χenv));
 
 ctm_alg = CTMRG(;
@@ -54,13 +48,22 @@ ctm_alg = CTMRG(;
 )
 
 env = leading_boundary(env0, partfunc, ctm_alg);
-contracted = norm(partfunc, env)
+Z_pf = norm(partfunc, env);
 
-Z = norm(partfunc, env);
+@tensor E_pf[-1 -2 -3; -4 -5 -6] := O_clust[1 2; -1 3 -2 -3] * O_clust[4 5; -4 -5 -6 3] * twosite_op[2 5; 1 4]
+O_E_L, Σ, O_E_R = tsvd(E_pf; trunc = truncdim(dim(O_clust.dom[1])));
+O_E_new = permute(O_E_L * sqrt(Σ), ((3,2),(1,4)))
+println("O_E_L = $(summary(O_E_L))");
+println("O_E_R = $(summary(O_E_R))");
+println("O_E_new = $(summary(O_E_new))");
+
+
 magn = norm(partfunc_M, env);
+E = norm(InfinitePartitionFunction(O_E_new), env);
 println("magn should be zero, is $(magn)");
-println("Z should be $(2*(cosh(β*J)^2)), is $(Z)");
-println("relative error on Z = $(abs(Z - 2*(cosh(β*J)^2))/Z)");
+println("E = $(E)");
+println("Z should be $(2*(cosh(β*J)^2)), is $(Z_pf)");
+println("relative error on Z = $(abs(Z_pf - 2*(cosh(β*J)^2))/Z_pf)");
 
 """
 ctm_alg = SimultaneousCTMRG(; tol=1e-10, trscheme=truncdim(χenv))

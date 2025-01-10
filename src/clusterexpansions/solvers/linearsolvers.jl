@@ -18,17 +18,10 @@ function symmetrize_cluster(x1, x2)
     bond_space = x2.codom[1]
     x0 = TensorMap(bond_space', bond_space)
 
-    println("this is the summary:")
-    println(summary(x1))
-    println(summary(x2))
-    println(summary(x0))
-
     result = apply_A_N_2(x2, x0, Val(false))
-    println("result = $(summary(result))")
 
     apply_A = (x, val) -> apply_A_N_2(x2, x, val)
     x, info = linsolve(apply_A, x1, x0, LSMR(verbosity = 1, maxiter = 1000))
-    println("done - x = $(x)")
 
     return [x1 x2]
 end
@@ -187,7 +180,7 @@ function permute_dir(x, dir, second)
     return permute(x, ((1,2).+second, (Tuple(tup))))
 end
 
-function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N; spaces = i -> ℂ^(2^(2*i)))
+function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N, spaces)
     pspace = ℂ^2
     trivspace = ℂ^1
     
@@ -222,15 +215,10 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
     end
 
     if length(sites_to_update) == 2
-        x1, Σ, x2 = tsvd(x)
-        x1 = x1 * sqrt(Σ)
-        x2 = sqrt(Σ) * x2
+        U, Σ, V = tsvd(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
+        x1 = U * sqrt(Σ)
+        x2 = sqrt(Σ) * V
         @assert norm(x - x1 * x2) < 1e-10
-        # println("summaries")
-        # println(summary(x1))
-        # println(summary(x2))
-        # x1, x2 = symmetrize_cluster(x1, x2)
-
         x1 = permute_dir(x1, dir[1], 0)
         x2 = permute_dir(x2, dir[2], 1)
         if (dir == (3,1) || dir == (4,2))

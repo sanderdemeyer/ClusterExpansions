@@ -78,9 +78,8 @@ function get_A_nudge_N_loop(Ns, C, A, exp_H, dir, i)
     return permute(x, ((1,2),(3,4))), norm(D)
 end
 
-function solve_4_loop(exp_H; α = 10, step_size = 1e-10, ϵ = 1e-10, max_iter = 1000, line_search = true, linesearch_options = 3)
+function solve_4_loop(exp_H, space, levels_to_update; step_size = 1e-10, ϵ = 1e-10, max_iter = 1000, line_search = true, linesearch_options = 3)
     pspace = ℂ^2
-    space = ℂ^α
     trivspace = ℂ^1
     A = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
     errors = []
@@ -94,14 +93,18 @@ function solve_4_loop(exp_H; α = 10, step_size = 1e-10, ϵ = 1e-10, max_iter = 
         if error < ϵ
             println("Converged after $(i) iterations - error = $(error)")
             As = construct_PEPO_loop(A, pspace, space, trivspace)
-            return As, errors
+            dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
+            values = [dict[key] for key in levels_to_update]
+            return [As[values[1]], As[values[2]], As[values[3]], As[values[4]]], errors
         end
         push!(errors, error)
     end
     error = norm(contract_tensors_symmetric(A) - exp_H)
     @warn "Not converged after $(max_iter) iterations - error = $(error)"
     As = construct_PEPO_loop(A, pspace, space, trivspace)
-    return As, errors
+    dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
+    values = [dict[key] for key in levels_to_update]
+    return [As[values[1]], As[values[2]], As[values[3]], As[values[4]]], errors
 end
 
 function solve_N_loop(Ns, C, exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1000, line_search = true, linesearch_options = 3)

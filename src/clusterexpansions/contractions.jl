@@ -16,16 +16,16 @@ function exponentiate_hamiltonian(cluster, β)
     return exponentiate_hamiltonian(twosite_op, cluster, β)
 end
 
-function contract_PEPO(cluster, PEPO)
-    highest = [get_size_level(maximum([i[dir] for i = keys(PEPO)])) for dir = 1:4]
-    highest_loop = [get_size_level_loop(minimum([i[dir] for i = keys(PEPO)])) for dir = 1:4]
-    sizes = [h+h_loop for (h,h_loop) = zip(highest, highest_loop)]
+function contract_PEPO(cluster, PEPO, spaces)
+    highest = [maximum([i[dir] for i = keys(PEPO)]) for dir = 1:4]
+    highest_loop = [minimum([i[dir] for i = keys(PEPO)]) for dir = 1:4]
+    total_spaces = [get_sum_space(h, hloop, spaces) for (h,hloop) = zip(highest, highest_loop)]
 
-    triv_tensors_dir = [Tensor(zeros,ℂ^sizes[1]), Tensor(zeros,ℂ^sizes[2]), Tensor(zeros,(ℂ^sizes[3])'), Tensor(zeros,(ℂ^sizes[4])')]
+    triv_tensors_dir = [Tensor(zeros,total_spaces[1]), Tensor(zeros,total_spaces[2]), Tensor(zeros,(total_spaces[3])'), Tensor(zeros,(total_spaces[4])')]
     for dir = 1:4
         triv_tensors_dir[dir][][1] = 1.0
     end
-    O = get_PEPO(ℂ^2, PEPO)
+    O = get_PEPO(ℂ^2, PEPO, spaces)
 
     N = cluster.N
     contraction_indices = fill(0, N, 6)

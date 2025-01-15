@@ -1,0 +1,199 @@
+using PEPSKit
+using TensorKit
+using KrylovKit
+import PEPSKit: @autoopt
+
+function own_isometry(Ws)
+    for dir in 1:4
+        (D, DO) = dims(Ws[dir].codom)
+        for k in 1:DO
+            if dir == 1
+                Oᵏ = sum(O[][:, :, k, :, :, :])
+            elseif dir == 2
+                Oᵏ = sum(O[][:, :, :, k, :, :])
+            elseif dir == 3
+                Oᵏ = sum(O[][:, :, :, :, k, :])
+            elseif dir == 4
+                Oᵏ = sum(O[][:, :, :, :, :, k])
+            end
+            for j in 1:D
+                Ws[dir][j, k, j] = 1.0 / (Oᵏ * DO)
+            end
+        end
+    end
+    return Ws
+end
+
+function initalize_isometry(
+    ψ::Union{AbstractTensorMap{S,1,4},AbstractTensorMap{S,2,4}},
+    O::AbstractTensorMap{S,2,4};
+    initial_guess="random",
+    D=dim(ψ.dom[1]),
+) where {S}
+    if initial_guess == "random"
+        return [TensorMap(randn, ψ.dom[i] ⊗ O.dom[i], ψ.dom[i]) for i in 1:4]
+    elseif initial_guess == "isometry"
+        return [isometry(ψ.dom[i] ⊗ O.dom[i], ψ.dom[i]) for i in 1:4]
+    elseif initial_guess == "zeros"
+        @warn "This will probably give errors"
+        return [TensorMap(zeros, ψ.dom[i] ⊗ O.dom[i], ψ.dom[i]) for i in 1:4]
+    elseif initial_guess == "SVD"
+        Ws = [TensorMap(zeros, ψ.dom[i] ⊗ O.dom[i], ψ.dom[i]) for i in 1:4]
+
+        @autoopt @tensor T[DNa DONa; DNb DONb] :=
+            ψ[Dpa; DNa DE DS DW] *
+            O[DOp Dpa; DONa DOE DOS DOW] *
+            conj(O[DOp Dpb; DONb DOE DOS DOW]) *
+            conj(ψ[Dpb; DNb DE DS DW])
+        U, Σ, V = tsvd(T; trunc=truncdim(D))
+        U = U * sqrt(Σ)
+        V = sqrt(Σ) * V
+        for dir in 1:4
+            Ws[dir][][:, :, :] = U[][:, :, :]
+        end
+        return Ws
+    elseif initial_guess == "eigen"
+        Ws = [TensorMap(zeros, ψ.dom[i] ⊗ O.dom[i], ψ.dom[i]) for i in 1:4]
+
+        @autoopt @tensor T[DNa DONa; DNb DONb] :=
+            ψ[Dpa; DNa DE DS DW] *
+            O[DOp Dpa; DONa DOE DOS DOW] *
+            conj(O[DOp Dpb; DONb DOE DOS DOW]) *
+            conj(ψ[Dpb; DNb DE DS DW])
+
+        _, V = eigen(T)
+        W2_new = TensorMap(zeros, ComplexF64, ψ.dom[2] ⊗ O.dom[2], ψ.dom[2])
+        W2_new[][:, :, :] = V[][:, :, 1:D]
+
+        for dir in 1:4
+            Ws[dir][][:, :, :] = V[][:, :, 1:D]
+        end
+        return Ws
+    else
+        @error "Type of initial guess `$(initial_guess)` not defined"
+    end
+end
+
+function approximate(ψ::AbstractTensorMap{S,1,4}, O::AbstractTensorMap{S,2,4}, Ws) where {S}
+    @tensor A[-1; -2 -3 -4 -5] :=
+        ψ[1; 2 4 6 8] *
+        O[-1 1; 3 5 7 9] *
+        Ws[1][2 3; -2] *
+        Ws[2][4 5; -3] *
+        Ws[3][6 7; -4] *
+        Ws[4][8 9; -5]
+    return A
+end
+
+function approximate(ψ::AbstractTensorMap{S,2,4}, O::AbstractTensorMap{S,2,4}, Ws) where {S}
+    @tensor A[-1 -2; -3 -4 -5 -6] :=
+        ψ[1 -2; 2 4 6 8] *
+        O[-1 1; 3 5 7 9] *
+        Ws[1][2 3; -3] *
+        Ws[2][4 5; -4] *
+        Ws[3][6 7; -5] *
+        Ws[4][8 9; -6]
+    return A
+end
+
+function update_isometry(
+    ψ::AbstractTensorMap{S,1,4}, O::AbstractTensorMap{S,2,4}, Ws, χenv; D=dim(ψ.dom[2])
+) where {S}
+    A = approximate(ψ, O, Ws)
+
+    # ctm_alg = SimultaneousCTMRG(;
+    #     tol=1e-10,
+    #     miniter=4,
+    #     maxiter=300,
+    #     verbosity=0,
+    #     svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10)),
+    # )
+
+    ctm_alg = CTMRG(;
+    tol=1e-10,
+    miniter=4,
+    maxiter=100,
+    verbosity=0,
+    svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10)),
+    ctmrgscheme=:simultaneous,
+    )
+
+    A2 = InfinitePEPS(A)
+    env0 = CTMRGEnv(A2, ℂ^χenv)
+
+    env = leading_boundary(env0, A2, ctm_alg)
+
+    @autoopt @tensor E[DLaE1 DLaE2; DRaW1 DRaW2] :=
+        env.corners[1, 1, 1][χ8; χ1] *
+        env.edges[1, 1, 1][χ1; DLaN3 DLbN χN] *
+        env.edges[1, 1, 1][χN; DRaN3 DRbN χ2] *
+        env.corners[2, 1, 1][χ2; χ3] *
+        env.edges[2, 1, 1][χ3; DRaE3 DRbE χ4] *
+        env.corners[3, 1, 1][χ4; χ5] *
+        env.edges[3, 1, 1][χ5; DRaS3 DRbS χS] *
+        env.edges[3, 1, 1][χS; DLaS3 DLbS χ6] *
+        env.corners[4, 1, 1][χ6; χ7] *
+        env.edges[4, 1, 1][χ7; DLaW3 DLbW χ8] *
+        conj(A[DLpb; DLbN Dbconnected DLbS DLbW]) *
+        conj(A[DRpb; DRbN DRbE DRbS Dbconnected]) *
+        ψ[DLpa; DLaN1 DLaE1 DLaS1 DLaW1] *
+        ψ[DRpa; DRaN1 DRaE1 DRaS1 DRaW1] *
+        O[DLpb DLpa; DLaN2 DLaE2 DLaS2 DLaW2] *
+        O[DRpb DRpa; DRaN2 DRaE2 DRaS2 DRaW2] *
+        Ws[1][DLaN1 DLaN2; DLaN3] *
+        Ws[3][DLaS1 DLaS2; DLaS3] *
+        Ws[4][DLaW1 DLaW2; DLaW3] *
+        Ws[1][DRaN1 DRaN2; DRaN3] *
+        Ws[2][DRaE1 DRaE2; DRaE3] *
+        Ws[3][DRaS1 DRaS2; DRaS3]
+    Diag, V = eigen(E)
+    @tensor Etest[-1 -2; -3 -4] := V[-1 -2; 1] * Diag[1; 2] * inv(V)[2; -3 -4]
+    @assert norm(E - Etest) / norm(E) < 1e-10 "eigenvalue decomposition is not exact: relative norm difference is $(norm(E-Etest)/norm(E))"
+
+    @tensor unittest1[-1 -2; -3 -4] := V[-1 -2; 1] * inv(V)[1; -3 -4]
+    @tensor unittest2[-1; -2] := inv(V)[-1; 1 2] * V[1 2; -2]
+
+    W2_new = TensorMap(zeros, ComplexF64, ψ.dom[2] ⊗ O.dom[2], ψ.dom[2])
+    W2_new[][:, :, :] = V[][:, :, 1:D]
+    W4_new = TensorMap(zeros, ComplexF64, ψ.dom[4] ⊗ O.dom[4], ψ.dom[4])
+    W4_new[][:, :, :] = permute(inv(V), ((2, 3), (1,)))[][:, :, 1:D]
+
+    return [Ws[1], W2_new, Ws[3], W4_new], A
+end
+
+function apply(
+    ψ::AbstractTensorMap{S,1,4},
+    O::AbstractTensorMap{S,2,4};
+    maxiter=50,
+    D=dim(ψ.dom[1]),
+    χenv=12,
+    tol=1e-5,
+    verbosity=1,
+    initial_guess="random",
+) where {S}
+    Ws = initalize_isometry(ψ, O; initial_guess=initial_guess, D=D)
+    A = rotr90(approximate(ψ, O, Ws))
+    for i in 1:maxiter
+        W_old = copy(Ws[2])
+        A_old = copy(A)
+        for _ in 1:4
+            Ws, A = update_isometry(ψ, O, Ws, χenv; D=D)
+            ψ = rotl90(ψ)
+            O = rotl90(O)
+            Ws = circshift(Ws, -1)
+        end
+        ϵ = norm(A - A_old) / norm(A_old)
+        if ϵ < tol
+            @info "Converged after $i iterations: norm difference in A is $ϵ"
+            return rotl90(A)
+        end
+        if (verbosity > 0)
+            @info "Step $i of $maxiter: norm difference in A is $ϵ"
+        end
+        # if (i > maxiter / 10) && (ϵ > 1.0)
+        #     return apply(ψ, O; maxiter=maxiter, D=D, χenv=χenv, tol = tol, verbosity = verbosity, initial_guess = "random")
+        # end
+    end
+    @info "Not converged after $maxiter iterations: norm difference in A is $ϵ"
+    return rotl90(approximate(ψ, O, Ws))
+end

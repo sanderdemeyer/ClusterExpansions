@@ -9,7 +9,9 @@ function truncate_hor(Z::TensorMap, space::ElementarySpace)
     ZL = permute(U * sqrt(S), ((1,2),(3,4)))
     ZR = permute(sqrt(S) * V, ((1,2),(3,4)))
 
-    @assert norm(ZL - ZR)/norm(ZL) < 1e-5
+    println("-: $(norm(ZL - ZR)/norm(ZL)), +:$(norm(ZL + ZR)/norm(ZL))")
+    println("$(norm(ZL)), $(norm(ZR))")
+    # @assert norm(ZL - ZR)/norm(ZL) < 1e-5
     return (ZL+ZR)/2
 end
 

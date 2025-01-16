@@ -173,6 +173,7 @@ function apply(
 ) where {S}
     Ws = initalize_isometry(ψ, O; initial_guess=initial_guess, D=D)
     A = rotr90(approximate(ψ, O, Ws))
+    ϵ = 0
     for i in 1:maxiter
         W_old = copy(Ws[2])
         A_old = copy(A)
@@ -185,15 +186,14 @@ function apply(
         ϵ = norm(A - A_old) / norm(A_old)
         if ϵ < tol
             @info "Converged after $i iterations: norm difference in A is $ϵ"
-            return rotl90(A)
+            ψnew = rotl90(A)
+            return ψnew * norm(ψ)/norm(ψnew)
         end
         if (verbosity > 0)
             @info "Step $i of $maxiter: norm difference in A is $ϵ"
         end
-        # if (i > maxiter / 10) && (ϵ > 1.0)
-        #     return apply(ψ, O; maxiter=maxiter, D=D, χenv=χenv, tol = tol, verbosity = verbosity, initial_guess = "random")
-        # end
     end
     @info "Not converged after $maxiter iterations: norm difference in A is $ϵ"
-    return rotl90(approximate(ψ, O, Ws))
+    ψnew = rotl90(A)
+    return ψnew * norm(ψ)/norm(ψnew)
 end

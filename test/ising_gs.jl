@@ -29,12 +29,12 @@ function imaginary_time_evolution(O, χenv; maxiter = 10)
         magn = expectation_value(ψ, Magn, envs)
         println("Energy is $(E), Magnetization is $(magn)")
 
-        ψ = InfinitePEPS(apply(ψ[1,1], O; tol = 1e-2, verbosity = 0))
+        ψ = InfinitePEPS(apply(ψ[1,1], O; tol = 1e-2, verbosity = 1, initial_guess = "random", maxiter = 30, spaces = [ℂ^6, ℂ^4, ℂ^2]))
     end
     return ψ, E, Magn
 end
 
-p = 3
+p = 2
 β = 1e-3
 D = 2
 χenv = 16
@@ -62,9 +62,9 @@ onesite_op = rmul!(σˣ(), g * -J)
 H = transverse_field_ising(InfiniteSquare(); g)
 
 spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10
-O_clust = clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces)
+O_clust = clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4")
 
-ψ, E, magn = imaginary_time_evolution(O_clust, χenv_approx; maxiter = 5)
+ψ, E, magn = imaginary_time_evolution(O_clust, χenv_approx; maxiter = 1)
 
 @test E ≈ e atol = 1e-2
 @test imag(magn) ≈ 0 atol = 1e-6

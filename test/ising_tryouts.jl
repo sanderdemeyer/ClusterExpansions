@@ -7,10 +7,12 @@ using OptimKit
 using PEPSKit
 import PEPSKit: rmul!, σᶻᶻ, σˣ, InfiniteSquare, InfinitePartitionFunction
 
-p = 4
+p = 3
 β = 1e-3
 D = 2
 χenv = 8
+
+symmetry = "C4"
 
 J = 1.0
 g = 0.0
@@ -22,7 +24,7 @@ onesite_op = rmul!(σˣ(), g * -J)
 
 spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10
 # spaces = i -> (i >= 0) ? ℂ^(1+2*i) : ℂ^(-10*i)
-O_clust = clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces)
+O_clust = clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = symmetry)
 Magn = TensorMap([1.0 0.0; 0.0 -1.0], pspace, pspace)
 PEPO = InfinitePEPO(O_clust)
 

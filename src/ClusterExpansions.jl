@@ -5,6 +5,9 @@ using MPSKit, MPSKitModels
 using PEPSKit
 using Graphs
 
+include("clusterexpansions/utility/truncations.jl")
+include("clusterexpansions/utility/symmetries.jl")
+
 include("clusterexpansions/generate_trees.jl")
 include("clusterexpansions/generate_loops.jl")
 include("clusterexpansions/clusters.jl")
@@ -15,8 +18,6 @@ include("clusterexpansions/solvers/linearsolvers.jl")
 include("clusterexpansions/solvers/nonlinearsolvers.jl")
 
 include("clusterexpansions/solve_clusters.jl")
-
-include("clusterexpansions/utility/truncations.jl")
 
 export exponentiate_hamiltonian, contract_PEPO
 

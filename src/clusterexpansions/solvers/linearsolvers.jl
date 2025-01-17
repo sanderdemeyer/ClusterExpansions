@@ -209,7 +209,7 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
         @assert (x0.dom == x1.dom) && (x0.codom == x1.codom)
         @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
         x, info = linsolve(apply_A, exp_H, x0, LSMR(verbosity = 1, maxiter = 1000))
-        x = [x]
+        x = [x,]
     else
         error("Something went terribly wrong")
     end
@@ -230,7 +230,7 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
             x1 = permute(ncon([x1, I₁], [vcat([-1, -2], ind₁), [1, -2-dir[1]]]), ((1,2),(3,4,5,6)))
             x2 = permute(ncon([x2, I₂], [vcat([-1, -2], ind₂), [1, -2-dir[2]]]), ((1,2),(3,4,5,6)))
         end
-        x = [x1 x2]
+        x = [x1, x2]
         # x = symmetrize_cluster!(x1, x2, dir)
     end
 

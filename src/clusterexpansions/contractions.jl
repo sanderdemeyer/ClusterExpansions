@@ -11,11 +11,6 @@ function exponentiate_hamiltonian(twosite_op, cluster, β)
     return exp_H
 end
 
-function exponentiate_hamiltonian(cluster, β)
-    twosite_op = -S_xx() + S_yy() - S_zz()
-    return exponentiate_hamiltonian(twosite_op, cluster, β)
-end
-
 function contract_PEPO(cluster, PEPO, spaces)
     highest = [maximum([i[dir] for i = keys(PEPO)]) for dir = 1:4]
     highest_loop = [minimum([i[dir] for i = keys(PEPO)]) for dir = 1:4]

@@ -24,7 +24,7 @@ function own_isometry(Ws)
     return Ws
 end
 
-function initalize_isometry(
+function initialize_isometry(
     ψ::Union{AbstractTensorMap{S,1,4},AbstractTensorMap{S,2,4}},
     O::AbstractTensorMap{S,2,4};
     initial_guess="random",
@@ -254,7 +254,7 @@ function apply(
     maxiter=50,
     spaces=[ℂ^(floor(Int,dim(ψ.dom[1])*sqrt(dim(O.dom[1])))), ψ.dom[1]],
     χenv=12,
-    tol=1e-5,
+    tol=1e-10,
     verbosity=1,
     initial_guess="random",
 ) where {S}
@@ -262,7 +262,8 @@ function apply(
         @info "Approximating from $(ψ.dom[1]) ⊗ $(O.dom[1]) to $(spaces)"
     end
     first_approx_space = popfirst!(spaces)
-    Ws = W0 #initalize_isometry(ψ, O; initial_guess=initial_guess, space = first_approx_space)
+    println("first space = $(first_approx_space), the rest = $(spaces)")
+    Ws = W0 #initialize_isometry(ψ, O; initial_guess=initial_guess, space = first_approx_space)
     A = rotr90(approximate(ψ, O, Ws))
     ϵ = 0
     ϵ_Ws = 0
@@ -287,7 +288,6 @@ function apply(
             return ψintermediate
         end
         if (verbosity > 0)
-
             @info "Step $i of $maxiter: norm difference in A is $ϵ"
             @info "Step $i of $maxiter: norm difference in Ws is $ϵ_Ws"
         end
@@ -310,6 +310,7 @@ function approximate_iteratively(
     verbosity=1,
     initial_guess="random",
 ) where {S}
+    @error "In approx iter"
     if (verbosity > 0)
         @info "Approximating from $(ψ.dom[1]) to $(space)"
     end

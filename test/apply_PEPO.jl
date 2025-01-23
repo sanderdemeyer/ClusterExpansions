@@ -249,7 +249,8 @@ end
 
 function apply(
     ψ::AbstractTensorMap{S,1,4},
-    O::AbstractTensorMap{S,2,4};
+    O::AbstractTensorMap{S,2,4},
+    W0;
     maxiter=50,
     spaces=[ℂ^(floor(Int,dim(ψ.dom[1])*sqrt(dim(O.dom[1])))), ψ.dom[1]],
     χenv=12,
@@ -261,7 +262,7 @@ function apply(
         @info "Approximating from $(ψ.dom[1]) ⊗ $(O.dom[1]) to $(spaces)"
     end
     first_approx_space = popfirst!(spaces)
-    Ws = initalize_isometry(ψ, O; initial_guess=initial_guess, space = first_approx_space)
+    Ws = W0 #initalize_isometry(ψ, O; initial_guess=initial_guess, space = first_approx_space)
     A = rotr90(approximate(ψ, O, Ws))
     ϵ = 0
     ϵ_Ws = 0

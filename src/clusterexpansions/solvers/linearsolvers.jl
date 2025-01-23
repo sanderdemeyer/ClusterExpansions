@@ -219,7 +219,7 @@ function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, di
         U, Σ, V = tsvd(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
         x1 = U * sqrt(Σ)
         x2 = sqrt(Σ) * V
-        @assert norm(x - x1 * x2) < 1e-10
+        @assert norm(x - x1 * x2)/norm(x) < 1e-10 "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
         x1 = permute_dir(x1, dir[1], 0)
         x2 = permute_dir(x2, dir[2], 1)
         if (dir == (3,1) || dir == (4,2))

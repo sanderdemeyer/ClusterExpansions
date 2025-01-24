@@ -54,8 +54,12 @@ end
 function get_A_nudge(A, exp_H; c = 1)
     D = contract_tensors_symmetric(A) - exp_H
     g = get_gradient(A)
-    x = ncon([D, g], [[-1 1 2 3 -2 4 5 6], [-3 -4 1 2 3 4 5 6]], [false true])
-    return permute(x, ((1,2),(3,4))) + c*A, norm(D)
+    x1 = ncon([D, g], [[-1 1 2 3 -2 4 5 6], [-3 -4 1 2 3 4 5 6]], [false true])
+    x2 = ncon([D, g], [[1 -1 2 3 4 -2 5 6], [-3 -4 1 2 3 4 5 6]], [false true])
+    x3 = ncon([D, g], [[1 2 -1 3 4 5 -2 6], [-3 -4 1 2 3 4 5 6]], [false true])
+    x4 = ncon([D, g], [[1 2 3 -1 4 5 6 -2], [-3 -4 1 2 3 4 5 6]], [false true])
+
+    return permute(x1+x2+x3+x4, ((1,2),(3,4))) + c*A, norm(D)/norm(exp_H)
 end
 
 function get_A_nudge_N_loop(Ns, C, A, exp_H, dir, i)
@@ -75,17 +79,22 @@ function get_A_nudge_N_loop(Ns, C, A, exp_H, dir, i)
         end
     end
     x = ncon([D, g], [contractions_D, vcat([-3, -4], 1:2*N-2)], [false true])
-    return permute(x, ((1,2),(3,4))), norm(D)
+    return permute(x, ((1,2),(3,4))), norm(D)/norm(exp_H)
 end
 
-function solve_4_loop(exp_H, space, levels_to_update; step_size = 1e-10, ϵ = 1e-10, max_iter = 1000, line_search = true, linesearch_options = 3, verbosity = 2)
+function solve_4_loop(RHS, space, levels_to_update; step_size = 1e-3, ϵ = 1e-10, max_iter = 10000, line_search = false, linesearch_options = 1, verbosity = 2)
+    base_step_size = step_size
+    exp_H = RHS / norm(RHS)
     pspace = ℂ^2
     trivspace = ℂ^1
     A = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')
-    errors = []
-    c = 9
+    A = A / norm(A) * (norm(exp_H))^(1/4) * sqrt(10)
+    errors = [Inf]
+    c = 1e-2
     for i = 1:max_iter
         A_nudge, error = get_A_nudge(A, exp_H; c = c)
+        A_nudge = A_nudge * (norm(A) / norm(A_nudge))
+        step_size = base_step_size*error
         if line_search
             step_size = get_step_size(A, A_nudge, exp_H, step_size, linesearch_options)
         end
@@ -97,24 +106,33 @@ function solve_4_loop(exp_H, space, levels_to_update; step_size = 1e-10, ϵ = 1e
             As = construct_PEPO_loop(A, pspace, space, trivspace)
             dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
             values = [dict[key] for key in levels_to_update]
-            return [As[values[1]], As[values[2]], As[values[3]], As[values[4]]], errors
+            return [As[values[1]], As[values[2]], As[values[3]], As[values[4]]] .* norm(RHS)^(1/4), errors
         end
         if verbosity >= 3
-            @info "Iteration $(i) of loop solver: error = $(ϵ)"
+            @info "Iteration $(i) of loop solver: error = $(error) - step size = $(step_size)"
         end
         push!(errors, error)
+        if errors[end] > errors[end-1]
+            if verbosity >= 1
+                @info "Error starting increasing after iteration $(i): Early stopping at error = $(error)"
+            end
+            As = construct_PEPO_loop(A, pspace, space, trivspace)
+            dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
+            values = [dict[key] for key in levels_to_update]
+            return [As[values[1]], As[values[2]], As[values[3]], As[values[4]]] .* norm(RHS)^(1/4), errors
+        end
     end
-    error = norm(contract_tensors_symmetric(A) - exp_H)
+    error = norm(contract_tensors_symmetric(A) - exp_H)/norm(exp_H)
     if verbosity >= 1
         @warn "Not converged after $(max_iter) iterations - error = $(error)"
     end
     As = construct_PEPO_loop(A, pspace, space, trivspace)
     dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
     values = [dict[key] for key in levels_to_update]
-    return [As[values[1]], As[values[2]], As[values[3]], As[values[4]]], errors
+    return [As[values[1]], As[values[2]], As[values[3]], As[values[4]]] .* norm(RHS)^(1/4), errors
 end
 
-function solve_N_loop(Ns, C, exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1000, line_search = true, linesearch_options = 3)
+function solve_N_loop(Ns, C, exp_H; α = 10, step_size = 1e-7, ϵ = 1e-10, max_iter = 1000, line_search = false, linesearch_options = 3)
     pspace = ℂ^2
     space = ℂ^α
     # C = TensorMap(randn, pspace ⊗ pspace', space ⊗ space')

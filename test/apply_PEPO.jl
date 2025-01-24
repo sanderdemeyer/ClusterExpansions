@@ -252,7 +252,7 @@ function apply(
     O::AbstractTensorMap{S,2,4},
     W0;
     maxiter=50,
-    spaces=[ℂ^(floor(Int,dim(ψ.dom[1])*sqrt(dim(O.dom[1])))), ψ.dom[1]],
+    spaces=[ψ.dom[1]],
     χenv=12,
     tol=1e-10,
     verbosity=1,

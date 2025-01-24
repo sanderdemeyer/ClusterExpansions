@@ -62,8 +62,8 @@ function find_truncation(A_base, O_base; verbosity = 2, c = 0)
     A = flip_arrows(A_base) / norm(A_base)
     O = flip_arrows(O_base) / norm(O_base)
 
-    @assert norm(A - rotl90(A)) / norm(A) < 1e-10
-    @assert norm(O - rotl90(O)) / norm(O) < 1e-10
+    @assert norm(A - rotl90(A)) / norm(A) < 1e-10 "State is not rotationally invariant. Error = $(norm(A - rotl90(A)) / norm(A))"
+    @assert norm(O - rotl90(O)) / norm(O) < 1e-10 "Operator is not rotationally invariant. Error = $(norm(O - rotl90(O)) / norm(O))"
 
     Aspace = A.dom[1]
     Ospace = O.dom[1]

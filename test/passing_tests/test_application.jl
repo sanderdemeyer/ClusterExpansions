@@ -13,25 +13,11 @@ function compare_steps(O, O_full, A, steps; verbosity = 2)
     A_full = copy(A)
     A_steps = copy(A)
 
-    W, _, error = find_truncation(A_full, O_full; verbosity = verbosity, c = 0);
-    Ws = [isdual(A.dom[i]) ? TensorMap(zeros, A.dom[i] ⊗ O_full.dom[i], (A.dom[1])') : TensorMap(zeros, A.dom[i] ⊗ O_full.dom[i], A.dom[1]) for i in 1:4]
-    for dir = 1:4
-        Ws[dir][] = W[]
-    end
-    println(summary(A_full))
-    println(summary(O_full))
-    for W = Ws
-        println(summary(W))
-    end
+    Ws, _, error = find_truncation(A_full, O_full; verbosity = verbosity, c = 0);
     A_full = apply(A_full, O_full, Ws)
     
     for _ = 1:steps
-        W, _, error = find_truncation(A_steps, O; verbosity = verbosity, c = 0);
-
-        Ws = [isdual(A.dom[i]) ? TensorMap(zeros, ComplexF64, A.dom[i] ⊗ O.dom[i], (A.dom[1])') : TensorMap(zeros, ComplexF64, A.dom[i] ⊗ O.dom[i], A.dom[1]) for i in 1:4]
-        for dir = 1:4
-            Ws[dir][] = W[]
-        end
+        Ws, _, error = find_truncation(A_steps, O; verbosity = verbosity, c = 0);
         A_steps = apply(A_steps, O, Ws; spaces = [vspace], verbosity = 3)
     end
     return norm(A_full - A_steps)/norm(A_full - A), A_full, A_steps

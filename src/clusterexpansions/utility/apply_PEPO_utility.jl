@@ -77,9 +77,17 @@ function find_truncation(A_base, O_base; verbosity = 2, c = 0)
     cfun = x -> get_W_nudge(A, O, x; c = c)
 
     W, fx, gx, numfg, normgradhistory = optimize(cfun, W, LBFGS(; verbosity=verbosity, maxiter = 5000); inner=my_inner);
+    W_other = W / norm(W)
     W = W / (norm(O_base))^(1/4)
 
-    return W, flip_arrows(apply_isometry(flip_arrows(A_base), flip_arrows(O_base), W)), sqrt(fx)
+    U, Σ, V = tsvd(W)
+    W = U*V
+
+    Ws = [isdual(A_base.dom[i]) ? TensorMap(zeros, ComplexF64, A_base.dom[i] ⊗ O_base.dom[i], (A_base.dom[1])') : TensorMap(zeros, ComplexF64, A_base.dom[i] ⊗ O_base.dom[i], A_base.dom[1]) for i in 1:4]
+    for dir = 1:4
+        Ws[dir][] = W[]
+    end
+    return Ws, flip_arrows(apply_isometry(flip_arrows(A_base), flip_arrows(O_base), W)), sqrt(fx)
 end
 
 function find_truncation_GD(A, O; step_size = 1e-3, ϵ = 1e-10, max_iter = 10000, line_search = false, linesearch_options = 1, verbosity = 2)

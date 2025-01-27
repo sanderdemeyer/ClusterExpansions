@@ -30,7 +30,10 @@ function initialize_isometry(
     initial_guess="random",
     space=ψ.dom[1],
 ) where {S}
-    if initial_guess == "random"
+    if initial_guess == "unity"
+        Ws, _, error = find_truncation(ψ, O; verbosity = 0);
+        return Ws
+    elseif initial_guess == "random"
         return [isdual(ψ.dom[i]) ? TensorMap(randn, ψ.dom[i] ⊗ O.dom[i], space') : TensorMap(randn, ψ.dom[i] ⊗ O.dom[i], space) for i in 1:4]
     elseif initial_guess == "isometry"
         return [isdual(ψ.dom[i]) ? isometry(ψ.dom[i] ⊗ O.dom[i], space') : isometry(ψ.dom[i] ⊗ O.dom[i], space) for i in 1:4]
@@ -127,7 +130,7 @@ function approximate(ψ::AbstractTensorMap{S,2,4}, O::AbstractTensorMap{S,2,4}, 
 end
 
 function update_isometry(
-    ψ::AbstractTensorMap{S,1,4}, O::AbstractTensorMap{S,2,4}, Ws, χenv; space=ψ.dom[2]
+    ψ::AbstractTensorMap{S,1,4}, O::AbstractTensorMap{S,2,4}, Ws, χenv; space=ψ.dom[2], noise = 1e-6
 ) where {S}
     A = approximate(ψ, O, Ws)
 
@@ -168,19 +171,27 @@ function update_isometry(
         Ws[1][DRaN1 DRaN2; DRaN3] *
         Ws[2][DRaE1 DRaE2; DRaE3] *
         Ws[3][DRaS1 DRaS2; DRaS3]
-    Diag, V = eigen(E)
-    @tensor Etest[-1 -2; -3 -4] := V[-1 -2; 1] * Diag[1; 2] * inv(V)[2; -3 -4]
+    # Diag, V = eigen(E)
+    # @tensor Etest[-1 -2; -3 -4] := V[-1 -2; 1] * Diag[1; 2] * inv(V)[2; -3 -4]
+    # @assert norm(E - Etest) / norm(E) < 1e-10 "eigenvalue decomposition is not exact: relative norm difference is $(norm(E-Etest)/norm(E))"
+    U, Σ, V = tsvd(E)
+    @tensor Etest[-1 -2; -3 -4] := U[-1 -2; 1] * Σ[1; 2] * V[2; -3 -4]
     @assert norm(E - Etest) / norm(E) < 1e-10 "eigenvalue decomposition is not exact: relative norm difference is $(norm(E-Etest)/norm(E))"
 
-    @tensor unittest1[-1 -2; -3 -4] := V[-1 -2; 1] * inv(V)[1; -3 -4]
-    @tensor unittest2[-1; -2] := inv(V)[-1; 1 2] * V[1 2; -2]
+    @tensor unittest1[-1 -2; -3 -4] := inv(V)[-1 -2; 1] * V[1; -3 -4]
+    @tensor unittest2[-1; -2] := V[-1; 1 2] * inv(V)[1 2; -2]
 
     W2_new = isdual(ψ.dom[2]) ? TensorMap(zeros, ComplexF64, ψ.dom[2] ⊗ O.dom[2], space') : TensorMap(zeros, ComplexF64, ψ.dom[2] ⊗ O.dom[2], space)
-    W2_new[][:, :, :] = V[][:, :, 1:dim(space)]
+    W2_new[][:, :, :] = U[][:, :, 1:dim(space)]
     W4_new = isdual(ψ.dom[4]) ? TensorMap(zeros, ComplexF64, ψ.dom[4] ⊗ O.dom[4], space') : TensorMap(zeros, ComplexF64, ψ.dom[4] ⊗ O.dom[4], space)
-    W4_new[][:, :, :] = permute(inv(V), ((2, 3), (1,)))[][:, :, 1:dim(space)]
+    W4_new[][:, :, :] = permute(inv(U), ((2, 3), (1,)))[][:, :, 1:dim(space)]
 
-    return [Ws[1], W2_new, Ws[3], W4_new], A
+    Ws = [Ws[1], W2_new, Ws[3], W4_new]
+    for dir = 1:4
+        Ws[dir] = Ws[dir] + TensorMap(randn, Ws[dir].codom, Ws[dir].dom) * noise
+    end
+
+    return Ws, A
 end
 
 function update_isometry(
@@ -249,21 +260,23 @@ end
 
 function apply(
     ψ::AbstractTensorMap{S,1,4},
-    O::AbstractTensorMap{S,2,4},
-    W0;
+    O::AbstractTensorMap{S,2,4};
     maxiter=50,
     spaces=[ψ.dom[1]],
     χenv=12,
-    tol=1e-10,
+    tol=1e-15,
     verbosity=1,
-    initial_guess="random",
+    initial_guess="unity",
 ) where {S}
+    verbosity = 2
+    if (initial_guess == "unity") && (length(spaces) > 1)
+        @error "Initial guess 'unity' only works for zero intermediate spaces"
+    end
     if (verbosity > 0)
         @info "Approximating from $(ψ.dom[1]) ⊗ $(O.dom[1]) to $(spaces)"
     end
     first_approx_space = popfirst!(spaces)
-    println("first space = $(first_approx_space), the rest = $(spaces)")
-    Ws = W0 #initialize_isometry(ψ, O; initial_guess=initial_guess, space = first_approx_space)
+    Ws = initialize_isometry(ψ, O; initial_guess=initial_guess, space = first_approx_space)
     A = rotr90(approximate(ψ, O, Ws))
     ϵ = 0
     ϵ_Ws = 0
@@ -283,22 +296,25 @@ function apply(
             ψnew = rotl90(A)
             ψintermediate = ψnew * norm(ψ)/norm(ψnew)
             for space = spaces
-                ψintermediate = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity)
+                ψintermediate, Ws = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity)
             end
-            return ψintermediate
+            return ψintermediate, Ws
         end
         if (verbosity > 0)
             @info "Step $i of $maxiter: norm difference in A is $ϵ"
             @info "Step $i of $maxiter: norm difference in Ws is $ϵ_Ws"
         end
     end
-    @info "Not converged after $maxiter iterations: norm difference in A is $ϵ"
+    @warn "Not converged after $maxiter iterations: norm difference in A is $ϵ"
+    # if initial_guess != "random" 
+    #     return apply(ψ, O; maxiter=maxiter, spaces=vcat(first_approx_space, spaces), χenv=χenv, tol=tol, verbosity=verbosity, initial_guess="random")
+    # end
     ψnew = rotl90(A)
     ψintermediate = ψnew * norm(ψ)/norm(ψnew)
     for space = spaces
-        ψintermediate = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity)
+        ψintermediate, Ws = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity)
     end
-    return ψintermediate
+    return ψintermediate, Ws
 end
 
 function approximate_iteratively(
@@ -308,7 +324,6 @@ function approximate_iteratively(
     χenv=12,
     tol=1e-5,
     verbosity=1,
-    initial_guess="random",
 ) where {S}
     @error "In approx iter"
     if (verbosity > 0)
@@ -332,7 +347,7 @@ function approximate_iteratively(
             @info "Converged after $i iterations: norm difference in A is $ϵ"
             @info "Step $i of $maxiter: norm difference in Ws is $ϵ_Ws"
             ψnew = rotl90(A)
-            return ψnew * norm(ψ)/norm(ψnew)
+            return ψnew * norm(ψ)/norm(ψnew), Ws
         end
         if (verbosity > 0)
             @info "Step $i of $maxiter: norm difference in A is $ϵ"
@@ -340,5 +355,5 @@ function approximate_iteratively(
     end
     @info "Not converged after $maxiter iterations: norm difference in A is $ϵ"
     ψnew = rotl90(A)
-    return ψnew * norm(ψ)/norm(ψnew)
+    return ψnew * norm(ψ)/norm(ψnew), Ws
 end

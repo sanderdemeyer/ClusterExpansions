@@ -17,10 +17,11 @@ function solve_cluster(c, PEPO, β, twosite_op, spaces; levels_convention = "tre
     residual = contract_PEPO(cluster, PEPO, spaces)
     RHS = exp_H - residual
     @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
-
     sites_to_update = [i for (i,levels) = enumerate(cluster.levels_sites) if !(levels ∈ keys(PEPO))]
     length(sites_to_update) == 0 && return
     levels_to_update = cluster.levels_sites[sites_to_update]
+
+    println("Norm of RHS = $(norm(RHS)): Difference of $(norm(exp_H)) and $(norm(residual))")
 
     if length(sites_to_update) == 4
         solutions, _ = solve_4_loop(RHS, spaces(-1), levels_to_update; verbosity = verbosity)
@@ -84,5 +85,5 @@ function clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tr
     pspace = onesite_op.dom[1]
     PEPO₀ = init_PEPO(β, onesite_op)
     PEPO = get_all_indices(PEPO₀, p, β, twosite_op, spaces; levels_convention = levels_convention, symmetry = symmetry, verbosity = verbosity)
-    return get_PEPO(pspace, PEPO, spaces)
+    return PEPO, get_PEPO(pspace, PEPO, spaces)
 end

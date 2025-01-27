@@ -4,9 +4,12 @@ using TensorKit, KrylovKit
 using MPSKit, MPSKitModels
 using PEPSKit
 using Graphs
+using Zygote, OptimKit
 
 include("clusterexpansions/utility/truncations.jl")
 include("clusterexpansions/utility/symmetries.jl")
+include("clusterexpansions/utility/apply_PEPO_utility.jl")
+include("clusterexpansions/utility/apply_PEPO.jl")
 
 include("clusterexpansions/generate_trees.jl")
 include("clusterexpansions/generate_loops.jl")
@@ -15,7 +18,8 @@ include("clusterexpansions/contractions.jl")
 include("clusterexpansions/PEPOs.jl")
 
 include("clusterexpansions/solvers/linearsolvers.jl")
-include("clusterexpansions/solvers/nonlinearsolvers.jl")
+# include("clusterexpansions/solvers/nonlinearsolvers.jl")
+include("clusterexpansions/solvers/nonlinearsolvers_optimkit.jl")
 
 include("clusterexpansions/solve_clusters.jl")
 
@@ -27,5 +31,5 @@ export solve_4_loop, solve_N_loop
 export init_PEPO, get_PEPO
 export solve_cluster, get_all_indices, clusterexpansion
 export truncate_tensor, truncate_hor, truncate_ver
-
+export flip_arrows, make_translationally_invariant, find_truncation, apply
 end # module ClusterExpansions

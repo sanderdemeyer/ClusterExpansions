@@ -19,7 +19,8 @@ include("clusterexpansions/PEPOs.jl")
 
 include("clusterexpansions/solvers/linearsolvers.jl")
 # include("clusterexpansions/solvers/nonlinearsolvers.jl")
-include("clusterexpansions/solvers/nonlinearsolvers_optimkit.jl")
+# include("clusterexpansions/solvers/nonlinearsolvers_optimkit.jl")
+include("clusterexpansions/solvers/nonlinearsolvers_SVD.jl")
 
 include("clusterexpansions/solve_clusters.jl")
 

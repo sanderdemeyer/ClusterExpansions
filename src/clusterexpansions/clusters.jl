@@ -8,7 +8,7 @@ struct Cluster
     n
 end
 
-function Cluster(cluster; levels_convention = "initial")
+function Cluster(cluster; levels_convention = "tree_depth")
     N = length(cluster)
     bonds_sites, bonds_indices = get_bonds(cluster)
     

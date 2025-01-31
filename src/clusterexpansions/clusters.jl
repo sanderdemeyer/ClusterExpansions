@@ -8,11 +8,11 @@ struct Cluster
     n
 end
 
-function Cluster(cluster; levels_convention = "tree_depth")
+function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
     N = length(cluster)
     bonds_sites, bonds_indices = get_bonds(cluster)
     
-    coordination_number = [sum(i .∈ bonds_indices) for i = 1:N]
+    # coordination_number = [sum(i .∈ bonds_indices) for i = 1:N]
 
     g = SimpleGraph(Graphs.SimpleEdge.(bonds_indices))
     g_dir = get_directed_graph(bonds_indices)
@@ -23,7 +23,21 @@ function Cluster(cluster; levels_convention = "tree_depth")
     m = length(cycles)
 
     if m >= 1
-        # @warn("Big cycles not implemented yet")
+        if !isnothing(symmetry)
+            println("Here in symmetry")
+            permutation = vcat(cycles[1], setdiff(1:N, cycles[1]))
+            permute!(cluster, permutation)
+            println("cluster = $(cluster)")
+            bonds_sites, bonds_indices = get_bonds(cluster)        
+            g = SimpleGraph(Graphs.SimpleEdge.(bonds_indices))
+            g_dir = get_directed_graph(bonds_indices)
+        
+            longest_path, n = get_longest_path(g_dir, N)
+            cycles = cycle_basis(g_dir)
+            m = length(cycles)
+            @assert m >= 1
+            println("here, bonds_sites = $(bonds_sites)")
+        end
         coo = get_coordination_number(bonds_indices, N)
         if levels_convention == "initial"
             levels = get_levels(longest_path, n, bonds_indices, coo)

@@ -15,6 +15,17 @@ function construct_PEPO_loop(A, pspace, vspace, trivspace)
     return [A_NW, A_NE, A_SE, A_SW]
 end
 
+function construct_PEPO_loop_symmetric(A_SW, levels_to_update)
+    A_SE = rotl90_fermionic(A_SW)
+    A_NE = rotl90_fermionic(A_SE)
+    A_NW = rotl90_fermionic(A_NE)
+    As = [A_NW, A_NE, A_SE, A_SW]
+
+    dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
+    values = [dict[key] for key in levels_to_update]
+    return [As[values[1]], As[values[2]], As[values[3]], As[values[4]]]
+end
+
 function spaces_in_loop(α)
     α >= 4 || throw(ArgumentError("virtual space of the loop cluster must be at least 4"))
     s2 = floor(Int, (α-1)/3)
@@ -22,9 +33,15 @@ function spaces_in_loop(α)
     return [s1, s2]
 end
 
-function solve_4_loop(RHS, space, levels_to_update; verbosity = 0)
-    println("space = $space")
-    truncations = [truncdim(s) for s = spaces_in_loop(dim(space))]
+function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = true, symmetry = nothing)
+    RHS_rot = permute(RHS, ((4,1,2,3),(8,5,6,7)))
+
+    @assert norm(RHS - RHS_rot) / norm(RHS) < 1e-15 "Operator is not rotationally invariant. Error = $(norm(RHS - RHS_rot) / norm(RHS))"
+
+    tensor_norm = norm(RHS)
+    RHS /= tensor_norm
+    truncations = [filtering ? notrunc() : truncdim(s) for s = spaces_in_loop(dim(space))]
+    # truncations = [truncdim(s) for s = spaces_in_loop(dim(space))]
 
     U, Σ, V = tsvd(RHS, ((1,2,5,6), (3,4,7,8)), trunc = truncations[1])
     U = U * sqrt(Σ)
@@ -43,20 +60,39 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0)
     VU = permute(VU, ((2,3),(1,4)))
     VV = permute(VV, ((2,3), (1,)))
 
+    @tensor RHS_reconstruct[-1 -2 -3 -4; -5 -6 -7 -8] := UU[-1 -5; 1] * VU[-2 -6; 1 2] * UV[-3 -7; 2 3] * VV[-4 -8; 3]
+    norm(RHS_reconstruct - RHS) / norm(RHS) < 1e-14 || @warn "Error of SVD in 4-loop = $(norm(RHS_reconstruct - RHS) / norm(RHS))"
+
     dims = [dim(UU.dom[1]), dim(UV.dom[1]), dim(VV.dom[1])]
     α = 2:dims[1]+1
     β = dims[1]+2:dims[1]+dims[2]+1
     γ = dims[1]+dims[2]+2:dims[1]+dims[2]+dims[3]+1
 
-    Vspace = ℂ^(dims[1]+dims[2]+dims[3]+1)
+    vspace = ℂ^(dims[1]+dims[2]+dims[3]+1)
     pspace = ℂ^2
     trivspace = ℂ^1
-    A = TensorMap(zeros, UU.codom, Vspace ⊗ Vspace') 
+    A = TensorMap(zeros, UU.codom, vspace ⊗ vspace') 
 
     A[][:,:,1,α] = UU[] / 4^(1/4)
     A[][:,:,α,β] = VU[] / 4^(1/4)
     A[][:,:,β,γ] = UV[] / 4^(1/4)
     A[][:,:,γ,1] = VV[] / 4^(1/4)
+
+    println("Norms are $(norm(RHS)) and $(norm(contract_tensors_symmetric(A)))")
+    println("Other error is $(norm(contract_tensors_symmetric(A) - RHS_reconstruct) / norm(RHS_reconstruct))")
+    error = norm(contract_tensors_symmetric(A) - RHS) / norm(RHS)
+
+    if verbosity >= 1 && error > 1e-2
+        @warn "Error in 4-loop before filtering = $(error)"
+    elseif verbosity >= 2
+        @info "Error in 4-loop before filtering = $(error)"
+    end
+
+    if filtering
+        A, _ = entanglement_filtering(A; verbosity = verbosity)
+        vspace = A.dom[1]
+        spaces = i -> (i >= 0) ? spaces(i) : vspace
+    end
 
     error = norm(contract_tensors_symmetric(A) - RHS) / norm(RHS)
 
@@ -66,10 +102,15 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0)
         @info "Error in 4-loop = $(error)"
     end
 
-    As = construct_PEPO_loop(A, pspace, Vspace, trivspace)
-    dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
-    values = [dict[key] for key in levels_to_update]
-    As_permuted = [As[values[1]], As[values[2]], As[values[3]], As[values[4]]]
-    println("summary = $(summary(As_permuted[1]))")
-    return As_permuted, error
+    A *= (tensor_norm)^(1/4)
+    if symmetry == "C4"
+        A_SW = TensorMap(zeros, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')        
+        A_SW[][:,:,:,:,1,1] = A[]
+        As = construct_PEPO_loop_symmetric(A_SW, levels_to_update)
+    elseif isnothing(symmetry)
+        As = construct_PEPO_loop(A, pspace, vspace, trivspace)
+    else
+        error("Symmetry $(symmetry) not implemented")
+    end
+    return As, error, spaces
 end

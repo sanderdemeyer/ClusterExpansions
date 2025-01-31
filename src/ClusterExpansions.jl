@@ -6,6 +6,8 @@ using PEPSKit
 using Graphs
 using Zygote, OptimKit
 
+include("clusterexpansions/utility/loop_filtering.jl")
+
 include("clusterexpansions/utility/truncations.jl")
 include("clusterexpansions/utility/symmetries.jl")
 include("clusterexpansions/utility/apply_PEPO_utility.jl")
@@ -24,6 +26,7 @@ include("clusterexpansions/solvers/nonlinearsolvers_SVD.jl")
 
 include("clusterexpansions/solve_clusters.jl")
 
+export entanglement_filtering
 export exponentiate_hamiltonian, contract_PEPO
 
 export Cluster

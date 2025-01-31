@@ -12,19 +12,19 @@ function get_update_dir(c, sites_to_update)
 end
 
 function solve_cluster(c, PEPO, β, twosite_op, spaces; levels_convention = "tree_depth", symmetry = nothing, verbosity = 2)
-    cluster = Cluster(c; levels_convention = levels_convention)
+    cluster = Cluster(c; levels_convention = levels_convention, symmetry = symmetry)
     exp_H = exponentiate_hamiltonian(twosite_op, cluster, β)
     residual = contract_PEPO(cluster, PEPO, spaces)
-    RHS = exp_H - residual
+
+    RHS = (exp_H/norm(exp_H) - residual/norm(exp_H))*norm(exp_H)
+    # RHS = exp_H - residual
     @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
     sites_to_update = [i for (i,levels) = enumerate(cluster.levels_sites) if !(levels ∈ keys(PEPO))]
-    length(sites_to_update) == 0 && return
+    length(sites_to_update) == 0 && return spaces
     levels_to_update = cluster.levels_sites[sites_to_update]
 
-    println("Norm of RHS = $(norm(RHS)): Difference of $(norm(exp_H)) and $(norm(residual))")
-
     if length(sites_to_update) == 4
-        solutions, _ = solve_4_loop(RHS, spaces(-1), levels_to_update; verbosity = verbosity)
+        solutions, _, spaces = solve_4_loop(RHS, spaces(-1), levels_to_update; verbosity = verbosity, symmetry = symmetry)
     elseif length(sites_to_update) ∈ [1, 2]
         A = get_A(cluster, PEPO, sites_to_update)
         dir, conjugated = get_update_dir(c, sites_to_update)
@@ -32,6 +32,7 @@ function solve_cluster(c, PEPO, β, twosite_op, spaces; levels_convention = "tre
     end
     levels_to_update, solutions = symmetrize(symmetry, levels_to_update, solutions)
     merge!(PEPO, Dict(zip(levels_to_update, solutions)))
+    return spaces
 end
 
 function get_nontrivial_terms(N; prev_clusters = [[(0,0)]])
@@ -65,17 +66,24 @@ function get_all_indices(PEPO, p, β, twosite_op, spaces; levels_convention = "t
         end
         clusters = get_nontrivial_terms(N; prev_clusters = previous_clusters)
         for cluster = clusters
-            solve_cluster(cluster, PEPO, β, twosite_op, spaces; levels_convention = levels_convention, symmetry = symmetry, verbosity = verbosity)
+            spaces = solve_cluster(cluster, PEPO, β, twosite_op, spaces; levels_convention = levels_convention, symmetry = symmetry, verbosity = verbosity)
         end
         previous_clusters = clusters
+        if verbosity >= 1
+            for (key, tens) = PEPO
+                println("key = $(key)")
+                println("Maximum is $(maximum(tens[])), norm is $(norm(tens))")
+                println("Summary = $(summary(tens))")
+            end
+        end    
     end
-    if verbosity >= 1
-        for (key, tens) = PEPO
-            println("key = $(key)")
-            println("norm of tensor = $(norm(tens))")
-            println("summary of tensor: $(summary(tens))")
-        end
-    end
+    # if verbosity >= 1
+    #     for (key, tens) = PEPO
+    #         println("key = $(key)")
+    #         println("Maximum is $(maximum(tens[])), norm is $(norm(tens))")
+    #         println("Summary = $(summary(tens))")
+    #     end
+    # end
 return PEPO
 end    
 

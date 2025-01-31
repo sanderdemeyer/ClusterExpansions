@@ -3,27 +3,6 @@ using TensorKit
 using KrylovKit
 import PEPSKit: @autoopt
 
-function own_isometry(Ws)
-    for dir in 1:4
-        (D, DO) = dims(Ws[dir].codom)
-        for k in 1:DO
-            if dir == 1
-                Oᵏ = sum(O[][:, :, k, :, :, :])
-            elseif dir == 2
-                Oᵏ = sum(O[][:, :, :, k, :, :])
-            elseif dir == 3
-                Oᵏ = sum(O[][:, :, :, :, k, :])
-            elseif dir == 4
-                Oᵏ = sum(O[][:, :, :, :, :, k])
-            end
-            for j in 1:D
-                Ws[dir][j, k, j] = 1.0 / (Oᵏ * DO)
-            end
-        end
-    end
-    return Ws
-end
-
 function initialize_isometry(
     ψ::Union{AbstractTensorMap{S,1,4},AbstractTensorMap{S,2,4}},
     O::AbstractTensorMap{S,2,4};
@@ -98,6 +77,7 @@ function initialize_isometry(
 end
 
 function approximate(ψ::AbstractTensorMap{S,1,4}, O::AbstractTensorMap{S,2,4}, Ws) where {S}
+    # Apply an operator to a tensor and apply a isomtry to truncate the virtual spaces
     @tensor A[-1; -2 -3 -4 -5] :=
         ψ[1; 2 4 6 8] *
         O[-1 1; 3 5 7 9] *
@@ -109,6 +89,7 @@ function approximate(ψ::AbstractTensorMap{S,1,4}, O::AbstractTensorMap{S,2,4}, 
 end
 
 function approximate(ψ::AbstractTensorMap{S,1,4}, Ws) where {S}
+    # Apply an isomtry on a tensor to truncate the virtual spaces
     @tensor A[-1; -2 -3 -4 -5] :=
         ψ[-1; 1 2 3 4] *
         Ws[1][1; -2] *
@@ -118,10 +99,11 @@ function approximate(ψ::AbstractTensorMap{S,1,4}, Ws) where {S}
     return A
 end
 
-function approximate(ψ::AbstractTensorMap{S,2,4}, O::AbstractTensorMap{S,2,4}, Ws) where {S}
+function approximate(O₁::AbstractTensorMap{S,2,4}, O₂::AbstractTensorMap{S,2,4}, Ws) where {S}
+    # Apply an operator to another operator and apply a isomtry to truncate the virtual spaces
     @tensor A[-1 -2; -3 -4 -5 -6] :=
-        ψ[1 -2; 2 4 6 8] *
-        O[-1 1; 3 5 7 9] *
+        O₁[1 -2; 2 4 6 8] *
+        O₂[-1 1; 3 5 7 9] *
         Ws[1][2 3; -3] *
         Ws[2][4 5; -4] *
         Ws[3][6 7; -5] *
@@ -253,6 +235,7 @@ function apply_and_fuse(
     ψ::AbstractTensorMap{S,1,4},
     O::AbstractTensorMap{S,2,4};    
 ) where {S}
+    # Apply an operator to a tensor and fuse the virtual spaces
     Is = [i > 2 ? isometry(ψ.dom[i] ⊗ O.dom[i], fuse(ψ.dom[i], O.dom[i])') : isometry(ψ.dom[i] ⊗ O.dom[i], fuse(ψ.dom[i], O.dom[i])) for i = 1:4]
     @tensor ψnew[-1; -2 -3 -4 -5] := ψ[1; 2 4 6 8] * O[-1 1; 3 5 7 9] * Is[1][2 3; -2] * Is[2][4 5; -3] * Is[3][6 7; -4] * Is[4][8 9; -5]
     return ψnew
@@ -356,4 +339,8 @@ function approximate_iteratively(
     @info "Not converged after $maxiter iterations: norm difference in A is $ϵ"
     ψnew = rotl90(A)
     return ψnew * norm(ψ)/norm(ψnew), Ws
+end
+
+function find_isometry(ψ, space, )
+    
 end

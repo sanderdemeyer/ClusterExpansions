@@ -5,9 +5,21 @@ using Graphs
 using ClusterExpansions
 using OptimKit
 using PEPSKit
-import PEPSKit: rmul!, σᶻᶻ, σˣ, InfiniteSquare
 using Test
 using Random
+import PEPSKit: rmul!, σᶻᶻ, σˣ, InfiniteSquare
+import ClusterExpansions: rotl90_fermionic
+
+function check_rotational_invariance(O)
+    for (key, value) = O
+        rotated_key = Tuple(circshift(collect(key), 1))
+        error = norm(value - rotl90_fermionic(O[rotated_key]))/norm(value)
+        println("Error for key = $(key) is $(error)")
+        if error > 1e-10
+            println("Assymetric for key = $(key), with error $(error)")
+        end
+    end
+end
 
 function compare_steps(O, O_full, A, steps; verbosity = 2)
     A_full = copy(A)
@@ -25,8 +37,8 @@ end
 
 Random.seed!(156489748)
 
-p = 3
-β = 1e-4
+p = 4
+β = 1e-1
 steps = 5
 D = 2
 χenv = 8
@@ -43,8 +55,8 @@ twosite_op = rmul!(σᶻᶻ(), -1.0)
 onesite_op = rmul!(σˣ(), g * -J)
 
 spaces = i -> (i >= 0) ? ℂ^(2^(i)) : ℂ^10
-_, O_clust_full = clusterexpansion(p, 5*β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = symmetry)
-_, O_clust = clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = symmetry)
+O_full, O_clust_full = clusterexpansion(p, 5*β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = symmetry, verbosity = 0)
+O, O_clust = clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = symmetry, verbosity = 0)
 
 A = TensorMap(randn, pspace, vspace ⊗ vspace ⊗ vspace' ⊗ vspace')
 A = flip_arrows(make_translationally_invariant(flip_arrows(A)))

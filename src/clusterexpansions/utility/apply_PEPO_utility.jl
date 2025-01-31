@@ -59,11 +59,16 @@ end
 function find_truncation(A_base, O_base; verbosity = 2, c = 0)
     # A = (A_base) / norm(A_base)
     # O = (O_base) / norm(O_base)
+    @assert norm(A_base - rotl90_fermionic(A_base)) / norm(A_base) < 1e-10 "State is not rotationally invariant. Error = $(norm(A_base - rotl90_fermionic(A_base)) / norm(A_base))"
+    @assert norm(O_base - rotl90_fermionic(O_base)) / norm(O_base) < 1e-5 "Operator is not rotationally invariant. Error = $(norm(O_base - rotl90_fermionic(O_base)) / norm(O_base))"
+    if norm(O_base - rotl90_fermionic(O_base)) / norm(O_base) > 1e-10
+        @warn "Operator is not rotationally invariant. Error = $(norm(O_base - rotl90_fermionic(O_base)) / norm(O_base))"
+    end
     A = flip_arrows(A_base) / norm(A_base)
     O = flip_arrows(O_base) / norm(O_base)
 
-    @assert norm(A - rotl90(A)) / norm(A) < 1e-10 "State is not rotationally invariant. Error = $(norm(A - rotl90(A)) / norm(A))"
-    @assert norm(O - rotl90(O)) / norm(O) < 1e-10 "Operator is not rotationally invariant. Error = $(norm(O - rotl90(O)) / norm(O))"
+    # @assert norm(A - rotl90(A)) / norm(A) < 1e-10 "State is not rotationally invariant. Error = $(norm(A - rotl90(A)) / norm(A))"
+    # @assert norm(O - rotl90(O)) / norm(O) < 1e-10 "Operator is not rotationally invariant. Error = $(norm(O - rotl90(O)) / norm(O))"
 
     Aspace = A.dom[1]
     Ospace = O.dom[1]

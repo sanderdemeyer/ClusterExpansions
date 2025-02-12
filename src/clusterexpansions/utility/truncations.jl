@@ -1,3 +1,7 @@
+"""
+    This is not being used, I think
+"""
+
 function truncate_hor(Z::TensorMap, space::ElementarySpace)
     @tensor ZZ[-1 -2 -3; -4 -5 -6] := Z[-1 -2; -3 1] * Z[1 -4; -5 -6]
     U, S, V = tsvd(ZZ, trunc = truncspace(space))

@@ -1,6 +1,6 @@
-function exponentiate_hamiltonian(twosite_op, cluster, β)
+function exponentiate_hamiltonian(T, twosite_op, cluster, β)
     N = cluster.N
-    pspace = twosite_op.dom[1]
+    pspace = domain(twosite_op)[1]
     H = []
     for bond = cluster.bonds_indices
         (i,j) = bond
@@ -8,19 +8,22 @@ function exponentiate_hamiltonian(twosite_op, cluster, β)
         push!(H, permute(term, Tuple(1:N), Tuple(N+1:2*N)))
     end
     exp_H = exp(-β*sum(H)) 
+    exp_H_converted = zeros(T, codomain(exp_H), domain(exp_H))
+    exp_H_converted[] = exp_H[]
+    @warn "Exponential not yet implemented with correct eltype"
     return exp_H
 end
 
-function contract_PEPO(cluster, PEPO, spaces)
+function contract_PEPO(T, cluster, PEPO, spaces)
     highest = [maximum([i[dir] for i = keys(PEPO)]) for dir = 1:4]
     highest_loop = [minimum([i[dir] for i = keys(PEPO)]) for dir = 1:4]
     total_spaces = [get_sum_space(h, hloop, spaces) for (h,hloop) = zip(highest, highest_loop)]
 
-    triv_tensors_dir = [Tensor(zeros,total_spaces[1]), Tensor(zeros,total_spaces[2]), Tensor(zeros,(total_spaces[3])'), Tensor(zeros,(total_spaces[4])')]
+    triv_tensors_dir = [zeros(T,total_spaces[1]), zeros(T,total_spaces[2]), zeros(T,(total_spaces[3])'), zeros(T,(total_spaces[4])')]
     for dir = 1:4
         triv_tensors_dir[dir][][1] = 1.0
     end
-    O = get_PEPO(ℂ^2, PEPO, spaces)
+    O = get_PEPO(T, ℂ^2, PEPO, spaces)
 
     N = cluster.N
     contraction_indices = fill(0, N, 6)

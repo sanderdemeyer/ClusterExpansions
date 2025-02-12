@@ -219,7 +219,7 @@ function entanglement_filtering(A; ϵ = 1e-14, maxiter = 10, verbosity = 1)
         error = norm(loop_truncated - loop_unfiltered)/norm(loop_unfiltered)
         if error < ϵ
             if verbosity >= 2
-                @info "Entanglement filtering converged:\n Error = $(error) for Schmidt-cut 1e-$(cut) and D = $(dim(A_truncated.dom[1]))"
+                @info "Entanglement filtering converged:\n Error = $(error) for Schmidt-cut 1e-$(cut) and D = $(dim(domain(A_truncated)[1]))"
             end
             return A_truncated, error
         end

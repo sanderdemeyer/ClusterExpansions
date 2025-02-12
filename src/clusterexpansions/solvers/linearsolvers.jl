@@ -1,6 +1,6 @@
-function get_triv_tensors(conjugated, trivspace)
-    tensor = Tensor([1.0], trivspace)
-    tensor_conj = Tensor([1.0], trivspace')
+function get_triv_tensors(T, conjugated, trivspace)
+    tensor = ones(T, trivspace)
+    tensor_conj = ones(T, trivspace')
     return [conj ? tensor_conj : tensor for conj = conjugated] 
 end
 
@@ -16,13 +16,9 @@ end
 
 function symmetrize_cluster(x1, x2)
     @error "Not yet implemented"
-    bond_space = x2.codom[1]
-    x0 = TensorMap(bond_space', bond_space)
-
-    result = apply_A_N_2(x2, x0, Val(false))
 
     apply_A = (x, val) -> apply_A_N_2(x2, x, val)
-    x, info = linsolve(apply_A, x1, x0, LSMR(verbosity = 1, maxiter = 1000))
+    x, info = lssolve(apply_A, x1, LSMR(verbosity = 1, maxiter = 1000))
 
     return [x1 x2]
 end
@@ -33,13 +29,11 @@ function apply_A_N_2(A, x, ::Val{false})
 end
 
 function apply_A_N_2(x1, y ::Val{true})
-    trivspace = x1.dom[1]
-    I = isometry(trivspace', trivspace)
-    @tensor x2_new[-1 -2; -3 -4 -5 -6] := conj(y[1; -6]) * x1[-1 -2; -5 1 -3 2] * conj(I[-4; 2])
-    return x2_new
+    @tensor x2_new[-1 -2; -3 -4 -5 -6] := conj(y[1; -6]) * x1[-1 -2; -5 1 -3 -4] * conj(I[-4; 2])
+    return flip(x2_new, 4)
 end
 
-function get_A(cluster, PEPO, sites_to_update)
+function get_A(T, cluster, PEPO, sites_to_update)
     updates = length(sites_to_update)
     fixed_tensors = cluster.N - updates 
     graph = get_graph(cluster)
@@ -98,7 +92,7 @@ function get_A(cluster, PEPO, sites_to_update)
     trivspace = ℂ^1
     included_sites = setdiff(1:length(cluster.levels_sites)[1], sites_to_update)
     nontriv_tensors = [PEPO[cluster.levels_sites[site]] for site = included_sites]
-    triv_tensors = vcat(get_triv_tensors(conjugated, trivspace), get_triv_tensors(open_conjugated, trivspace))
+    triv_tensors = vcat(get_triv_tensors(T, conjugated, trivspace), get_triv_tensors(T, open_conjugated, trivspace))
     triv_contractions = vcat([[number_of_bonds+i] for i = 1:length(conjugated)], [[i] for i = open_indices])
     all_contractions = vcat([contraction_indices[i,:] for i = 1:size(contraction_indices)[1]], triv_contractions)
     all_tensors = vcat(nontriv_tensors, triv_tensors)
@@ -181,55 +175,65 @@ function permute_dir(x, dir, second)
     return permute(x, ((1,2).+second, (Tuple(tup))))
 end
 
-function solve_index(A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N, spaces; verbosity = 2)
+function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N, spaces; verbosity = 2)
     pspace = ℂ^2
     trivspace = ℂ^1
     
     # x0 = TensorMap(randn, pspace ⊗ pspace' ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[1]]), pspace ⊗ pspace' ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
     if N == 2
-        x = TensorMap(zeros, pspace ⊗ pspace' ⊗ prod([conj ? trivspace : trivspace' for conj = conjugated[1]]), pspace' ⊗ pspace ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
+        x = zeros(T, pspace ⊗ pspace' ⊗ prod([conj ? trivspace : trivspace' for conj = conjugated[1]]), pspace' ⊗ pspace ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
         b = permute(exp_H, ((1,3), (2,4)))
         x[][:,:,1,1,1,:,:,1,1,1] = b[]
     elseif length(sites_to_update) == 2
-        init_spaces = [[spaces(levels_to_update[1][i]) for i = 1:4 if (i != dir[1])], [spaces(levels_to_update[2][i]) for i = 1:4 if (i != dir[2])]]
-        x0 = TensorMap(zeros, pspace ⊗ pspace' ⊗ prod([conj ? space : space' for (conj,space) = zip(conjugated[1], init_spaces[1])]), pspace' ⊗ pspace ⊗ prod([conj ? space' : space for (conj,space) = zip(conjugated[2], init_spaces[2])]))
+        # init_spaces = [[spaces(levels_to_update[1][i]) for i = 1:4 if (i != dir[1])], [spaces(levels_to_update[2][i]) for i = 1:4 if (i != dir[2])]]
+        # x0 = zeros(T, pspace ⊗ pspace' ⊗ prod([conj ? space : space' for (conj,space) = zip(conjugated[1], init_spaces[1])]), pspace' ⊗ pspace ⊗ prod([conj ? space' : space for (conj,space) = zip(conjugated[2], init_spaces[2])]))
         apply_A = (x, val) -> apply_A_twosite(A, x, sites_to_update, N, val)
 
-        Ax = apply_A_twosite(A, x0, sites_to_update, N, Val{false}())
-        x1 = apply_A_twosite(A, Ax, sites_to_update, N, Val{true}())
-        @assert (x0.dom == x1.dom) && (x0.codom == x1.codom)
-        @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
+        # Ax = apply_A_twosite(A, x0, sites_to_update, N, Val{false}())
+        # x1 = apply_A_twosite(A, Ax, sites_to_update, N, Val{true}())
+        # @assert (x0.dom == x1.dom) && (x0.codom == x1.codom)
+        # @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
 
-        x, info = linsolve(apply_A, exp_H, x0, LSMR(verbosity = verbosity, maxiter = 1000))
+        x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 1000))
+        println("type of exp_H = $(scalartype(exp_H))")
+        println("type of x = $(scalartype(x))")
     elseif length(sites_to_update) == 1
-        x0 = TensorMap(zeros, pspace ⊗ pspace', prod([conj ? spaces(levels_to_update[1][i])' : spaces(levels_to_update[1][i]) for (i,conj) = enumerate(conjugated[1])]))
+        # x0 = TensorMap(zeros, pspace ⊗ pspace', prod([conj ? spaces(levels_to_update[1][i])' : spaces(levels_to_update[1][i]) for (i,conj) = enumerate(conjugated[1])]))
         apply_A = (x, val) -> apply_A_onesite(A, x, sites_to_update, N, val)
         
-        Ax = apply_A_onesite(A, x0, sites_to_update, N, Val{false}())
-        x1 = apply_A_onesite(A, Ax, sites_to_update, N, Val{true}())
-        @assert (x0.dom == x1.dom) && (x0.codom == x1.codom)
-        @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
-        x, info = linsolve(apply_A, exp_H, x0, LSMR(verbosity = verbosity, maxiter = 1000))
+        # Ax = apply_A_onesite(A, x0, sites_to_update, N, Val{false}())
+        # x1 = apply_A_onesite(A, Ax, sites_to_update, N, Val{true}())
+        # @assert (x0.dom == x1.dom) && (x0.codom == x1.codom)
+        # @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
+        x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 1000))
         x = [x,]
     else
-        error("Something went terribly wrong")
+        error("Impossible to use a linear solver when the number of tensors to update is equal to $(length(sites_to_update))")
     end
 
     if length(sites_to_update) == 2
-        U, Σ, V = tsvd(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
+        U, Σ, V = tsvd(x)#, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
         x1 = U * sqrt(Σ)
         x2 = sqrt(Σ) * V
+        println("norm of exp_H = $(norm(exp_H))")
+        println("norm of x = $(norm(x))")
+        println("norm of x1 x2 = $(norm(x1 * x2))")
+        println("Sigma = $(Σ)")
+
         @assert norm(x - x1 * x2)/norm(x) < 1e-10 "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
         x1 = permute_dir(x1, dir[1], 0)
         x2 = permute_dir(x2, dir[2], 1)
         if (dir == (3,1) || dir == (4,2))
-            vspace = x1.dom[dir[1]]
-            I₁ = isometry(vspace, vspace')
-            I₂ = isometry(vspace', vspace)
-            ind₁ = [(i==dir[1]) ? 1 : -i-2 for i=1:4]
-            ind₂ = [(i==dir[2]) ? 1 : -i-2 for i=1:4]
-            x1 = permute(ncon([x1, I₁], [vcat([-1, -2], ind₁), [1, -2-dir[1]]]), ((1,2),(3,4,5,6)))
-            x2 = permute(ncon([x2, I₂], [vcat([-1, -2], ind₂), [1, -2-dir[2]]]), ((1,2),(3,4,5,6)))
+            # vspace = domain(x1)[dir[1]]
+            # I₁ = isometry(vspace, vspace')
+            # I₂ = isometry(vspace', vspace)
+            # ind₁ = [(i==dir[1]) ? 1 : -i-2 for i=1:4]
+            # ind₂ = [(i==dir[2]) ? 1 : -i-2 for i=1:4]
+            # x1 = permute(ncon([x1, I₁], [vcat([-1, -2], ind₁), [1, -2-dir[1]]]), ((1,2),(3,4,5,6)))
+            # x2 = permute(ncon([x2, I₂], [vcat([-1, -2], ind₂), [1, -2-dir[2]]]), ((1,2),(3,4,5,6)))
+
+            x1 = permute(flip(x1, 2+dir[1]), ((1,2),(3,4,5,6)))
+            x2 = permute(flip(x2, 2+dir[2]), ((1,2),(3,4,5,6)))
         end
         x = [x1, x2]
         # x = symmetrize_cluster!(x1, x2, dir)

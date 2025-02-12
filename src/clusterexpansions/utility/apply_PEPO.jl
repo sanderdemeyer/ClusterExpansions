@@ -8,26 +8,27 @@ function initialize_isometry(
     O::AbstractTensorMap{E,S,2,4};
     initial_guess="random",
     space=domain(ψ)[1],
+    T = scalartype(ψ)
 ) where {E,S}
     if initial_guess == "unity"
-        Ws, _, error = find_truncation(ψ, O; verbosity = 0);
+        Ws, _, error = find_truncation(T, ψ, O; verbosity = 0);
         return Ws
     elseif initial_guess == "random"
-        return [isdual(domain(ψ)[i]) ? TensorMap(randn, domain(ψ)[i] ⊗ domain(O)[i], space') : TensorMap(randn, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
+        return [isdual(domain(ψ)[i]) ? randn(T, domain(ψ)[i] ⊗ domain(O)[i], space') : randn(T, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
     elseif initial_guess == "isometry"
-        return [isdual(domain(ψ)[i]) ? isometry(domain(ψ)[i] ⊗ domain(O)[i], space') : isometry(domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
+        return [isdual(domain(ψ)[i]) ? isometry(T, domain(ψ)[i] ⊗ domain(O)[i], space') : isometry(T, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
     elseif initial_guess == "zeros"
         @warn "This will probably give errors"
-        return [isdual(domain(ψ)[i]) ? TensorMap(zeros, domain(ψ)[i] ⊗ domain(O)[i], space') : TensorMap(zeros, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
+        return [isdual(domain(ψ)[i]) ? zeros(T, domain(ψ)[i] ⊗ domain(O)[i], space') : zeros(T, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
     elseif initial_guess == "SVD"
-        Ws = [TensorMap(zeros, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
+        Ws = [zeros(T, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
 
-        @autoopt @tensor T[DNa DONa; DNb DONb] :=
+        @autoopt @tensor t[DNa DONa; DNb DONb] :=
             ψ[Dpa; DNa DE DS DW] *
             O[DOp Dpa; DONa DOE DOS DOW] *
             conj(O[DOp Dpb; DONb DOE DOS DOW]) *
             conj(ψ[Dpb; DNb DE DS DW])
-        U, Σ, V = tsvd(T; trunc=truncspace(space))
+        U, Σ, V = tsvd(t; trunc=truncspace(space))
         U = U * sqrt(Σ)
         V = sqrt(Σ) * V
         for dir in 1:4
@@ -35,16 +36,16 @@ function initialize_isometry(
         end
         return Ws
     elseif initial_guess == "eigen"
-        Ws = [TensorMap(zeros, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
+        Ws = [zeros(T, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
 
-        @autoopt @tensor T[DNa DONa; DNb DONb] :=
+        @autoopt @tensor t[DNa DONa; DNb DONb] :=
             ψ[Dpa; DNa DE DS DW] *
             O[DOp Dpa; DONa DOE DOS DOW] *
             conj(O[DOp Dpb; DONb DOE DOS DOW]) *
             conj(ψ[Dpb; DNb DE DS DW])
 
-        _, V = eigen(T)
-        W2_new = TensorMap(zeros, ComplexF64, domain(ψ)[2] ⊗ domain(O)[2], space)
+        _, V = eigen(t)
+        W2_new = zeros(T, domain(ψ)[2] ⊗ domain(O)[2], space)
         W2_new[][:, :, :] = V[][:, :, 1:dim(space)]
 
         for dir in 1:4
@@ -66,7 +67,7 @@ function initialize_isometry(
         env.corners[4, 1, 1][χ5; χ6]
 
         U, Σ, V = tsvd(Ẽ, trunc = truncdim(dim(domain(ψ)[1])))
-        Ws = [TensorMap(zeros, ComplexF64, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
+        Ws = [zeros(T, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
         for dir in 1:4
             Ws[dir][][:, :, :] = reshape(V[][:, :, :], (dim(domain(ψ)[i]), dim(domain(O)[i]), dim(space)))
         end
@@ -112,17 +113,16 @@ function approximate(O₁::AbstractTensorMap{E,S,2,4}, O₂::AbstractTensorMap{E
 end
 
 function update_isometry(
-    ψ::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,2,4}, Ws, χenv; space=domain(ψ)[2], noise = 0.0
+    ψ::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,2,4}, Ws, χenv; space=domain(ψ)[2], noise = 0.0, T = scalartype(ψ)
 ) where {E,S}
     A = approximate(ψ, O, Ws)
 
-    ctm_alg = CTMRG(;
+    ctm_alg = SimultaneousCTMRG(;
     tol=1e-10,
     miniter=4,
     maxiter=100,
     verbosity=0,
-    svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10)),
-    ctmrgscheme=:simultaneous,
+    svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10))
     )
 
     A2 = InfinitePEPS(A)
@@ -163,21 +163,21 @@ function update_isometry(
     @tensor unittest1[-1 -2; -3 -4] := inv(V)[-1 -2; 1] * V[1; -3 -4]
     @tensor unittest2[-1; -2] := V[-1; 1 2] * inv(V)[1 2; -2]
 
-    W2_new = isdual(domain(ψ)[2]) ? TensorMap(zeros, ComplexF64, domain(ψ)[2] ⊗ domain(O)[2], space') : TensorMap(zeros, ComplexF64, domain(ψ)[2] ⊗ domain(O)[2], space)
+    W2_new = isdual(domain(ψ)[2]) ? zeros(T, domain(ψ)[2] ⊗ domain(O)[2], space') : zeros(T, domain(ψ)[2] ⊗ domain(O)[2], space)
     W2_new[][:, :, :] = U[][:, :, 1:dim(space)]
-    W4_new = isdual(domain(ψ)[4]) ? TensorMap(zeros, ComplexF64, domain(ψ)[4] ⊗ domain(O)[4], space') : TensorMap(zeros, ComplexF64, domain(ψ)[4] ⊗ domain(O)[4], space)
+    W4_new = isdual(domain(ψ)[4]) ? zeros(T, domain(ψ)[4] ⊗ domain(O)[4], space') : zeros(T, domain(ψ)[4] ⊗ domain(O)[4], space)
     W4_new[][:, :, :] = permute(inv(U), ((2, 3), (1,)))[][:, :, 1:dim(space)]
 
     Ws = [Ws[1], W2_new, Ws[3], W4_new]
     for dir = 1:4
-        Ws[dir] = Ws[dir] + TensorMap(randn, codomain(Ws[dir]), domain(Ws[dir])) * noise
+        Ws[dir] = Ws[dir] + randn(T, codomain(Ws[dir]), domain(Ws[dir])) * noise
     end
 
     return Ws, A
 end
 
 function update_isometry(
-    ψ::AbstractTensorMap{E,S,1,4}, Ws, χenv; space = domain(ψ)[2], noise = 0.0
+    ψ::AbstractTensorMap{E,S,1,4}, Ws, χenv; space = domain(ψ)[2], noise = 0.0, T = scalartype(ψ)
 ) where {E,S}
     A = approximate(ψ, Ws)
     
@@ -223,14 +223,14 @@ function update_isometry(
     @tensor unittest1[-1; -2] := V[-1; 1] * inv(V)[1; -2]
     @tensor unittest2[-1; -2] := inv(V)[-1; 1] * V[1; -2]
 
-    W2_new = isdual(dom(ψ)[2]) ? TensorMap(zeros, ComplexF64, domain(ψ)[2], space') : TensorMap(zeros, ComplexF64, domain(ψ)[2], space)
+    W2_new = isdual(dom(ψ)[2]) ? zeros(T, domain(ψ)[2], space') : zeros(T, domain(ψ)[2], space)
     W2_new[][:, :] = V[][:, 1:dim(space)]
-    W4_new = isdual(domain(ψ)[4]) ? TensorMap(zeros, ComplexF64, domain(ψ)[4], space') : TensorMap(zeros, ComplexF64, domain(ψ)[4], space)
+    W4_new = isdual(domain(ψ)[4]) ? zeros(T, domain(ψ)[4], space') : zeros(T, domain(ψ)[4], space)
     W4_new[][:, :] = permute(inv(V), ((2,), (1,)))[][:, 1:dim(space)]
 
     Ws = [Ws[1], W2_new, Ws[3], W4_new]
     for dir = 1:4
-        Ws[dir] = Ws[dir] + TensorMap(randn, codom(Ws[dir]), domain(Ws[dir])) * noise
+        Ws[dir] = Ws[dir] + randn(T, codom(Ws[dir]), domain(Ws[dir])) * noise
     end
 
     return Ws, A
@@ -239,9 +239,10 @@ end
 function apply_and_fuse(
     ψ::AbstractTensorMap{E,S,1,4},
     O::AbstractTensorMap{E,S,2,4};    
+    T = scalartype(ψ)
 ) where {E,S}
     # Apply an operator to a tensor and fuse the virtual spaces
-    Is = [i > 2 ? isometry(domain(ψ)[i] ⊗ domain(O)[i], fuse(domain(ψ)[i], domain(O)[i])') : isometry(domain(ψ)[i] ⊗ domain(O)[i], fuse(domain(ψ)[i], domain(O)[i])) for i = 1:4]
+    Is = [i > 2 ? isometry(T, domain(ψ)[i] ⊗ domain(O)[i], fuse(domain(ψ)[i], domain(O)[i])') : isometry(T, domain(ψ)[i] ⊗ domain(O)[i], fuse(domain(ψ)[i], domain(O)[i])) for i = 1:4]
     @tensor ψnew[-1; -2 -3 -4 -5] := ψ[1; 2 4 6 8] * O[-1 1; 3 5 7 9] * Is[1][2 3; -2] * Is[2][4 5; -3] * Is[3][6 7; -4] * Is[4][8 9; -5]
     return ψnew
 end
@@ -255,7 +256,8 @@ function apply(
     tol=1e-15,
     verbosity=1,
     initial_guess="unity",
-    noise = 0.0
+    noise = 0.0,
+    T = scalartype(ψ)
 ) where {E,S}
     if (initial_guess == "unity") && (length(spaces) > 1)
         @error "Initial guess 'unity' only works for zero intermediate spaces"
@@ -264,7 +266,7 @@ function apply(
         @info "Approximating from $(domain(ψ)[1]) ⊗ $(domain(O)[1]) to $(spaces)"
     end
     first_approx_space = popfirst!(spaces)
-    Ws = initialize_isometry(ψ, O; initial_guess=initial_guess, space = first_approx_space)
+    Ws = initialize_isometry(ψ, O; initial_guess=initial_guess, space = first_approx_space, T = T)
     A = rotr90(approximate(ψ, O, Ws))
     ϵ = 0
     ϵ_Ws = 0
@@ -272,7 +274,7 @@ function apply(
         Ws_old = copy(Ws)
         A_old = copy(A)
         for _ in 1:4
-            Ws, A = update_isometry(ψ, O, Ws, χenv; space = first_approx_space, noise = noise)
+            Ws, A = update_isometry(ψ, O, Ws, χenv; space = first_approx_space, noise = noise, T = T)
             ψ = rotl90(ψ)
             O = rotl90(O)
             Ws = circshift(Ws, -1)
@@ -286,7 +288,7 @@ function apply(
             ψnew = rotl90(A)
             ψintermediate = ψnew * norm(ψ)/norm(ψnew)
             for space = spaces
-                ψintermediate, Ws = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity, noise = noise)
+                ψintermediate, Ws = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity, noise = noise, T = T)
             end
             return ψintermediate, Ws
         end
@@ -304,7 +306,7 @@ function apply(
     ψnew = rotl90(A)
     ψintermediate = ψnew * norm(ψ)/norm(ψnew)
     for space = spaces
-        ψintermediate, Ws = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity, noise = noise)
+        ψintermediate, Ws = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity, noise = noise, T = T)
     end
     return ψintermediate, Ws
 end
@@ -316,13 +318,14 @@ function approximate_iteratively(
     χenv=12,
     tol=1e-5,
     verbosity=1,
-    noise = 0.0
+    noise = 0.0,
+    T = scalartype(ψ)
 ) where {E,S}
     @error "In approx iter"
     if (verbosity > 0)
         @info "Approximating from $(domain(ψ)[1]) to $(space)"
     end
-    Ws = [isdual(domain(ψ)[i]) ? TensorMap(randn, domain(ψ)[i], space') : TensorMap(randn, domain(ψ)[i], space) for i in 1:4]
+    Ws = [isdual(domain(ψ)[i]) ? randn(T, domain(ψ)[i], space') : randn(T, domain(ψ)[i], space) for i in 1:4]
     A = rotr90(approximate(ψ, Ws))
     ϵ = 0
     ϵ_Ws = 0
@@ -330,7 +333,7 @@ function approximate_iteratively(
         Ws_old = copy(Ws)
         A_old = copy(A)
         for _ in 1:4
-            Ws, A = update_isometry(ψ, Ws, χenv; space = space, noise = noise)
+            Ws, A = update_isometry(ψ, Ws, χenv; space = space, noise = noise, T = T)
             ψ = rotl90(ψ)
             Ws = circshift(Ws, -1)
         end

@@ -4,10 +4,11 @@ function contract_tensors_symmetric(A)
 end
 
 function construct_PEPO_loop(A, pspace, vspace, trivspace)
-    A_NW = TensorMap(zeros, pspace ⊗ pspace', trivspace ⊗ vspace ⊗ vspace' ⊗ trivspace')
-    A_NE = TensorMap(zeros, pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ vspace' ⊗ vspace')
-    A_SE = TensorMap(zeros, pspace ⊗ pspace', vspace ⊗ trivspace ⊗ trivspace' ⊗ vspace')
-    A_SW = TensorMap(zeros, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')
+    T = scalartype(A)
+    A_NW = zeros(T, pspace ⊗ pspace', trivspace ⊗ vspace ⊗ vspace' ⊗ trivspace')
+    A_NE = zeros(T, pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ vspace' ⊗ vspace')
+    A_SE = zeros(T, pspace ⊗ pspace', vspace ⊗ trivspace ⊗ trivspace' ⊗ vspace')
+    A_SW = zeros(T, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')
     A_NW[][:,:,1,:,:,1] = A[]
     A_NE[][:,:,1,1,:,:] = A[]
     A_SE[][:,:,:,1,1,:] = A[]
@@ -34,8 +35,9 @@ function spaces_in_loop(α)
 end
 
 function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = true, symmetry = nothing)
-    RHS_rot = permute(RHS, ((4,1,2,3),(8,5,6,7)))
+    T = scalartype(RHS)
 
+    RHS_rot = permute(RHS, ((4,1,2,3),(8,5,6,7)))
     if norm(RHS - RHS_rot) / norm(RHS) > 1e-15
         @warn "Operator is not rotationally invariant. Error = $(norm(RHS - RHS_rot) / norm(RHS))"
     end
@@ -64,7 +66,7 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = t
     @tensor RHS_reconstruct[-1 -2 -3 -4; -5 -6 -7 -8] := UU[-1 -5; 1] * VU[-2 -6; 1 2] * UV[-3 -7; 2 3] * VV[-4 -8; 3]
     norm(RHS_reconstruct - RHS) / norm(RHS) < 1e-14 || @warn "Error of SVD in 4-loop = $(norm(RHS_reconstruct - RHS) / norm(RHS))"
 
-    dims = [dim(UU.dom[1]), dim(UV.dom[1]), dim(VV.dom[1])]
+    dims = [dim(domain(UU)[1]), dim(domain(UV)[1]), dim(domain(VV)[1])]
     α = 2:dims[1]+1
     β = dims[1]+2:dims[1]+dims[2]+1
     γ = dims[1]+dims[2]+2:dims[1]+dims[2]+dims[3]+1
@@ -72,7 +74,7 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = t
     vspace = ℂ^(dims[1]+dims[2]+dims[3]+1)
     pspace = ℂ^2
     trivspace = ℂ^1
-    A = TensorMap(zeros, UU.codom, vspace ⊗ vspace') 
+    A = zeros(T, codomain(UU), vspace ⊗ vspace') 
 
     A[][:,:,1,α] = UU[] / sqrt(2)
     A[][:,:,α,β] = VU[] / sqrt(2)
@@ -91,7 +93,7 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = t
 
     if filtering
         A, _ = entanglement_filtering(A; verbosity = verbosity)
-        vspace = A.dom[1]
+        vspace = domain(A)[1]
         spaces = i -> (i >= 0) ? spaces(i) : vspace
     end
 
@@ -105,7 +107,7 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = t
 
     A *= (tensor_norm)^(1/4)
     if symmetry == "C4"
-        A_SW = TensorMap(zeros, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')        
+        A_SW = zeros(T, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')        
         A_SW[][:,:,:,:,1,1] = A[]
         As = construct_PEPO_loop_symmetric(A_SW, levels_to_update)
     elseif isnothing(symmetry)

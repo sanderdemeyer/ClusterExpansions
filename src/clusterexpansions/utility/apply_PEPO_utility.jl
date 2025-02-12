@@ -1,5 +1,5 @@
 function make_translationally_invariant(A)
-    Anew = TensorMap(zeros, A.codom, A.dom)
+    Anew = TensorMap(zeros, codomain(A), domain(A))
     for _ = 1:4
         A = rotl90(A)
         Anew += A
@@ -13,16 +13,18 @@ end
 
 function flip_arrows(A::AbstractTensorMap{E,S,1,4} 
     ) where {E,S<:ElementarySpace}
-    I₃ = isometry(A.dom[3], (A.dom[3])')
-    I₄ = isometry(A.dom[4], (A.dom[4])')
+    return flip(A, (4, 5))
+    I₃ = isometry(domain(A)[3], (domain(A)[3])')
+    I₄ = isometry(domain(A)[4], (domain(A)[4])')
     @tensor A_flipped[-1; -2 -3 -4 -5] := A[-1; -2 -3 1 2] * I₃[1; -4] * I₄[2; -5]
     return A_flipped
 end
 
 function flip_arrows(A::AbstractTensorMap{E,S,2,4} 
     ) where {E,S<:ElementarySpace}
-    I₃ = isometry(A.dom[3], (A.dom[3])')
-    I₄ = isometry(A.dom[4], (A.dom[4])')
+    return flip(A, (5, 6))
+    I₃ = isometry(domain(A)[3], (domain(A)[3])')
+    I₄ = isometry(domain(A)[4], (domain(A)[4])')
     @tensor A_flipped[-1 -2; -3 -4 -5 -6] := A[-1 -2; -3 -4 1 2] * I₃[1; -5] * I₄[2; -6]
     return A_flipped
 end
@@ -60,7 +62,7 @@ function get_step_size(A, O, W, W_nudge, step_size, linesearch_options::Int)
     return αs[argmin(errors)]
 end
 
-function find_truncation(A_base, O_base; verbosity = 2, c = 0)
+function find_truncation(T, A_base, O_base; verbosity = 2, c = 0)
     # A = (A_base) / norm(A_base)
     # O = (O_base) / norm(O_base)
     @assert norm(A_base - rotl90_fermionic(A_base)) / norm(A_base) < 1e-10 "State is not rotationally invariant. Error = $(norm(A_base - rotl90_fermionic(A_base)) / norm(A_base))"
@@ -74,8 +76,8 @@ function find_truncation(A_base, O_base; verbosity = 2, c = 0)
     # @assert norm(A - rotl90(A)) / norm(A) < 1e-10 "State is not rotationally invariant. Error = $(norm(A - rotl90(A)) / norm(A))"
     # @assert norm(O - rotl90(O)) / norm(O) < 1e-10 "Operator is not rotationally invariant. Error = $(norm(O - rotl90(O)) / norm(O))"
 
-    Aspace = A.dom[1]
-    Ospace = O.dom[1]
+    Aspace = domain(A)[1]
+    Ospace = domain(O)[1]
 
     W = TensorMap(randn, Aspace ⊗ Ospace, Aspace)
     W = W / norm(W)
@@ -92,7 +94,7 @@ function find_truncation(A_base, O_base; verbosity = 2, c = 0)
     U, Σ, V = tsvd(W)
     W = U*V
 
-    Ws = [isdual(A_base.dom[i]) ? TensorMap(zeros, ComplexF64, A_base.dom[i] ⊗ O_base.dom[i], (A_base.dom[1])') : TensorMap(zeros, ComplexF64, A_base.dom[i] ⊗ O_base.dom[i], A_base.dom[1]) for i in 1:4]
+    Ws = [isdual(domain(A_base)[i]) ? zeros(T, domain(A_base)[i] ⊗ domain(O_base)[i], (domain(A_base)[1])') : zeros(T, domain(A_base)[i] ⊗ domain(O_base)[i], domain(A_base)[1]) for i in 1:4]
     for dir = 1:4
         Ws[dir][] = W[]
     end
@@ -100,12 +102,13 @@ function find_truncation(A_base, O_base; verbosity = 2, c = 0)
 end
 
 function find_truncation_GD(A, O; step_size = 1e-3, ϵ = 1e-10, max_iter = 10000, line_search = false, linesearch_options = 1, verbosity = 2)
+    @error "This function is deprectated"
     verbosity = 3
     A = flip_arrows(A)
     O = flip_arrows(O)
 
-    Aspace = A.dom[1]
-    Ospace = O.dom[1]
+    Aspace = domain(A)[1]
+    Ospace = domain(O)[1]
 
     println("spaces = $Aspace, $Ospace")
     base_step_size = step_size

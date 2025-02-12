@@ -1,3 +1,7 @@
+"""
+    This is not yet updated to deal with BigFloat
+"""
+
 function contract_tensors_symmetric(A)
     loop = ncon([A, A, A, A], [[1 -1 2], [2 -2 3], [3 -3 4], [4 -4 1]])
     return permute(loop, ((1,2),(3,4)))

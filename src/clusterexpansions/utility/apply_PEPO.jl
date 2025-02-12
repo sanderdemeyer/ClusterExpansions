@@ -4,23 +4,23 @@ using KrylovKit
 import PEPSKit: @autoopt
 
 function initialize_isometry(
-    ψ::Union{AbstractTensorMap{S,1,4},AbstractTensorMap{S,2,4}},
-    O::AbstractTensorMap{S,2,4};
+    ψ::Union{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},
+    O::AbstractTensorMap{E,S,2,4};
     initial_guess="random",
-    space=ψ.dom[1],
-) where {S}
+    space=domain(ψ)[1],
+) where {E,S}
     if initial_guess == "unity"
         Ws, _, error = find_truncation(ψ, O; verbosity = 0);
         return Ws
     elseif initial_guess == "random"
-        return [isdual(ψ.dom[i]) ? TensorMap(randn, ψ.dom[i] ⊗ O.dom[i], space') : TensorMap(randn, ψ.dom[i] ⊗ O.dom[i], space) for i in 1:4]
+        return [isdual(domain(ψ)[i]) ? TensorMap(randn, domain(ψ)[i] ⊗ domain(O)[i], space') : TensorMap(randn, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
     elseif initial_guess == "isometry"
-        return [isdual(ψ.dom[i]) ? isometry(ψ.dom[i] ⊗ O.dom[i], space') : isometry(ψ.dom[i] ⊗ O.dom[i], space) for i in 1:4]
+        return [isdual(domain(ψ)[i]) ? isometry(domain(ψ)[i] ⊗ domain(O)[i], space') : isometry(domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
     elseif initial_guess == "zeros"
         @warn "This will probably give errors"
-        return [isdual(ψ.dom[i]) ? TensorMap(zeros, ψ.dom[i] ⊗ O.dom[i], space') : TensorMap(zeros, ψ.dom[i] ⊗ O.dom[i], space) for i in 1:4]
+        return [isdual(domain(ψ)[i]) ? TensorMap(zeros, domain(ψ)[i] ⊗ domain(O)[i], space') : TensorMap(zeros, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
     elseif initial_guess == "SVD"
-        Ws = [TensorMap(zeros, ψ.dom[i] ⊗ O.dom[i], space) for i in 1:4]
+        Ws = [TensorMap(zeros, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
 
         @autoopt @tensor T[DNa DONa; DNb DONb] :=
             ψ[Dpa; DNa DE DS DW] *
@@ -35,7 +35,7 @@ function initialize_isometry(
         end
         return Ws
     elseif initial_guess == "eigen"
-        Ws = [TensorMap(zeros, ψ.dom[i] ⊗ O.dom[i], space) for i in 1:4]
+        Ws = [TensorMap(zeros, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
 
         @autoopt @tensor T[DNa DONa; DNb DONb] :=
             ψ[Dpa; DNa DE DS DW] *
@@ -44,7 +44,7 @@ function initialize_isometry(
             conj(ψ[Dpb; DNb DE DS DW])
 
         _, V = eigen(T)
-        W2_new = TensorMap(zeros, ComplexF64, ψ.dom[2] ⊗ O.dom[2], space)
+        W2_new = TensorMap(zeros, ComplexF64, domain(ψ)[2] ⊗ domain(O)[2], space)
         W2_new[][:, :, :] = V[][:, :, 1:dim(space)]
 
         for dir in 1:4
@@ -58,17 +58,17 @@ function initialize_isometry(
         env0 = CTMRGEnv(ψnew, ComplexSpace(χenv));
         env = leading_boundary(env0, ψnew, ctm_alg);
 
-        @autoopt @tensor E[DNa; DSa] := env.corners[1, 1, 1][χ6; χ1] *
+        @autoopt @tensor Ẽ[DNa; DSa] := env.corners[1, 1, 1][χ6; χ1] *
         env.edges[1, 1, 1][χ1; DNa Db χ2] *
         env.corners[2, 1, 1][χ2; χ3] *
         env.corners[3, 1, 1][χ3; χ4] *
         env.edges[3, 1, 1][χ4; DSa Db χ5] *
         env.corners[4, 1, 1][χ5; χ6]
 
-        U, Σ, V = tsvd(E, trunc = truncdim(dim(ψ.dom[1])))
-        Ws = [TensorMap(zeros, ComplexF64, ψ.dom[i] ⊗ O.dom[i], space) for i in 1:4]
+        U, Σ, V = tsvd(Ẽ, trunc = truncdim(dim(domain(ψ)[1])))
+        Ws = [TensorMap(zeros, ComplexF64, domain(ψ)[i] ⊗ domain(O)[i], space) for i in 1:4]
         for dir in 1:4
-            Ws[dir][][:, :, :] = reshape(V[][:, :, :], (dim(ψ.dom[i]), dim(O.dom[i]), dim(space)))
+            Ws[dir][][:, :, :] = reshape(V[][:, :, :], (dim(domain(ψ)[i]), dim(domain(O)[i]), dim(space)))
         end
         return Ws
     else
@@ -76,7 +76,7 @@ function initialize_isometry(
     end
 end
 
-function approximate(ψ::AbstractTensorMap{S,1,4}, O::AbstractTensorMap{S,2,4}, Ws) where {S}
+function approximate(ψ::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,2,4}, Ws) where {E,S}
     # Apply an operator to a tensor and apply a isomtry to truncate the virtual spaces
     @tensor A[-1; -2 -3 -4 -5] :=
         ψ[1; 2 4 6 8] *
@@ -88,7 +88,7 @@ function approximate(ψ::AbstractTensorMap{S,1,4}, O::AbstractTensorMap{S,2,4}, 
     return A
 end
 
-function approximate(ψ::AbstractTensorMap{S,1,4}, Ws) where {S}
+function approximate(ψ::AbstractTensorMap{E,S,1,4}, Ws) where {E,S}
     # Apply an isomtry on a tensor to truncate the virtual spaces
     @tensor A[-1; -2 -3 -4 -5] :=
         ψ[-1; 1 2 3 4] *
@@ -99,7 +99,7 @@ function approximate(ψ::AbstractTensorMap{S,1,4}, Ws) where {S}
     return A
 end
 
-function approximate(O₁::AbstractTensorMap{S,2,4}, O₂::AbstractTensorMap{S,2,4}, Ws) where {S}
+function approximate(O₁::AbstractTensorMap{E,S,2,4}, O₂::AbstractTensorMap{E,S,2,4}, Ws) where {E,S}
     # Apply an operator to another operator and apply a isomtry to truncate the virtual spaces
     @tensor A[-1 -2; -3 -4 -5 -6] :=
         O₁[1 -2; 2 4 6 8] *
@@ -112,8 +112,8 @@ function approximate(O₁::AbstractTensorMap{S,2,4}, O₂::AbstractTensorMap{S,2
 end
 
 function update_isometry(
-    ψ::AbstractTensorMap{S,1,4}, O::AbstractTensorMap{S,2,4}, Ws, χenv; space=ψ.dom[2], noise = 1e-6
-) where {S}
+    ψ::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,2,4}, Ws, χenv; space=domain(ψ)[2], noise = 0.0
+) where {E,S}
     A = approximate(ψ, O, Ws)
 
     ctm_alg = CTMRG(;
@@ -130,7 +130,7 @@ function update_isometry(
 
     env = leading_boundary(env0, A2, ctm_alg)
 
-    @autoopt @tensor E[DLaE1 DLaE2; DRaW1 DRaW2] :=
+    @autoopt @tensor Ẽ[DLaE1 DLaE2; DRaW1 DRaW2] :=
         env.corners[1, 1, 1][χ8; χ1] *
         env.edges[1, 1, 1][χ1; DLaN3 DLbN χN] *
         env.edges[1, 1, 1][χN; DRaN3 DRbN χ2] *
@@ -156,29 +156,29 @@ function update_isometry(
     # Diag, V = eigen(E)
     # @tensor Etest[-1 -2; -3 -4] := V[-1 -2; 1] * Diag[1; 2] * inv(V)[2; -3 -4]
     # @assert norm(E - Etest) / norm(E) < 1e-10 "eigenvalue decomposition is not exact: relative norm difference is $(norm(E-Etest)/norm(E))"
-    U, Σ, V = tsvd(E)
+    U, Σ, V = tsvd(Ẽ)
     @tensor Etest[-1 -2; -3 -4] := U[-1 -2; 1] * Σ[1; 2] * V[2; -3 -4]
-    @assert norm(E - Etest) / norm(E) < 1e-10 "eigenvalue decomposition is not exact: relative norm difference is $(norm(E-Etest)/norm(E))"
+    @assert norm(Ẽ - Etest) / norm(Ẽ) < 1e-10 "eigenvalue decomposition is not exact: relative norm difference is $(norm(E-Etest)/norm(E))"
 
     @tensor unittest1[-1 -2; -3 -4] := inv(V)[-1 -2; 1] * V[1; -3 -4]
     @tensor unittest2[-1; -2] := V[-1; 1 2] * inv(V)[1 2; -2]
 
-    W2_new = isdual(ψ.dom[2]) ? TensorMap(zeros, ComplexF64, ψ.dom[2] ⊗ O.dom[2], space') : TensorMap(zeros, ComplexF64, ψ.dom[2] ⊗ O.dom[2], space)
+    W2_new = isdual(domain(ψ)[2]) ? TensorMap(zeros, ComplexF64, domain(ψ)[2] ⊗ domain(O)[2], space') : TensorMap(zeros, ComplexF64, domain(ψ)[2] ⊗ domain(O)[2], space)
     W2_new[][:, :, :] = U[][:, :, 1:dim(space)]
-    W4_new = isdual(ψ.dom[4]) ? TensorMap(zeros, ComplexF64, ψ.dom[4] ⊗ O.dom[4], space') : TensorMap(zeros, ComplexF64, ψ.dom[4] ⊗ O.dom[4], space)
+    W4_new = isdual(domain(ψ)[4]) ? TensorMap(zeros, ComplexF64, domain(ψ)[4] ⊗ domain(O)[4], space') : TensorMap(zeros, ComplexF64, domain(ψ)[4] ⊗ domain(O)[4], space)
     W4_new[][:, :, :] = permute(inv(U), ((2, 3), (1,)))[][:, :, 1:dim(space)]
 
     Ws = [Ws[1], W2_new, Ws[3], W4_new]
     for dir = 1:4
-        Ws[dir] = Ws[dir] + TensorMap(randn, Ws[dir].codom, Ws[dir].dom) * noise
+        Ws[dir] = Ws[dir] + TensorMap(randn, codomain(Ws[dir]), domain(Ws[dir])) * noise
     end
 
     return Ws, A
 end
 
 function update_isometry(
-    ψ::AbstractTensorMap{S,1,4}, Ws, χenv; space = ψ.dom[2]
-) where {S}
+    ψ::AbstractTensorMap{E,S,1,4}, Ws, χenv; space = domain(ψ)[2], noise = 0.0
+) where {E,S}
     A = approximate(ψ, Ws)
     
     ctm_alg = CTMRG(;
@@ -189,12 +189,12 @@ function update_isometry(
     svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10)),
     ctmrgscheme=:simultaneous,
     )
-    A2 = InfinitePEPS(A)
-    env0 = CTMRGEnv(A2, ℂ^χenv)
+    ψA = InfinitePEPS(A)
+    env0 = CTMRGEnv(ψA, ℂ^χenv)
 
     env = leading_boundary(env0, A2, ctm_alg)
 
-    @autoopt @tensor E[DLaE1; DRaW1] :=
+    @autoopt @tensor Ẽ[DLaE1; DRaW1] :=
         env.corners[1, 1, 1][χ8; χ1] *
         env.edges[1, 1, 1][χ1; DLaN3 DLbN χN] *
         env.edges[1, 1, 1][χN; DRaN3 DRbN χ2] *
@@ -216,47 +216,52 @@ function update_isometry(
         Ws[2][DRaE1; DRaE3] *
         Ws[3][DRaS1; DRaS3]
 
-    Diag, V = eigen(E)
+    Diag, V = eigen(Ẽ)
     @tensor Etest[-1; -2] := V[-1; 1] * Diag[1; 2] * inv(V)[2; -2]
-    @assert norm(E - Etest) / norm(E) < 1e-10 "eigenvalue decomposition is not exact: relative norm difference is $(norm(E-Etest)/norm(E))"
+    @assert norm(Ẽ - Etest) / norm(Ẽ) < 1e-10 "eigenvalue decomposition is not exact: relative norm difference is $(norm(E-Etest)/norm(E))"
 
     @tensor unittest1[-1; -2] := V[-1; 1] * inv(V)[1; -2]
     @tensor unittest2[-1; -2] := inv(V)[-1; 1] * V[1; -2]
 
-    W2_new = isdual(ψ.dom[2]) ? TensorMap(zeros, ComplexF64, ψ.dom[2], space') : TensorMap(zeros, ComplexF64, ψ.dom[2], space)
+    W2_new = isdual(dom(ψ)[2]) ? TensorMap(zeros, ComplexF64, domain(ψ)[2], space') : TensorMap(zeros, ComplexF64, domain(ψ)[2], space)
     W2_new[][:, :] = V[][:, 1:dim(space)]
-    W4_new = isdual(ψ.dom[4]) ? TensorMap(zeros, ComplexF64, ψ.dom[4], space') : TensorMap(zeros, ComplexF64, ψ.dom[4], space)
+    W4_new = isdual(domain(ψ)[4]) ? TensorMap(zeros, ComplexF64, domain(ψ)[4], space') : TensorMap(zeros, ComplexF64, domain(ψ)[4], space)
     W4_new[][:, :] = permute(inv(V), ((2,), (1,)))[][:, 1:dim(space)]
 
-    return [Ws[1], W2_new, Ws[3], W4_new], A
+    Ws = [Ws[1], W2_new, Ws[3], W4_new]
+    for dir = 1:4
+        Ws[dir] = Ws[dir] + TensorMap(randn, codom(Ws[dir]), domain(Ws[dir])) * noise
+    end
+
+    return Ws, A
 end
 
 function apply_and_fuse(
-    ψ::AbstractTensorMap{S,1,4},
-    O::AbstractTensorMap{S,2,4};    
-) where {S}
+    ψ::AbstractTensorMap{E,S,1,4},
+    O::AbstractTensorMap{E,S,2,4};    
+) where {E,S}
     # Apply an operator to a tensor and fuse the virtual spaces
-    Is = [i > 2 ? isometry(ψ.dom[i] ⊗ O.dom[i], fuse(ψ.dom[i], O.dom[i])') : isometry(ψ.dom[i] ⊗ O.dom[i], fuse(ψ.dom[i], O.dom[i])) for i = 1:4]
+    Is = [i > 2 ? isometry(domain(ψ)[i] ⊗ domain(O)[i], fuse(domain(ψ)[i], domain(O)[i])') : isometry(domain(ψ)[i] ⊗ domain(O)[i], fuse(domain(ψ)[i], domain(O)[i])) for i = 1:4]
     @tensor ψnew[-1; -2 -3 -4 -5] := ψ[1; 2 4 6 8] * O[-1 1; 3 5 7 9] * Is[1][2 3; -2] * Is[2][4 5; -3] * Is[3][6 7; -4] * Is[4][8 9; -5]
     return ψnew
 end
 
 function apply(
-    ψ::AbstractTensorMap{S,1,4},
-    O::AbstractTensorMap{S,2,4};
+    ψ::AbstractTensorMap{E,S,1,4},
+    O::AbstractTensorMap{E,S,2,4};
     maxiter=50,
-    spaces=[ψ.dom[1]],
+    spaces=[domain(ψ)[1]],
     χenv=12,
     tol=1e-15,
     verbosity=1,
     initial_guess="unity",
-) where {S}
-    verbosity = 2
+    noise = 0.0
+) where {E,S}
     if (initial_guess == "unity") && (length(spaces) > 1)
         @error "Initial guess 'unity' only works for zero intermediate spaces"
     end
     if (verbosity > 0)
-        @info "Approximating from $(ψ.dom[1]) ⊗ $(O.dom[1]) to $(spaces)"
+        @info "Approximating from $(domain(ψ)[1]) ⊗ $(domain(O)[1]) to $(spaces)"
     end
     first_approx_space = popfirst!(spaces)
     Ws = initialize_isometry(ψ, O; initial_guess=initial_guess, space = first_approx_space)
@@ -267,7 +272,7 @@ function apply(
         Ws_old = copy(Ws)
         A_old = copy(A)
         for _ in 1:4
-            Ws, A = update_isometry(ψ, O, Ws, χenv; space = first_approx_space)
+            Ws, A = update_isometry(ψ, O, Ws, χenv; space = first_approx_space, noise = noise)
             ψ = rotl90(ψ)
             O = rotl90(O)
             Ws = circshift(Ws, -1)
@@ -275,44 +280,49 @@ function apply(
         ϵ = norm(A - A_old) / norm(A_old)
         ϵ_Ws = ([norm(Ws[i] - Ws_old[i]) / norm(Ws_old[i]) for i = 1:4])
         if ϵ < tol
-            @info "Converged after $i iterations: norm difference in A is $ϵ"
+            if (verbosity > 0)
+                @info "Converged after $i iterations: norm difference in A is $ϵ"
+            end
             ψnew = rotl90(A)
             ψintermediate = ψnew * norm(ψ)/norm(ψnew)
             for space = spaces
-                ψintermediate, Ws = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity)
+                ψintermediate, Ws = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity, noise = noise)
             end
             return ψintermediate, Ws
         end
-        if (verbosity > 0)
+        if (verbosity > 1)
             @info "Step $i of $maxiter: norm difference in A is $ϵ"
             @info "Step $i of $maxiter: norm difference in Ws is $ϵ_Ws"
         end
     end
-    @warn "Not converged after $maxiter iterations: norm difference in A is $ϵ"
+    if (verbosity > 0)
+        @warn "Not converged after $maxiter iterations: norm difference in A is $ϵ"
+    end
     # if initial_guess != "random" 
     #     return apply(ψ, O; maxiter=maxiter, spaces=vcat(first_approx_space, spaces), χenv=χenv, tol=tol, verbosity=verbosity, initial_guess="random")
     # end
     ψnew = rotl90(A)
     ψintermediate = ψnew * norm(ψ)/norm(ψnew)
     for space = spaces
-        ψintermediate, Ws = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity)
+        ψintermediate, Ws = approximate_iteratively(ψintermediate, space; maxiter=maxiter, χenv = χenv, tol = tol, verbosity = verbosity, noise = noise)
     end
     return ψintermediate, Ws
 end
 
 function approximate_iteratively(
-    ψ::AbstractTensorMap{S,1,4},
+    ψ::AbstractTensorMap{E,S,1,4},
     space::ElementarySpace;
     maxiter=50,
     χenv=12,
     tol=1e-5,
     verbosity=1,
-) where {S}
+    noise = 0.0
+) where {E,S}
     @error "In approx iter"
     if (verbosity > 0)
-        @info "Approximating from $(ψ.dom[1]) to $(space)"
+        @info "Approximating from $(domain(ψ)[1]) to $(space)"
     end
-    Ws = [isdual(ψ.dom[i]) ? TensorMap(randn, ψ.dom[i], space') : TensorMap(randn, ψ.dom[i], space) for i in 1:4]
+    Ws = [isdual(domain(ψ)[i]) ? TensorMap(randn, domain(ψ)[i], space') : TensorMap(randn, domain(ψ)[i], space) for i in 1:4]
     A = rotr90(approximate(ψ, Ws))
     ϵ = 0
     ϵ_Ws = 0
@@ -320,27 +330,27 @@ function approximate_iteratively(
         Ws_old = copy(Ws)
         A_old = copy(A)
         for _ in 1:4
-            Ws, A = update_isometry(ψ, Ws, χenv; space = space)
+            Ws, A = update_isometry(ψ, Ws, χenv; space = space, noise = noise)
             ψ = rotl90(ψ)
             Ws = circshift(Ws, -1)
         end
         ϵ = norm(A - A_old) / norm(A_old)
         ϵ_Ws = ([norm(Ws[i] - Ws_old[i]) / norm(Ws_old[i]) for i = 1:4])
         if ϵ < tol
-            @info "Converged after $i iterations: norm difference in A is $ϵ"
-            @info "Step $i of $maxiter: norm difference in Ws is $ϵ_Ws"
+            if (verbosity > 0)
+                @info "Converged after $i iterations: norm difference in A is $ϵ"
+                @info "Step $i of $maxiter: norm difference in Ws is $ϵ_Ws"
+            end
             ψnew = rotl90(A)
             return ψnew * norm(ψ)/norm(ψnew), Ws
         end
-        if (verbosity > 0)
+        if (verbosity > 1)
             @info "Step $i of $maxiter: norm difference in A is $ϵ"
         end
     end
-    @info "Not converged after $maxiter iterations: norm difference in A is $ϵ"
+    if (verbosity > 0)
+        @info "Not converged after $maxiter iterations: norm difference in A is $ϵ"
+    end
     ψnew = rotl90(A)
     return ψnew * norm(ψ)/norm(ψnew), Ws
-end
-
-function find_isometry(ψ, space, )
-    
 end

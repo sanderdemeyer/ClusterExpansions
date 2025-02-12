@@ -1,6 +1,6 @@
 # This is not valid in the fermionic case. For fermions, flippers have to be used, which are defined in TensorKit v0.14
 
-function rotl90_fermionic(A::AbstractTensorMap{S,1,4}) where {S<:ElementarySpace}
+function rotl90_fermionic(A::AbstractTensorMap{E,S,1,4}) where {E,S<:ElementarySpace}
     A = rotl90(A)
 
     I₂ = isometry(A.dom[2], (A.dom[2])')
@@ -10,7 +10,7 @@ function rotl90_fermionic(A::AbstractTensorMap{S,1,4}) where {S<:ElementarySpace
     return A_rot
 end
 
-function rotl90_fermionic(A::AbstractTensorMap{S,2,4}) where {S<:ElementarySpace}
+function rotl90_fermionic(A::AbstractTensorMap{E,S,2,4}) where {E,S<:ElementarySpace}
     A = rotl90(A)
 
     I₂ = isometry(A.dom[2], (A.dom[2])')
@@ -20,7 +20,7 @@ function rotl90_fermionic(A::AbstractTensorMap{S,2,4}) where {S<:ElementarySpace
     return A_rot
 end
 
-function rotl180_fermionic(A::AbstractTensorMap{S,1,4}) where {S<:ElementarySpace}
+function rotl180_fermionic(A::AbstractTensorMap{E,S,1,4}) where {E,S<:ElementarySpace}
     A = rotl90(rotl90(A))
 
     I₁ = isometry(A.dom[1], (A.dom[1])')
@@ -31,7 +31,7 @@ function rotl180_fermionic(A::AbstractTensorMap{S,1,4}) where {S<:ElementarySpac
     return A_rot
 end
 
-function rotl180_fermionic(A::AbstractTensorMap{S,2,4}) where {S<:ElementarySpace}
+function rotl180_fermionic(A::AbstractTensorMap{E,S,2,4}) where {E,S<:ElementarySpace}
     A = rotl90(rotl90(A))
 
     I₁ = isometry(A.dom[1], (A.dom[1])')

@@ -1,22 +1,26 @@
 function make_translationally_invariant(A)
-    W = TensorMap(zeros, A.codom, A.dom)
+    Anew = TensorMap(zeros, A.codom, A.dom)
     for _ = 1:4
         A = rotl90(A)
-        W += A
+        Anew += A
     end
-    return W
+    return Anew / 4
 end
 
-function flip_arrows(A::AbstractTensorMap{S,1,4} 
-    ) where {S<:ElementarySpace}
+function make_translationally_invariant_fermionic(A)
+    return flip_arrows(make_translationally_invariant(flip_arrows(A)))
+end
+
+function flip_arrows(A::AbstractTensorMap{E,S,1,4} 
+    ) where {E,S<:ElementarySpace}
     I₃ = isometry(A.dom[3], (A.dom[3])')
     I₄ = isometry(A.dom[4], (A.dom[4])')
     @tensor A_flipped[-1; -2 -3 -4 -5] := A[-1; -2 -3 1 2] * I₃[1; -4] * I₄[2; -5]
     return A_flipped
 end
 
-function flip_arrows(A::AbstractTensorMap{S,2,4} 
-    ) where {S<:ElementarySpace}
+function flip_arrows(A::AbstractTensorMap{E,S,2,4} 
+    ) where {E,S<:ElementarySpace}
     I₃ = isometry(A.dom[3], (A.dom[3])')
     I₄ = isometry(A.dom[4], (A.dom[4])')
     @tensor A_flipped[-1 -2; -3 -4 -5 -6] := A[-1 -2; -3 -4 1 2] * I₃[1; -5] * I₄[2; -6]

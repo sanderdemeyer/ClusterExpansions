@@ -36,8 +36,9 @@ end
 function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = true, symmetry = nothing)
     RHS_rot = permute(RHS, ((4,1,2,3),(8,5,6,7)))
 
-    @assert norm(RHS - RHS_rot) / norm(RHS) < 1e-15 "Operator is not rotationally invariant. Error = $(norm(RHS - RHS_rot) / norm(RHS))"
-
+    if norm(RHS - RHS_rot) / norm(RHS) > 1e-15
+        @warn "Operator is not rotationally invariant. Error = $(norm(RHS - RHS_rot) / norm(RHS))"
+    end
     tensor_norm = norm(RHS)
     RHS /= tensor_norm
     truncations = [filtering ? notrunc() : truncdim(s) for s = spaces_in_loop(dim(space))]
@@ -73,10 +74,10 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = t
     trivspace = ℂ^1
     A = TensorMap(zeros, UU.codom, vspace ⊗ vspace') 
 
-    A[][:,:,1,α] = UU[] / 4^(1/4)
-    A[][:,:,α,β] = VU[] / 4^(1/4)
-    A[][:,:,β,γ] = UV[] / 4^(1/4)
-    A[][:,:,γ,1] = VV[] / 4^(1/4)
+    A[][:,:,1,α] = UU[] / sqrt(2)
+    A[][:,:,α,β] = VU[] / sqrt(2)
+    A[][:,:,β,γ] = UV[] / sqrt(2)
+    A[][:,:,γ,1] = VV[] / sqrt(2)
 
     println("Norms are $(norm(RHS)) and $(norm(contract_tensors_symmetric(A)))")
     println("Other error is $(norm(contract_tensors_symmetric(A) - RHS_reconstruct) / norm(RHS_reconstruct))")

@@ -67,37 +67,37 @@ mutable struct LoopTNR
 end
 
 # Entanglement filtering step 
-function QR_L(L::TensorMap, T::AbstractTensorMap{S,2,2}) where {S}
+function QR_L(L::TensorMap, T::AbstractTensorMap{E,S,2,2}) where {E,S}
     @tensor temp[-1 -2; -3 -4] := L[-2; 1] * T[-1 1; -3 -4]
     _, Rt = leftorth(temp, (1, 2, 4), (3,))
     return Rt
 end
 
-function QR_R(R::TensorMap, T::AbstractTensorMap{S,2,2}) where {S}
+function QR_R(R::TensorMap, T::AbstractTensorMap{E,S,2,2}) where {E,S}
     @tensor temp[-1 -2; -3 -4] := T[-1 -2; 1 -4] * R[1; -3]
     Lt, _ = rightorth(temp, (2,), (1, 3, 4))
     return Lt
 end
 
-function QR_L(L::TensorMap, T::AbstractTensorMap{S,1,3}) where {S}
+function QR_L(L::TensorMap, T::AbstractTensorMap{E,S,1,3}) where {E,S}
     @tensor temp[-1; -2 -3 -4] := L[-1; 1] * T[1; -2 -3 -4]
     _, Rt = leftorth(temp, (1, 3, 4), (2,))
     return Rt
 end
 
-function QR_R(R::TensorMap, T::AbstractTensorMap{S,1,3}) where {S}
+function QR_R(R::TensorMap, T::AbstractTensorMap{E,S,1,3}) where {E,S}
     @tensor temp[-1; -2 -3 -4] := T[-1; 1 -3 -4] * R[1; -2]
     Lt, _ = rightorth(temp, (1,), (2, 3, 4))
     return Lt
 end
 
-function QR_L(L::TensorMap, T::AbstractTensorMap{S,1,2}) where {S}
+function QR_L(L::TensorMap, T::AbstractTensorMap{E,S,1,2}) where {E,S}
     @tensor temp[-1; -2 -3] := L[-1; 1] * T[1; -2 -3]
     _, Rt = leftorth(temp, (1, 3), (2,))
     return Rt
 end
 
-function QR_R(R::TensorMap, T::AbstractTensorMap{S,1,2}) where {S}
+function QR_R(R::TensorMap, T::AbstractTensorMap{E,S,1,2}) where {E,S}
     @tensor temp[-1; -2 -3] := T[-1; 1 -3] * R[1; -2]
     Lt, _ = rightorth(temp, (1,), (2, 3))
     return Lt
@@ -227,5 +227,5 @@ function entanglement_filtering(A; ϵ = 1e-14, maxiter = 10, verbosity = 1)
     if verbosity >= 1
         @warn "Entanglement filtering failed"
     end
-    return A_truncated, Inf
+    return A_unfiltered, Inf
 end

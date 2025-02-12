@@ -35,5 +35,7 @@ export solve_4_loop, solve_N_loop
 export init_PEPO, get_PEPO
 export solve_cluster, get_all_indices, clusterexpansion
 export truncate_tensor, truncate_hor, truncate_ver
-export flip_arrows, make_translationally_invariant, find_truncation, apply
+export flip_arrows, make_translationally_invariant, make_translationally_invariant_fermionic
+export find_truncation, apply
+
 end # module ClusterExpansions

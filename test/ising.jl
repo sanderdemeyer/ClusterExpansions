@@ -10,6 +10,7 @@ using JLD2
 import PEPSKit: rmul!, σᶻᶻ, σˣ, InfiniteSquare, InfinitePartitionFunction
 
 function test_ising(p, β, χenv; g = 2.5)
+    trunc = β^(p)
     J = 1.0
 
     # twosite_op = rmul!(σᶻᶻ(), -J)

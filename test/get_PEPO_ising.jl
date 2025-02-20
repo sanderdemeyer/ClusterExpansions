@@ -21,13 +21,6 @@ cluster_2 = [(0,0), (1,0), (1,-1), (2,-1), (1,1), (1,2), (2,2), (3,2),(4,2), (2,
 twosite_op = rmul!(σᶻᶻ(), -1.0)
 onesite_op = rmul!(σˣ(), g * -J)
 
-c = Cluster(cluster_2; levels_convention = levels_convention)
-
-println("summaries: ")
-println("bonds_levels = $(c.bonds_sites)")
-println("bonds_indices = $(c.bonds_indices)")
-println("")
-println("levels_sites = $(c.levels_sites)")
 
 O = clusterexpansion(p, β, twosite_op, onesite_op; levels_convention = "tree_depth");
 

@@ -39,7 +39,12 @@ function get_diff(A, O, W)
     return D - A
 end
 
-function apply_isometry(A, O, W)
+function apply_isometry(A::T, O::T, Ws::Vector{T}) where {T <: TensorMap}
+    @tensor A_trunc[-1; -2 -3 -4 -5] := A[1; 2 4 6 8] * O[-1 1; 3 5 7 9] * Ws[1][2 3; -2] * Ws[2][4 5; -3] * Ws[3][6 7; -4] * Ws[4][8 9; -5]
+    return A_trunc
+end
+
+function apply_isometry(A::T, O::T, W::T) where {T <: TensorMap}
     @tensor A_trunc[-1; -2 -3 -4 -5] := A[1; 2 4 6 8] * O[-1 1; 3 5 7 9] * W[2 3; -2] * W[4 5; -3] * W[6 7; -4] * W[8 9; -5]
     return A_trunc
 end

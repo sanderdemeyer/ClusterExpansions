@@ -9,7 +9,12 @@ using Test
 using Random
 import PEPSKit: rmul!, σᶻᶻ, σˣ, InfiniteSquare
 
+using LinearAlgebra: exp! as la_exp
+using LinearAlgebra
 using GenericLinearAlgebra: svd as generic_svd
+using GenericLinearAlgebra: eigen as generic_eigen
+using GenericLinearAlgebra: Diagonal
+using GenericLinearAlgebra
 
 setprecision(128)
 
@@ -33,27 +38,6 @@ setprecision(128)
 #     U, S, V = alg isa SVD ? LAPACK.gesvd!('S', 'S', A)::TT : LAPACK.gesdd!('S', A)::TT
 #     return U, S, V
 # end
-
-
-function custom_add(x::Float64, y::Float64)
-    return x + y
-end
-
-function custom_add(x::BigFloat, y::BigFloat)
-    return x + y
-end
-
-x = Float64(1.0)
-y = Float64(1e-20)
-
-
-x = BigFloat(1.0)
-y = BigFloat(1e-36)
-
-
-n0 = BigFloat(1e-30)
-n1 = BigFloat(1.0)
-n2 = BigFloat(2.0)
 
 B = TensorMap(randn, Complex{BigFloat}, ℂ^2 ⊗ ℂ^3, ℂ^2)
 A = TensorMap(convert(Vector{ComplexF64},B.data), ℂ^2 ⊗ ℂ^3, ℂ^2)
@@ -91,34 +75,63 @@ BB2_rec = UB2 * ΣB2 * VB2'
 @assert (norm(AA-BB) < 1e-14)
 @assert (norm(ΣA-ΣB) < 1e-14)
 
-@assert norm(ΣB -ΣA) < 3*1e-15 "error between B and A = $(norm(ΣB -ΣA))"
+@assert norm(ΣB -ΣA) < 1e-14 "error between B and A = $(norm(ΣB -ΣA))"
 
 println("Using doubles, machine precision is around $(norm(AA_rec - AA))")
 println("Using BigFloats, machine precision is around $(norm(BB_rec - BB))")
 
-# function apply_A(x, ::Val{false})
-#     @tensor xnew[-1; -2] := C[-1; 1] * x[1; -2]
-#     return xnew
+
+# for (c, b) in blocks(TA)
+#     vals, vecs = generic_eigen(b)
+#     copy!(b, vecs * LinearAlgebra.diagm(exp.(vals)) * vecs')
+# end
+# for (c, b) in blocks(TB)
+#     vals, vecs = generic_eigen(b)
+#     copy!(b, vecs * LinearAlgebra.diagm(exp.(vals)) * vecs')
 # end
 
-# function apply_A(x, ::Val{true})
-#     @tensor xnew[-1; -2] := conj(C[1; -1]) * x[1; -2]
-#     return xnew
+
+
+TB = ones(Complex{BigFloat}, ℂ^2, ℂ^2)
+TA = TensorMap(convert(Vector{ComplexF64},TB.data), ℂ^2, ℂ^2)
+TBunit = TensorMap(Complex{BigFloat}[1.0 0.0; 0.0 2.0], ℂ^2, ℂ^2)
+TBunit_exp = TensorMap(Complex{BigFloat}[exp(BigFloat(1.0)) 0.0; 0.0 exp(BigFloat(2.0))], ℂ^2, ℂ^2)
+
+function own_exponential(t::TensorMap)
+    for (c, b) in blocks(t)
+        println("Type of b = $(typeof(b))")
+        vals, vecs = generic_eigen(b)
+        exponential = vecs * LinearAlgebra.diagm(exp.(vals)) * vecs'
+        copy!(b, exponential)
+    end
+    return t
+end
+
+exp_TA = exp(TA)
+exp_TB = exp(TB)
+TBunit_exp2 = exp(TBunit)
+
+@assert (norm(exp_TA-exp_TB) < 1e-14)
+@assert (norm(TBunit_exp2-TBunit_exp) < 1e-36)
+
+TB = randn(Complex{BigFloat}, ℂ^2, ℂ^2)
+TB = (TB + TB') / 2
+TA = TensorMap(convert(Vector{ComplexF64},TB.data), ℂ^2, ℂ^2)
+
+# for (c, b) in blocks(TB)
+#     println("Type of b = $(typeof(b))")
+#     vals, vecs = GenericLinearAlgebra.eigen(b)
+#     exponential = vecs * LinearAlgebra.diagm(exp.(vals)) * vecs'
+#     copy!(b, exponential)
 # end
 
-# C = TensorMap(randn, Complex{Float64}, ℂ^2, ℂ^2)
-# D = TensorMap(randn, Complex{Float64}, ℂ^2, ℂ^2)
-# x0 = TensorMap(randn, Complex{Float64}, ℂ^2, ℂ^2)
 
-# x, info = lssolve(apply_A, D, LSMR(verbosity = 1, maxiter = 1000))
+# eigvalA, eigvecA = eig(TA)
+# eigvalB, eigvecB = eig(TB)
 
-# println("Now with BigFloat")
-# C = TensorMap(randn, Complex{BigFloat}, ℂ^2, ℂ^2)
-# D = TensorMap(randn, Complex{BigFloat}, ℂ^2, ℂ^2)
-# x0 = TensorMap(randn, Complex{BigFloat}, ℂ^2, ℂ^2)
+TB = randn(Complex{BigFloat}, ℂ^2 ⊗ ℂ^3, ℂ^2 ⊗ ℂ^3)
+TA = TensorMap(convert(Vector{ComplexF64},TB.data), ℂ^2 ⊗ ℂ^3, ℂ^2 ⊗ ℂ^3)
 
-# T0 = zeros(Complex{BigFloat}, 2, 2)
-# Trand = randn(Complex{BigFloat}, 2, 2)
-# Tone = ones(Complex{BigFloat}, 2, 2)
-# println(Trand)
-# println(T0 + Trand + Tone*1e-30)
+eigvalA, eigvecA = generic_eigen(TA)
+eigvalB, eigvecB = generic_eigen(TB)
+

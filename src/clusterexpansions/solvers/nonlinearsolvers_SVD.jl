@@ -1,3 +1,8 @@
+function make_loop_translationally_invariant_fermionic(A)
+    A = (A + permute(A, ((3,4,1,2), (7,8,5,6)))) / BigFloat(2.0)
+    return (A + permute(A, ((4,1,2,3), (8,5,6,7)))) / BigFloat(2.0)
+end
+
 function contract_tensors_symmetric(A)
     loop = ncon([A, A, A, A], [[-1 -5 4 1], [-2 -6 1 2], [-3 -7 2 3], [-4 -8 3 4]])
     return permute(loop, ((1,2,3,4),(5,6,7,8)))
@@ -36,10 +41,12 @@ end
 
 function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = true, symmetry = nothing)
     T = scalartype(RHS)
-
     RHS_rot = permute(RHS, ((4,1,2,3),(8,5,6,7)))
-    if norm(RHS - RHS_rot) / norm(RHS) > 1e-15
-        @warn "Operator is not rotationally invariant. Error = $(norm(RHS - RHS_rot) / norm(RHS))"
+    if norm(RHS - RHS_rot) / norm(RHS) > 1e-36
+        if verbosity >= 1
+            @warn "Operator is not rotationally invariant. Error = $(norm(RHS - RHS_rot) / norm(RHS)) \n Making the operator rotationally invariant"
+        end
+        RHS = make_loop_translationally_invariant_fermionic(RHS)
     end
     tensor_norm = norm(RHS)
     RHS /= tensor_norm
@@ -64,7 +71,7 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = t
     VV = permute(VV, ((2,3), (1,)))
 
     @tensor RHS_reconstruct[-1 -2 -3 -4; -5 -6 -7 -8] := UU[-1 -5; 1] * VU[-2 -6; 1 2] * UV[-3 -7; 2 3] * VV[-4 -8; 3]
-    norm(RHS_reconstruct - RHS) / norm(RHS) < 1e-14 || @warn "Error of SVD in 4-loop = $(norm(RHS_reconstruct - RHS) / norm(RHS))"
+    ((norm(RHS_reconstruct - RHS) / norm(RHS) > eps(real(T))*1e2) && (verbosity >= 1)) && @warn "Error of SVD in 4-loop = $(norm(RHS_reconstruct - RHS) / norm(RHS))"
 
     dims = [dim(domain(UU)[1]), dim(domain(UV)[1]), dim(domain(VV)[1])]
     α = 2:dims[1]+1
@@ -76,26 +83,21 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = t
     trivspace = ℂ^1
     A = zeros(T, codomain(UU), vspace ⊗ vspace') 
 
-    A[][:,:,1,α] = UU[] / sqrt(2)
-    A[][:,:,α,β] = VU[] / sqrt(2)
-    A[][:,:,β,γ] = UV[] / sqrt(2)
-    A[][:,:,γ,1] = VV[] / sqrt(2)
+    A[][:,:,1,α] = UU[] / sqrt(BigFloat(2.0))
+    A[][:,:,α,β] = VU[] / sqrt(BigFloat(2.0))
+    A[][:,:,β,γ] = UV[] / sqrt(BigFloat(2.0))
+    A[][:,:,γ,1] = VV[] / sqrt(BigFloat(2.0))
 
-    println("Norms are $(norm(RHS)) and $(norm(contract_tensors_symmetric(A)))")
-    println("Other error is $(norm(contract_tensors_symmetric(A) - RHS_reconstruct) / norm(RHS_reconstruct))")
     error = norm(contract_tensors_symmetric(A) - RHS) / norm(RHS)
-
     if verbosity >= 1 && error > 1e-2
         @warn "Error in 4-loop before filtering = $(error)"
     elseif verbosity >= 2
         @info "Error in 4-loop before filtering = $(error)"
     end
 
-    if filtering
-        A, _ = entanglement_filtering(A; verbosity = verbosity)
-        vspace = domain(A)[1]
-        spaces = i -> (i >= 0) ? spaces(i) : vspace
-    end
+    A, _ = truncate_loop(A; verbosity = verbosity, filtering = false)
+    vspace = domain(A)[1]
+    spaces = i -> (i >= 0) ? spaces(i) : vspace
 
     error = norm(contract_tensors_symmetric(A) - RHS) / norm(RHS)
 
@@ -104,7 +106,6 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = t
     elseif verbosity >= 2
         @info "Error in 4-loop = $(error)"
     end
-
     A *= (tensor_norm)^(1/4)
     if symmetry == "C4"
         A_SW = zeros(T, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')        

@@ -16,7 +16,6 @@ end
 
 function symmetrize_cluster(x1, x2)
     @error "Not yet implemented"
-
     apply_A = (x, val) -> apply_A_N_2(x2, x, val)
     x, info = lssolve(apply_A, x1, LSMR(verbosity = 1, maxiter = 1000))
 
@@ -175,69 +174,123 @@ function permute_dir(x, dir, second)
     return permute(x, ((1,2).+second, (Tuple(tup))))
 end
 
+function eig_with_truncation(x, space)
+    T = scalartype(x)
+    D = dim(space)
+    eigval, eigvec = eig(x)
+
+    eigval_trunc = zeros(T, space, space)
+    eigvec_trunc = zeros(T, codomain(x), space)
+    eigval_trunc[] = eigval[][1:D,1:D]
+    eigvec_trunc[] = eigvec[][:,:,:,:,:,1:D]
+    return eigval_trunc, eigvec_trunc
+end
+
 function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N, spaces; verbosity = 2)
     pspace = ℂ^2
     trivspace = ℂ^1
-    
-    # x0 = TensorMap(randn, pspace ⊗ pspace' ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[1]]), pspace ⊗ pspace' ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
     if N == 2
         x = zeros(T, pspace ⊗ pspace' ⊗ prod([conj ? trivspace : trivspace' for conj = conjugated[1]]), pspace' ⊗ pspace ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
         b = permute(exp_H, ((1,3), (2,4)))
         x[][:,:,1,1,1,:,:,1,1,1] = b[]
     elseif length(sites_to_update) == 2
-        # init_spaces = [[spaces(levels_to_update[1][i]) for i = 1:4 if (i != dir[1])], [spaces(levels_to_update[2][i]) for i = 1:4 if (i != dir[2])]]
-        # x0 = zeros(T, pspace ⊗ pspace' ⊗ prod([conj ? space : space' for (conj,space) = zip(conjugated[1], init_spaces[1])]), pspace' ⊗ pspace ⊗ prod([conj ? space' : space for (conj,space) = zip(conjugated[2], init_spaces[2])]))
         apply_A = (x, val) -> apply_A_twosite(A, x, sites_to_update, N, val)
 
-        # Ax = apply_A_twosite(A, x0, sites_to_update, N, Val{false}())
-        # x1 = apply_A_twosite(A, Ax, sites_to_update, N, Val{true}())
-        # @assert (x0.dom == x1.dom) && (x0.codom == x1.codom)
-        # @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
-
-        x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 1000))
-        println("type of exp_H = $(scalartype(exp_H))")
-        println("type of x = $(scalartype(x))")
+        if scalartype(exp_H) == Complex{BigFloat}
+            x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-36)))
+            x = permute(x, ((1,6,3,4,8), (2,7,9,5,10)))
+            x = (x + x')/2
+            x = permute(x, ((1,6,3,4,9), (2,7,5,8,10)))
+        else
+            x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 1000))
+        end
     elseif length(sites_to_update) == 1
-        # x0 = TensorMap(zeros, pspace ⊗ pspace', prod([conj ? spaces(levels_to_update[1][i])' : spaces(levels_to_update[1][i]) for (i,conj) = enumerate(conjugated[1])]))
         apply_A = (x, val) -> apply_A_onesite(A, x, sites_to_update, N, val)
         
-        # Ax = apply_A_onesite(A, x0, sites_to_update, N, Val{false}())
-        # x1 = apply_A_onesite(A, Ax, sites_to_update, N, Val{true}())
-        # @assert (x0.dom == x1.dom) && (x0.codom == x1.codom)
-        # @assert (Ax.dom == exp_H.dom) && (Ax.codom == exp_H.codom)
-        x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 1000))
+        if scalartype(exp_H) == Complex{BigFloat}
+            x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-36)))
+        else
+            x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 1000))
+        end
         x = [x,]
     else
         error("Impossible to use a linear solver when the number of tensors to update is equal to $(length(sites_to_update))")
     end
 
     if length(sites_to_update) == 2
-        U, Σ, V = tsvd(x)#, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
-        x1 = U * sqrt(Σ)
-        x2 = sqrt(Σ) * V
-        println("norm of exp_H = $(norm(exp_H))")
-        println("norm of x = $(norm(x))")
-        println("norm of x1 x2 = $(norm(x1 * x2))")
-        println("Sigma = $(Σ)")
-
-        @assert norm(x - x1 * x2)/norm(x) < 1e-10 "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
+        svd = false
+        if svd
+            U, Σ, V = tsvd(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
+            x1 = U * sqrt(Σ)
+            x2 = sqrt(Σ) * V
+            @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
+        else
+            if dir == (3,1)
+                x = flip(x, (2,3,4,6,9,10))
+                x = permute(x, ((1,2,3,4,5), (6,7,9,10,8)))
+            else
+                @error "TBA"
+            end
+            if !(ishermitian(x))
+                x = (x + x')/2
+                if verbosity >= 1
+                    @warn "Hermiticicing: Change is of order $(norm(x-x')/(2*norm(x)))"
+                end
+            end
+            eigval, eigvec = eig_with_truncation(x, spaces(levels_to_update[1][dir[1]]))
+            x1 = eigvec * sqrt(eigval)
+            x2 = sqrt(eigval) * eigvec'
+            @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2)/norm(x))"
+            x1 = flip(x1, (2,3,4))
+            x2 = permute(x2, ((1,), (2,3,6,4,5)))
+            x2 = flip(x2, (2,5,6))
+        end
         x1 = permute_dir(x1, dir[1], 0)
         x2 = permute_dir(x2, dir[2], 1)
         if (dir == (3,1) || dir == (4,2))
-            # vspace = domain(x1)[dir[1]]
-            # I₁ = isometry(vspace, vspace')
-            # I₂ = isometry(vspace', vspace)
-            # ind₁ = [(i==dir[1]) ? 1 : -i-2 for i=1:4]
-            # ind₂ = [(i==dir[2]) ? 1 : -i-2 for i=1:4]
-            # x1 = permute(ncon([x1, I₁], [vcat([-1, -2], ind₁), [1, -2-dir[1]]]), ((1,2),(3,4,5,6)))
-            # x2 = permute(ncon([x2, I₂], [vcat([-1, -2], ind₂), [1, -2-dir[2]]]), ((1,2),(3,4,5,6)))
-
             x1 = permute(flip(x1, 2+dir[1]), ((1,2),(3,4,5,6)))
             x2 = permute(flip(x2, 2+dir[2]), ((1,2),(3,4,5,6)))
         end
+
+        x2_rot = rotl180_fermionic(x2)
         x = [x1, x2]
         # x = symmetrize_cluster!(x1, x2, dir)
     end
+    if length(sites_to_update) == 3
+        @warn "This happens because the error in the previous levels is too small - be warned, things can go wrong"
+        @warn "Using eigendecomposition regardless of what you want"
+        if dir == (3,1)
+            x = flip(x, (2,3,4,6,9,10))
+            x = permute(x, ((1,2,3,4,5), (6,7,9,10,8)))
+        else
+            @error "TBA"
+        end
+        if !(ishermitian(x))
+            x = (x + x')/2
+            @warn "Hermiticicing: Change is of order $(norm(x-x')/(2*norm(x)))"
+        end
+        eigval, eigvec = eig_with_truncation(x, spaces(levels_to_update[1][dir[1]]))
+        x1 = eigvec * sqrt(eigval)
+        x2 = sqrt(eigval) * eigvec'
+        @assert norm(x - x1 * x2)/norm(x) < 1e-10 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2)/norm(x))"
+        println("Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2)/norm(x))")
+        println("Eigenvalues are $(eigval)")
+        x1 = flip(x1, (2,3,4))
+        x2 = permute(x2, ((1,), (2,3,6,4,5)))
+        x2 = flip(x2, (2,5,6))
+        println("norm of exp_H = $(norm(exp_H))")
+        println("norm of x = $(norm(x))")
 
+        x1 = permute_dir(x1, dir[1], 0)
+        x2 = permute_dir(x2, dir[2], 1)
+        if (dir == (3,1) || dir == (4,2))
+            x1 = permute(flip(x1, 2+dir[1]), ((1,2),(3,4,5,6)))
+            x2 = permute(flip(x2, 2+dir[2]), ((1,2),(3,4,5,6)))
+        end
+
+        x2_rot = rotl180_fermionic(x2)
+        x = [x1, x2]
+        # x = symmetrize_cluster!(x1, x2, dir)
+    end
     return x
 end

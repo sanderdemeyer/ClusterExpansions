@@ -8,9 +8,6 @@ function exponentiate_hamiltonian(T, twosite_op, cluster, β)
         push!(H, permute(term, Tuple(1:N), Tuple(N+1:2*N)))
     end
     exp_H = exp(-β*sum(H)) 
-    exp_H_converted = zeros(T, codomain(exp_H), domain(exp_H))
-    exp_H_converted[] = exp_H[]
-    @warn "Exponential not yet implemented with correct eltype"
     return exp_H
 end
 
@@ -24,6 +21,18 @@ function contract_PEPO(T, cluster, PEPO, spaces)
         triv_tensors_dir[dir][][1] = 1.0
     end
     O = get_PEPO(T, ℂ^2, PEPO, spaces)
+    # O_rot = rotl90_fermionic(O)
+    # for (key, value) = PEPO
+    #     shifted = tuple(circshift(collect(key), 2)...)
+    #     println("key = $(key) has shifted $(shifted)")
+    #     if shifted in PEPO.keys
+    #         error = norm(value-rotl180_fermionic(PEPO[shifted]))/norm(value)
+    #         println("error on key $(key) is $(error)")
+    #     else
+    #         println("key $(key) has no equivalent")
+    #     end
+    # end
+    # println("rot invariance of PEPO = $(norm(O-O_rot))/$(norm(O))")
 
     N = cluster.N
     contraction_indices = fill(0, N, 6)

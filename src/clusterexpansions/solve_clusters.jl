@@ -12,15 +12,17 @@ function get_update_dir(c, sites_to_update)
 end
 
 function solve_cluster(T, c, PEPO, β, twosite_op, spaces; levels_convention = "tree_depth", symmetry = nothing, verbosity = 2)
+    if verbosity >= 2
+        println("cluster = $c")
+    end
     cluster = Cluster(c; levels_convention = levels_convention, symmetry = symmetry)
     exp_H = exponentiate_hamiltonian(T, twosite_op, cluster, β)
     residual = contract_PEPO(T, cluster, PEPO, spaces)
-
     RHS = (exp_H/norm(exp_H) - residual/norm(exp_H))*norm(exp_H)
+    RHS = exp_H - residual
 
-    if cluster.m == 1
+    if cluster.N == 6
         RHS2 = exp_H - residual
-        println("c = $c")
         exp_H_rot = permute(exp_H, ((4,1,2,3),(8,5,6,7)))
         residual_rot = permute(residual, ((4,1,2,3),(8,5,6,7)))
         RHS_rot = permute(RHS, ((4,1,2,3),(8,5,6,7)))
@@ -39,7 +41,7 @@ function solve_cluster(T, c, PEPO, β, twosite_op, spaces; levels_convention = "
 
     @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
     sites_to_update = [i for (i,levels) = enumerate(cluster.levels_sites) if !(levels ∈ keys(PEPO))]
-    length(sites_to_update) == 0 && return spaces
+    ((length(sites_to_update) == 0) || (norm(RHS) < eps(real(T))*1e3)) && return spaces
     levels_to_update = cluster.levels_sites[sites_to_update]
 
     if length(sites_to_update) == 4
@@ -48,6 +50,8 @@ function solve_cluster(T, c, PEPO, β, twosite_op, spaces; levels_convention = "
         A = get_A(T, cluster, PEPO, sites_to_update)
         dir, conjugated = get_update_dir(c, sites_to_update)
         solutions = solve_index(T, A, exp_H-residual, conjugated, sites_to_update, levels_to_update, get_direction(dir), cluster.N, spaces; verbosity = verbosity)
+    else
+        @error "Number of sites to update = $(length(sites_to_update))"
     end
     levels_to_update, solutions = symmetrize(symmetry, levels_to_update, solutions)
     merge!(PEPO, Dict(zip(levels_to_update, solutions)))
@@ -88,7 +92,7 @@ function get_all_indices(T, PEPO, p, β, twosite_op, spaces; levels_convention =
             spaces = solve_cluster(T, cluster, PEPO, β, twosite_op, spaces; levels_convention = levels_convention, symmetry = symmetry, verbosity = verbosity)
         end
         previous_clusters = clusters
-        if verbosity >= 1
+        if verbosity >= 2
             for (key, tens) = PEPO
                 println("key = $(key)")
                 println("Maximum is $(maximum(abs.(tens[]))), norm is $(norm(tens))")
@@ -110,7 +114,6 @@ function clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = 
     (p < 10) || error("Only cluster up until 9th order are implemented correctly")
     dim(spaces(0)) == 1 || error("The zeroth space should be of dimension 1")
     pspace = domain(onesite_op)[1]
-    println("T = $(T), p = $p, beta = $(β), onesite_op = $(typeof(onesite_op))")
     PEPO₀ = init_PEPO(T, β, onesite_op)
     PEPO = get_all_indices(T, PEPO₀, p, β, twosite_op, spaces; levels_convention = levels_convention, symmetry = symmetry, verbosity = verbosity)
     return PEPO, get_PEPO(T, pspace, PEPO, spaces)

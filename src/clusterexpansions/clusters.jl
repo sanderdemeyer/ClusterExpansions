@@ -24,10 +24,8 @@ function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
 
     if m >= 1
         if !isnothing(symmetry)
-            println("Here in symmetry")
             permutation = vcat(cycles[1], setdiff(1:N, cycles[1]))
             permute!(cluster, permutation)
-            println("cluster = $(cluster)")
             bonds_sites, bonds_indices = get_bonds(cluster)        
             g = SimpleGraph(Graphs.SimpleEdge.(bonds_indices))
             g_dir = get_directed_graph(bonds_indices)
@@ -36,7 +34,6 @@ function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
             cycles = cycle_basis(g_dir)
             m = length(cycles)
             @assert m >= 1
-            println("here, bonds_sites = $(bonds_sites)")
         end
         coo = get_coordination_number(bonds_indices, N)
         if levels_convention == "initial"

@@ -11,14 +11,13 @@ function get_update_dir(c, sites_to_update)
     return dir, conjugated
 end
 
-function solve_cluster(T, c, PEPO, β, twosite_op, spaces; levels_convention = "tree_depth", symmetry = nothing, verbosity = 2)
+function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; symmetry = nothing, verbosity = 2, solving_loops = true)
     if verbosity >= 2
-        println("cluster = $c")
+        println(cluster)
     end
-    cluster = Cluster(c; levels_convention = levels_convention, symmetry = symmetry)
-    exp_H = exponentiate_hamiltonian(T, twosite_op, cluster, β)
+    exp_H = exponentiate_hamiltonian(twosite_op, onesite_op, cluster, β)
     residual = contract_PEPO(T, cluster, PEPO, spaces)
-    RHS = (exp_H/norm(exp_H) - residual/norm(exp_H))*norm(exp_H)
+    # RHS = (exp_H/norm(exp_H) - residual/norm(exp_H))*norm(exp_H)
     RHS = exp_H - residual
 
     if cluster.N == 6
@@ -41,14 +40,19 @@ function solve_cluster(T, c, PEPO, β, twosite_op, spaces; levels_convention = "
 
     @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
     sites_to_update = [i for (i,levels) = enumerate(cluster.levels_sites) if !(levels ∈ keys(PEPO))]
-    ((length(sites_to_update) == 0) || (norm(RHS) < eps(real(T))*1e3)) && return spaces
+    ((length(sites_to_update) == 0) || (norm(RHS) < eps(real(T))*1e5)) && return spaces
+    if !solving_loops
+        @warn "Not solving loops"
+        return spaces
+    end
     levels_to_update = cluster.levels_sites[sites_to_update]
 
     if length(sites_to_update) == 4
-        solutions, _, spaces = solve_4_loop(RHS, spaces(-1), levels_to_update; verbosity = verbosity, symmetry = symmetry)
+        solutions, _, _ = solve_4_loop_optim(RHS, spaces(-1), levels_to_update; verbosity = verbosity, symmetry = symmetry)
+        # solutions, _, spaces = solve_4_loop_SVD(RHS, spaces(-1), levels_to_update; verbosity = verbosity, symmetry = symmetry)
     elseif length(sites_to_update) ∈ [1, 2]
         A = get_A(T, cluster, PEPO, sites_to_update)
-        dir, conjugated = get_update_dir(c, sites_to_update)
+        dir, conjugated = get_update_dir(cluster.cluster, sites_to_update)
         solutions = solve_index(T, A, exp_H-residual, conjugated, sites_to_update, levels_to_update, get_direction(dir), cluster.N, spaces; verbosity = verbosity)
     else
         @error "Number of sites to update = $(length(sites_to_update))"
@@ -81,17 +85,19 @@ function get_nontrivial_terms(N; prev_clusters = [[(0,0)]])
     return clusters
 end
 
-function get_all_indices(T, PEPO, p, β, twosite_op, spaces; levels_convention = "tree_depth", symmetry = nothing, verbosity = 2)
+function get_all_indices(T, PEPO, p, β, twosite_op, onesite_op, spaces; levels_convention = "tree_depth", symmetry = nothing, verbosity = 2)
     previous_clusters = [[(0,0)]]
     for N = 2:p
         if verbosity >= 1
             println("N = $(N)")
         end
-        clusters = get_nontrivial_terms(N; prev_clusters = previous_clusters)
+        cluster_indices = get_nontrivial_terms(N; prev_clusters = previous_clusters)
+        clusters = [Cluster(c; levels_convention = levels_convention, symmetry = symmetry) for c in cluster_indices]
+        sort!(clusters, by = p -> (p.m, p.n)) # Sort the clusters such that the loops and higher levels are solved last
         for cluster = clusters
-            spaces = solve_cluster(T, cluster, PEPO, β, twosite_op, spaces; levels_convention = levels_convention, symmetry = symmetry, verbosity = verbosity)
+            spaces = solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; symmetry = symmetry, verbosity = verbosity)
         end
-        previous_clusters = clusters
+        previous_clusters = cluster_indices
         if verbosity >= 2
             for (key, tens) = PEPO
                 println("key = $(key)")
@@ -115,7 +121,7 @@ function clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = 
     dim(spaces(0)) == 1 || error("The zeroth space should be of dimension 1")
     pspace = domain(onesite_op)[1]
     PEPO₀ = init_PEPO(T, β, onesite_op)
-    PEPO = get_all_indices(T, PEPO₀, p, β, twosite_op, spaces; levels_convention = levels_convention, symmetry = symmetry, verbosity = verbosity)
+    PEPO = get_all_indices(T, PEPO₀, p, β, twosite_op, onesite_op, spaces; levels_convention = levels_convention, symmetry = symmetry, verbosity = verbosity)
     return PEPO, get_PEPO(T, pspace, PEPO, spaces)
 end
 

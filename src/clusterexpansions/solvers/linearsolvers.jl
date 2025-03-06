@@ -178,7 +178,11 @@ function eig_with_truncation(x, space)
     T = scalartype(x)
     D = dim(space)
     eigval, eigvec = eig(x)
-
+    # x_permuted = flip(permute(x, ((1,6,3,4,5),(7,2,8,9,10))), (2,7))
+    # @assert norm(x_permuted' - x_permuted) < eps(real(T))*1e2 "Permutation made x nonhermitian: $(norm(x_permuted' - x_permuted))"
+    # x_permuted = (x_permuted + x_permuted')/2
+    # eigval, eigvec = eig(x_permuted)
+    # println("eigvals = $(eigval)")
     eigval_trunc = zeros(T, space, space)
     eigvec_trunc = zeros(T, codomain(x), space)
     eigval_trunc[] = eigval[][1:D,1:D]
@@ -198,9 +202,9 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
 
         if scalartype(exp_H) == Complex{BigFloat}
             x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-36)))
-            x = permute(x, ((1,6,3,4,8), (2,7,9,5,10)))
-            x = (x + x')/2
-            x = permute(x, ((1,6,3,4,9), (2,7,5,8,10)))
+            # x = permute(x, ((1,6,3,4,8), (2,7,9,5,10)))
+            # x = (x + x')/2
+            # x = permute(x, ((1,6,3,4,9), (2,7,5,8,10)))
         else
             x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 1000))
         end
@@ -218,11 +222,12 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
     end
 
     if length(sites_to_update) == 2
-        svd = false
+        svd = true
         if svd
             U, Σ, V = tsvd(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
             x1 = U * sqrt(Σ)
             x2 = sqrt(Σ) * V
+            println("Norm of exp_H = $(norm(exp_H))")
             @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
         else
             if dir == (3,1)
@@ -240,7 +245,8 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             eigval, eigvec = eig_with_truncation(x, spaces(levels_to_update[1][dir[1]]))
             x1 = eigvec * sqrt(eigval)
             x2 = sqrt(eigval) * eigvec'
-            @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2)/norm(x))"
+            @assert norm(x - x1 * x2) < eps(real(T))*1e2 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2))"
+            # @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2)/norm(x))"
             x1 = flip(x1, (2,3,4))
             x2 = permute(x2, ((1,), (2,3,6,4,5)))
             x2 = flip(x2, (2,5,6))

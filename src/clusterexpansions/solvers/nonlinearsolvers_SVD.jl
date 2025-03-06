@@ -1,6 +1,6 @@
 function make_loop_translationally_invariant_fermionic(A)
-    A = (A + permute(A, ((3,4,1,2), (7,8,5,6)))) / BigFloat(2.0)
-    return (A + permute(A, ((4,1,2,3), (8,5,6,7)))) / BigFloat(2.0)
+    A = (A + permute(A, ((3,4,1,2), (7,8,5,6)))) / 2
+    return (A + permute(A, ((4,1,2,3), (8,5,6,7)))) / 2
 end
 
 function contract_tensors_symmetric(A)
@@ -8,28 +8,32 @@ function contract_tensors_symmetric(A)
     return permute(loop, ((1,2,3,4),(5,6,7,8)))
 end
 
-function construct_PEPO_loop(A, pspace, vspace, trivspace)
+function construct_PEPO_loop(A, pspace, vspace, trivspace, levels_to_update; symmetry = nothing)
     T = scalartype(A)
-    A_NW = zeros(T, pspace ⊗ pspace', trivspace ⊗ vspace ⊗ vspace' ⊗ trivspace')
-    A_NE = zeros(T, pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ vspace' ⊗ vspace')
-    A_SE = zeros(T, pspace ⊗ pspace', vspace ⊗ trivspace ⊗ trivspace' ⊗ vspace')
-    A_SW = zeros(T, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')
-    A_NW[][:,:,1,:,:,1] = A[]
-    A_NE[][:,:,1,1,:,:] = A[]
-    A_SE[][:,:,:,1,1,:] = A[]
-    A_SW[][:,:,:,:,1,1] = A[]
-    return [A_NW, A_NE, A_SE, A_SW]
-end
-
-function construct_PEPO_loop_symmetric(A_SW, levels_to_update)
-    A_SE = rotl90_fermionic(A_SW)
-    A_NE = rotl90_fermionic(A_SE)
-    A_NW = rotl90_fermionic(A_NE)
-    As = [A_NW, A_NE, A_SE, A_SW]
-
+    if symmetry == "C4"
+        A_SW = zeros(T, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')        
+        A_SW[][:,:,:,:,1,1] = A[]
+        A_SE = rotl90_fermionic(A_SW)
+        A_NE = rotl90_fermionic(A_SE)
+        A_NW = rotl90_fermionic(A_NE)
+        As = [A_NW, A_NE, A_SE, A_SW]
+    elseif isnothing(symmetry)
+        A_NW = zeros(T, pspace ⊗ pspace', trivspace ⊗ vspace ⊗ vspace' ⊗ trivspace')
+        A_NE = zeros(T, pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ vspace' ⊗ vspace')
+        A_SE = zeros(T, pspace ⊗ pspace', vspace ⊗ trivspace ⊗ trivspace' ⊗ vspace')
+        A_SW = zeros(T, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')
+        A_NW[][:,:,1,:,:,1] = A[]
+        A_NE[][:,:,1,1,:,:] = A[]
+        A_SE[][:,:,:,1,1,:] = A[]
+        A_SW[][:,:,:,:,1,1] = A[]
+        As = [A_NW, A_NE, A_SE, A_SW]
+    else
+        error("Symmetry $(symmetry) not implemented")
+    end    
     dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
     values = [dict[key] for key in levels_to_update]
-    return [As[values[1]], As[values[2]], As[values[3]], As[values[4]]]
+    As = [As[values[1]], As[values[2]], As[values[3]], As[values[4]]]
+    return As
 end
 
 function spaces_in_loop(α)
@@ -39,7 +43,7 @@ function spaces_in_loop(α)
     return [s1, s2]
 end
 
-function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = true, symmetry = nothing)
+function solve_4_loop_SVD(RHS, space, levels_to_update; verbosity = 0, SVD_truncation = false, entanglement_filtering = true, symmetry = nothing)
     T = scalartype(RHS)
     RHS_rot = permute(RHS, ((4,1,2,3),(8,5,6,7)))
     if norm(RHS - RHS_rot) / norm(RHS) > 1e-36
@@ -50,8 +54,9 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = t
     end
     tensor_norm = norm(RHS)
     RHS /= tensor_norm
-    truncations = [filtering ? notrunc() : truncdim(s) for s = spaces_in_loop(dim(space))]
+    # truncations = [SVD_truncation ? truncdim(s) : notrunc() for s = spaces_in_loop(dim(space))]
     # truncations = [truncdim(s) for s = spaces_in_loop(dim(space))]
+    truncations = fill(notrunc(), 2)
 
     U, Σ, V = tsvd(RHS, ((1,2,5,6), (3,4,7,8)), trunc = truncations[1])
     U = U * sqrt(Σ)
@@ -94,8 +99,18 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = t
     elseif verbosity >= 2
         @info "Error in 4-loop before filtering = $(error)"
     end
-
-    A, _ = truncate_loop(A; verbosity = verbosity, filtering = false)
+    if entanglement_filtering
+        A = filter_loop(A; maxiter = 10)
+    end
+    if !(isnothing(space))
+        A, error = truncate_loop(A, space)
+        if verbosity >= 1 && error > 1e-2
+            @warn "Error in 4-loop due to truncation = $(error)"
+        elseif verbosity >= 2
+            @info "Error in 4-loop due to truncation = $(error)"
+        end
+    
+    end
     vspace = domain(A)[1]
     spaces = i -> (i >= 0) ? spaces(i) : vspace
 
@@ -107,14 +122,6 @@ function solve_4_loop(RHS, space, levels_to_update; verbosity = 0, filtering = t
         @info "Error in 4-loop = $(error)"
     end
     A *= (tensor_norm)^(1/4)
-    if symmetry == "C4"
-        A_SW = zeros(T, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')        
-        A_SW[][:,:,:,:,1,1] = A[]
-        As = construct_PEPO_loop_symmetric(A_SW, levels_to_update)
-    elseif isnothing(symmetry)
-        As = construct_PEPO_loop(A, pspace, vspace, trivspace)
-    else
-        error("Symmetry $(symmetry) not implemented")
-    end
-    return As, error, spaces
+    As = construct_PEPO_loop(A, pspace, vspace, trivspace, levels_to_update; symmetry = symmetry)
+    return As, error, spaces, A
 end

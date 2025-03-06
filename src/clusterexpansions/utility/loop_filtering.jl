@@ -193,43 +193,30 @@ function finalize_TNR!(scheme::LoopTNR)
     return n^(1 / 4)
 end
 
-function truncate_loop(A; maxiter = 10, verbosity = 1, filtering = true)
-    if scalartype(A) in [Complex{BigFloat} BigFloat]
-        ϵ = 1e-36
-    else
-        ϵ = 1e-14
-    end
-    A_unfiltered = deepcopy(A)
-    if filtering
-        entanglement_alg = EntanglementFiltering(maxiter_TNR(maxiter))
-        loop_alg = LoopOptimization(maxiter_TNR(maxiter))
-        loop_tnr = LoopTNR(A; entanglement_alg = entanglement_alg, loop_alg = loop_alg)
-        
+function filter_loop(A; maxiter = 10)
+    entanglement_alg = EntanglementFiltering(maxiter_TNR(maxiter))
+    loop_alg = LoopOptimization(maxiter_TNR(maxiter))
+    loop_tnr = LoopTNR(A; entanglement_alg = entanglement_alg, loop_alg = loop_alg)
+    
 
-        A = permute(A, (3,),(4,1,2))
-        psi_A = AbstractTensorMap[A,A,A,A]
-        PR_list, PL_list = find_projectors(psi_A, loop_tnr);
-        @tensor A[-1; -2 -3 -4] := A[1; 2 -3 -4] * PR_list[1][2; -2] * PL_list[1][-1; 1];
-        A = permute(A, (3,4), (2,1));
-    end
+    A = permute(A, (3,),(4,1,2))
+    psi_A = AbstractTensorMap[A,A,A,A]
+    PR_list, PL_list = find_projectors(psi_A, loop_tnr);
+    @tensor A[-1; -2 -3 -4] := A[1; 2 -3 -4] * PR_list[1][2; -2] * PL_list[1][-1; 1];
+    A = permute(A, (3,4), (2,1));
 
     @tensor A_joined[-2; -1] := A[2 2; -1 1] * A[3 3; 1 -2]
+    return A
+end
 
-    loop_unfiltered = contract_tensors_symmetric(A_unfiltered)
-    for Dcut = 1:dim(domain(A)[1])
-        _, _, V = tsvd(A_joined; trunc = truncdim(Dcut))
-        @tensor A_truncated[-1 -2; -3 -4] := conj(V[-3; 1]) * A[-1 -2; 1 2] * (V[-4; 2])
-        loop_truncated = contract_tensors_symmetric(A_truncated)
-        error = norm(loop_truncated - loop_unfiltered)/norm(loop_unfiltered)
-        if error < ϵ
-            if verbosity >= 2
-                @info "Entanglement filtering converged:\n Error = $(error) for D = $(dim(domain(A_truncated)[1]))"
-            end
-            return A_truncated, error
-        end
-    end
-    if verbosity >= 1
-        @warn "Entanglement filtering failed"
-    end
-    return A_unfiltered, Inf
+function truncate_loop(A, space)
+    @tensor A_joined[-2; -1] := A[2 2; -1 1] * A[3 3; 1 -2]
+
+    loop_unfiltered = contract_tensors_symmetric(A)
+    _, _, V = tsvd(A_joined; trunc = truncspace(space))
+
+    @tensor A_truncated[-1 -2; -3 -4] := conj(V[-3; 1]) * A[-1 -2; 1 2] * (V[-4; 2])
+    loop_truncated = contract_tensors_symmetric(A_truncated)
+    error = norm(loop_truncated - loop_unfiltered)/norm(loop_unfiltered)
+    return A_truncated, error
 end

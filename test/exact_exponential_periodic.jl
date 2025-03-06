@@ -7,31 +7,34 @@ using ClusterExpansions
 using OptimKit
 using PEPSKit
 import PEPSKit: rmul!, σᶻᶻ, σˣ, InfiniteSquare, InfinitePartitionFunction, LocalOperator, vertices
-
+using JLD2
 
 symmetry = "C4"
 critical = false
 
 setprecision(128)
-T = Complex{BigFloat}
+T = Complex{Float64}
 
 if critical
-    J = 1.0
-    g = 3.1
+    J = T(1.0)
+    g = T(3.1)
     e = -1.6417 * 2
     mˣ = 0.91
 else
-    J = 1.0
-    g = 2.0
+    J = T(1.0)
+    g = T(2.0)
     e = -1.2379 * 2
     mˣ = 0.524
 end
+
+g = T(0.0)
 
 pspace = ℂ^2
 twosite_op = rmul!(σᶻᶻ(T), -J)
 onesite_op = rmul!(σˣ(T), g * -J)
 
-spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^20
+# spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^20
+spaces = i -> (i >= 0) ? ℂ^(2^(i)) : ℂ^10
 
 
 
@@ -45,12 +48,16 @@ spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^20
 # end
 # cluster = Cluster(c)
 
-function exponentiate_hamiltonian_periodic(T, twosite_op, β, L)
+function exponentiate_hamiltonian_periodic(T, onesite_op, twosite_op, β, L)
     N = L^2
     pspace = domain(twosite_op)[1]
     H = []
     for x₁ = 1:L
         for y₁ = 1:L
+            i = L*(y₁-1) + x₁
+            term = ncon([onesite_op, [id(pspace) for _ = 1:N-1]...], [[-i, -N-i], [[-k, -N-k] for k = setdiff(1:N, i)]...], [false for _ = 1:N])
+            push!(H, permute(term, Tuple(1:N), Tuple(N+1:2*N)))
+
             x₂ = mod1(x₁+1, L)
             y₂ = mod1(y₁, L)
             (i,j) = (L*(y₁-1) + x₁, L*(y₂-1) + x₂)
@@ -101,25 +108,36 @@ function contract_PEPO_periodic(O, L)
     return permute(term, Tuple(1:N), Tuple(N+1:2*N))
 end
 
-βs = [10.0^(x) for x in LinRange(-2, -1, 10)]
-ps = [2 3 4 5]
+bmin = -4
+bmax = -1
+pmax = 4
+βs = [10.0^(x) for x in LinRange(bmin, bmax, 10)]
+ps = [i for i = 2:pmax]
 
 errors = zeros(length(βs), length(ps))
 
-O, O_clust = clusterexpansion(T, 2, 1e-2, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 2)
-println(a)
-L = 3
+# O, O_clust = clusterexpansion(T, 4, 1e-2, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 2)
+# println(a)
+L = 2
 for (j,p) = enumerate(ps)
     for (i,β) = enumerate(βs)
-        @warn "beta = $(β), p = $p"
-        O, O_clust = clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 0)
+        @warn "beta = $(β) (number i = $(i)), p = $p"
+        O, O_clust_full = clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 2)
+        O_clust = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
+        O_clust[] = O_clust_full[]
 
-        exp_exact = exponentiate_hamiltonian_periodic(T, twosite_op, β, L)
+        println("Cluster expansion done")
+        exp_exact = exponentiate_hamiltonian_periodic(T, onesite_op, twosite_op, β, L)
+        println("Exact exponential done")
         exp_approx = contract_PEPO_periodic(O_clust, L)
-        
+        println("Approx exponential done")
+
         error = norm(exp_exact-exp_approx)/norm(exp_approx)
         println("error = $(error)")
         errors[i,j] = error
+        file = jldopen("exact_exponential_periodic_intermediate_g_$(g)_p_$(pmax)_betas_$(bmin)_$(bmax)_T_$(T).jld2", "w")
+        file["errors"] = errors
+        close(file)
     end
 end
 
@@ -130,5 +148,11 @@ scatter!(βs, errors[:,3], label = "p = 4")
 # scatter!(βs, errors[:,4], label = "p = 5")
 scatter!(xscale=:log10, yscale=:log10)
 xlabel!("β*J")
-ylabel!("ϵ")
+ylabel!("Error on the exact exp for PBE with L = $(L)")
+title!("Ising model with g = $(real(g)), without loops")
+# savefig(plt, "Exact_exponential_PBE_L_$(L)_g_$(real(g))_p_$(pmax)_betas_$(bmin)_$(bmax)_withoutloops.png")
 display(plt)
+
+file = jldopen("exact_exponential_PBE_L_$(L)_g_$(real(g))_p_$(pmax)_betas_$(bmin)_$(bmax)_T_$(T)_withoutloops.jld2", "w")
+file["errors"] = errors
+close(file)

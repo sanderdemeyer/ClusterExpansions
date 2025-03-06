@@ -235,3 +235,35 @@ function get_levels_sites(bonds_sites, bonds_indices, levels, N)
     levels_sites = [Tuple(levels_sites[i,:]) for i = 1:N]
     return levels_sites
 end
+
+function Base.show(io::IO, z::Cluster)
+    print(io, "Cluster =   ")
+    coords = [(x,-y) for (x,y) in z.cluster]
+
+    # Determine the size of the graph
+    min_x, max_x = minimum(x for (x, _) in coords), maximum(x for (x, _) in coords)
+    min_y, max_y = minimum(y for (_, y) in coords), maximum(y for (_, y) in coords)
+
+    offset = 6
+    offset_cluster = 6
+    max_grid = 10
+
+    # grid = fill("  ", max_y - min_y + 1, offset + max_x - min_x + 1)
+    grid = fill("  ", max_y - min_y + 1, max_grid)
+    # Plot points
+    for (x, y) in coords
+        if y == max_y
+            grid[max_y - y + 1, offset - offset_cluster + x - min_x + 1] = "● "
+        else
+            grid[max_y - y + 1, offset + x - min_x + 1] = "● "
+        end
+    end
+    if z.m == 1
+        grid[1, max_grid] = "has $(z.N) sites and $(z.m) loop"
+    else
+        grid[1, max_grid] = "has $(z.N) sites and $(z.m) loops"
+    end
+    # Print the graph in one call to avoid newline issues
+    print(io, join([join(row) for row in eachrow(grid)], "\n"))
+    print(io, "\n")  # Keep the text on the same line but move to next before graph
+end

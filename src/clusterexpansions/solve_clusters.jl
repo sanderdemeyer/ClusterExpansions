@@ -15,37 +15,40 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; sym
     if verbosity >= 2
         println(cluster)
     end
-    exp_H = exponentiate_hamiltonian(twosite_op, onesite_op, cluster, β)
-    residual = contract_PEPO(T, cluster, PEPO, spaces)
-    # RHS = (exp_H/norm(exp_H) - residual/norm(exp_H))*norm(exp_H)
-    RHS = exp_H - residual
-
-    if cluster.N == 6
-        RHS2 = exp_H - residual
-        exp_H_rot = permute(exp_H, ((4,1,2,3),(8,5,6,7)))
-        residual_rot = permute(residual, ((4,1,2,3),(8,5,6,7)))
-        RHS_rot = permute(RHS, ((4,1,2,3),(8,5,6,7)))
-        RHS2_rot = permute(RHS2, ((4,1,2,3),(8,5,6,7)))
-
-        println("exp_H norm is $(norm(exp_H))")
-        println("residual norm is $(norm(residual))")
-        println("RHS norm is $(norm(RHS))")
-        println("RHS2 norm is $(norm(RHS2))")
-
-        println("Rot invariance of exp_H: $(norm(exp_H - exp_H_rot) / norm(exp_H))")
-        println("Rot invariance of residual: $(norm(residual - residual_rot) / norm(residual))")
-        println("Rot invariance of RHS: $(norm(RHS - RHS_rot) / norm(RHS))")
-        println("Rot invariance of RHS2: $(norm(RHS2 - RHS2_rot) / norm(RHS2))")
-    end
-
-    @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
     sites_to_update = [i for (i,levels) = enumerate(cluster.levels_sites) if !(levels ∈ keys(PEPO))]
-    ((length(sites_to_update) == 0) || (norm(RHS) < eps(real(T))*1e5)) && return spaces
+    (length(sites_to_update) == 0) && return spaces
     if !solving_loops
         @warn "Not solving loops"
         return spaces
     end
     levels_to_update = cluster.levels_sites[sites_to_update]
+
+
+    exp_H = exponentiate_hamiltonian(twosite_op, onesite_op, cluster, β)
+    residual = contract_PEPO(T, cluster, PEPO, spaces)
+    # RHS = (exp_H/norm(exp_H) - residual/norm(exp_H))*norm(exp_H)
+    RHS = exp_H - residual
+
+    # if cluster.N == 6
+    #     RHS2 = exp_H - residual
+    #     exp_H_rot = permute(exp_H, ((4,1,2,3),(8,5,6,7)))
+    #     residual_rot = permute(residual, ((4,1,2,3),(8,5,6,7)))
+    #     RHS_rot = permute(RHS, ((4,1,2,3),(8,5,6,7)))
+    #     RHS2_rot = permute(RHS2, ((4,1,2,3),(8,5,6,7)))
+
+    #     println("exp_H norm is $(norm(exp_H))")
+    #     println("residual norm is $(norm(residual))")
+    #     println("RHS norm is $(norm(RHS))")
+    #     println("RHS2 norm is $(norm(RHS2))")
+
+    #     println("Rot invariance of exp_H: $(norm(exp_H - exp_H_rot) / norm(exp_H))")
+    #     println("Rot invariance of residual: $(norm(residual - residual_rot) / norm(residual))")
+    #     println("Rot invariance of RHS: $(norm(RHS - RHS_rot) / norm(RHS))")
+    #     println("Rot invariance of RHS2: $(norm(RHS2 - RHS2_rot) / norm(RHS2))")
+    # end
+
+    @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
+    (norm(RHS) < eps(real(T))*1e5) && return spaces
 
     if length(sites_to_update) == 4
         solutions, _, _ = solve_4_loop_optim(RHS, spaces(-1), levels_to_update; verbosity = verbosity, symmetry = symmetry)

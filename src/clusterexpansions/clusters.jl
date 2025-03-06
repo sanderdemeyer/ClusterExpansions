@@ -268,7 +268,7 @@ function Base.show(io::IO, z::Cluster)
 
     offset = 6
     offset_cluster = 6
-    max_grid = 10
+    max_grid = 20
 
     # grid = fill("  ", max_y - min_y + 1, offset + max_x - min_x + 1)
     grid = fill("  ", max_y - min_y + 1, max_grid)

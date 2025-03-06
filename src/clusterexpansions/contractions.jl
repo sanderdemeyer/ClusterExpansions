@@ -1,10 +1,14 @@
-function exponentiate_hamiltonian(T, twosite_op, cluster, β)
+function exponentiate_hamiltonian(twosite_op, onesite_op, cluster, β)
     N = cluster.N
     pspace = domain(twosite_op)[1]
     H = []
     for bond = cluster.bonds_indices
         (i,j) = bond
         term = ncon([twosite_op, [id(pspace) for _ = 1:N-2]...], [[-i, -j, -N-i, -N-j], [[-k, -N-k] for k = setdiff(1:N, (i,j))]...], [false for _ = 1:N-1])
+        push!(H, permute(term, Tuple(1:N), Tuple(N+1:2*N)))
+    end
+    for site = 1:N
+        term = ncon([onesite_op, [id(pspace) for _ = 1:N-1]...], [[-site, -N-site], [[-k, -N-k] for k = setdiff(1:N, site)]...], [false for _ = 1:N])
         push!(H, permute(term, Tuple(1:N), Tuple(N+1:2*N)))
     end
     exp_H = exp(-β*sum(H)) 

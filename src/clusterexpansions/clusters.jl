@@ -44,8 +44,26 @@ function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
             error("Levels convention $(levels_convention) not implemented")
         end
         levels = update_levels_loops(levels, cycles, m, bonds_indices, cluster)
+        middle_cycle = nothing
+        if m >= 3
+            for (ic, cycle) = enumerate(cycles)
+                if sum([check_connectedness(cycle, c) for c = cycles]) == 2
+                    middle_cycle = ic
+                    break
+                end
+            end
+        end
         for (i,(u,v)) = enumerate(bonds_indices)
-            if u ∈ cycles[1] && v ∈ cycles[1]
+            if (m >= 3) && (u ∈ cycles[middle_cycle] && v ∈ cycles[middle_cycle]) # ladder
+                isedge = false
+                for ic = setdiff(1:m, middle_cycle)
+                    if u ∈ cycles[ic] && v ∈ cycles[ic]
+                        isedge = true
+                        break
+                    end
+                end
+                levels[i] = -1 - isedge
+            elseif u ∈ cycles[1] && v ∈ cycles[1] # all other cycles
                 levels[i] = -1
             end
         end
@@ -169,6 +187,7 @@ function find_longest_path(g, N)
     return a_star(g, start_edge, end_edge[1]), max_dist+1
 end
 
+# check whether 2 cycles (Tuples of length 4) have common indices
 function check_connectedness(cycle₁, cycle₂)
     return sum([e ∈ cycle₂ for e = cycle₁]) == 2
 end
@@ -195,6 +214,7 @@ function get_longest_cycle(g_dir)
     return longest_cycle, m
 end
 
+# Get the levels of a line of size n without branches
 function get_levels_line(n)
     return Int.([(n+1)/2 - abs((n+1)/2 - i) for i = 1:n])
 end
@@ -236,9 +256,11 @@ function get_levels_sites(bonds_sites, bonds_indices, levels, N)
     return levels_sites
 end
 
+# Pretty printing of a cluster
 function Base.show(io::IO, z::Cluster)
     print(io, "Cluster =   ")
-    coords = [(x,-y) for (x,y) in z.cluster]
+    # coords = [(x,y) for (x,y) in z.cluster]
+    coords = [(y,-x) for (x,y) in z.cluster]
 
     # Determine the size of the graph
     min_x, max_x = minimum(x for (x, _) in coords), maximum(x for (x, _) in coords)

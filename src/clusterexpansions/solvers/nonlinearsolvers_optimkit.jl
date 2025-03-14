@@ -1,6 +1,7 @@
-"""
-    This is not yet updated to deal with BigFloat
-"""
+function contract_tensors_symmetric(A)
+    loop = ncon([A, A, A, A], [[-1 -5 4 1], [-2 -6 1 2], [-3 -7 2 3], [-4 -8 3 4]])
+    return permute(loop, ((1,2,3,4),(5,6,7,8)))
+end
 
 function contract_tensors_symmetric_fused(A)
     loop = ncon([A, A, A, A], [[1 -1 2], [2 -2 3], [3 -3 4], [4 -4 1]])
@@ -18,6 +19,34 @@ end
 function my_add!(Y, X, a)
     Y .+= X .* a
     return InfiniteMPS([Y]).AL[1]
+end
+
+function construct_PEPO_loop(A, pspace, vspace, trivspace, levels_to_update; symmetry = nothing)
+    T = scalartype(A)
+    if symmetry == "C4"
+        A_SW = zeros(T, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')        
+        A_SW[][:,:,:,:,1,1] = A[]
+        A_SE = rotl90_fermionic(A_SW)
+        A_NE = rotl90_fermionic(A_SE)
+        A_NW = rotl90_fermionic(A_NE)
+        As = [A_NW, A_NE, A_SE, A_SW]
+    elseif isnothing(symmetry)
+        A_NW = zeros(T, pspace ⊗ pspace', trivspace ⊗ vspace ⊗ vspace' ⊗ trivspace')
+        A_NE = zeros(T, pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ vspace' ⊗ vspace')
+        A_SE = zeros(T, pspace ⊗ pspace', vspace ⊗ trivspace ⊗ trivspace' ⊗ vspace')
+        A_SW = zeros(T, pspace ⊗ pspace', vspace ⊗ vspace ⊗ trivspace' ⊗ trivspace')
+        A_NW[][:,:,1,:,:,1] = A[]
+        A_NE[][:,:,1,1,:,:] = A[]
+        A_SE[][:,:,:,1,1,:] = A[]
+        A_SW[][:,:,:,:,1,1] = A[]
+        As = [A_NW, A_NE, A_SE, A_SW]
+    else
+        error("Symmetry $(symmetry) not implemented")
+    end    
+    dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
+    values = [dict[key] for key in levels_to_update]
+    As = [As[values[1]], As[values[2]], As[values[3]], As[values[4]]]
+    return As
 end
 
 function get_A_nudge(A, exp_H; c = 0)
@@ -57,13 +86,16 @@ function fg_base(ℒ, ψ)
     return f, g[1]
 end
 
-function solve_4_loop_optim(RHS, vspace, levels_to_update; verbosity = 1, symmetry = nothing, x0 = nothing, gradtol = 1e-9)
+function solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = 1, symmetry = nothing, x0 = nothing, gradtol = 1e-9)
+    gradtol = 1e-1
+    vspace = spaces(-1)
+    trivspace = spaces(0)
+    pspace = codomain(RHS)[1]
+
     # RHS = RHS / norm(RHS)
     D = dim(vspace)
     T = scalartype(RHS)
     
-    pspace = ℂ^2
-    trivspace = ℂ^1
     if isnothing(x0)
         # A = randn(T, vspace ⊗ fuse(pspace, pspace'), vspace)
         A = randn(T, pspace ⊗ pspace', vspace ⊗ vspace')
@@ -82,7 +114,7 @@ function solve_4_loop_optim(RHS, vspace, levels_to_update; verbosity = 1, symmet
     # fg = ψ -> fg_base(ℒ, ψ)
     cfun = x -> get_A_nudge(x, RHS; c = c)
 
-    A, fx, gx, numfg, normgradhistory = optimize(cfun, A, LBFGS(; verbosity=verbosity, gradtol = gradtol); inner=my_inner);
+    A, fx, gx, numfg, normgradhistory = optimize(cfun, A, LBFGS(3; verbosity=verbosity, gradtol = gradtol, maxiter=5); inner=my_inner);
 
     # Anew = zeros(T, vspace ⊗ pspace ⊗ pspace', vspace)
     # Anew[] = reshape(A[], (D,2,2,D))
@@ -107,7 +139,6 @@ function solve_4_loop_optim_leftgauge(RHS, vspace, levels_to_update; verbosity =
     A = InfiniteMPS([A]).AL[1]
 
     c = 0
-    verbosity = 2
 
     # Define an inner product to deal with complex numbers
     my_inner(x, y1, y2) = real(dot(y1, y2))

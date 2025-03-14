@@ -1,6 +1,7 @@
 module ClusterExpansions
 
 using TensorKit, KrylovKit
+using BlockTensorKit: ⊕, SumSpace
 using MPSKit, MPSKitModels
 using PEPSKit
 using Graphs

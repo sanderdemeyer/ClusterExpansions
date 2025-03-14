@@ -29,29 +29,15 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; sym
     # RHS = (exp_H/norm(exp_H) - residual/norm(exp_H))*norm(exp_H)
     RHS = exp_H - residual
 
-    # if cluster.N == 6
-    #     RHS2 = exp_H - residual
-    #     exp_H_rot = permute(exp_H, ((4,1,2,3),(8,5,6,7)))
-    #     residual_rot = permute(residual, ((4,1,2,3),(8,5,6,7)))
-    #     RHS_rot = permute(RHS, ((4,1,2,3),(8,5,6,7)))
-    #     RHS2_rot = permute(RHS2, ((4,1,2,3),(8,5,6,7)))
-
-    #     println("exp_H norm is $(norm(exp_H))")
-    #     println("residual norm is $(norm(residual))")
-    #     println("RHS norm is $(norm(RHS))")
-    #     println("RHS2 norm is $(norm(RHS2))")
-
-    #     println("Rot invariance of exp_H: $(norm(exp_H - exp_H_rot) / norm(exp_H))")
-    #     println("Rot invariance of residual: $(norm(residual - residual_rot) / norm(residual))")
-    #     println("Rot invariance of RHS: $(norm(RHS - RHS_rot) / norm(RHS))")
-    #     println("Rot invariance of RHS2: $(norm(RHS2 - RHS2_rot) / norm(RHS2))")
-    # end
-
-    @assert !(any(isnan.(convert(Array,RHS[][:])))) "RHS contains elements that are NaN"
-    (norm(RHS) < eps(real(T))*1e5) && return spaces
-
+    @assert !(any(isnan.(RHS.data))) "RHS contains elements that are NaN"
+    if (norm(RHS) < eps(real(T))*1e5)
+        if verbosity >= 2
+            println("Not solving this cluster")
+        end
+        return spaces
+    end
     if length(sites_to_update) == 4
-        solutions, _, _ = solve_4_loop_optim(RHS, spaces(-1), levels_to_update; verbosity = verbosity, symmetry = symmetry)
+        solutions, _, _ = solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = verbosity, symmetry = symmetry)
         # solutions, _, spaces = solve_4_loop_SVD(RHS, spaces(-1), levels_to_update; verbosity = verbosity, symmetry = symmetry)
     elseif length(sites_to_update) ∈ [1, 2]
         A = get_A(T, cluster, PEPO, sites_to_update)
@@ -60,16 +46,25 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; sym
     else
         @error "Number of sites to update = $(length(sites_to_update))"
     end
+    if isnothing(solutions)
+        if verbosity >= 2
+            println("Solution returned nothing")
+        end
+        return spaces
+    end
     levels_to_update, solutions = symmetrize(symmetry, levels_to_update, solutions)
     merge!(PEPO, Dict(zip(levels_to_update, solutions)))
     return spaces
+end
+
+function move(clusters, x_shift, y_shift)
+    return [(c[1]+x_shift, c[2]+y_shift) for c in clusters]
 end
 
 function get_nontrivial_terms(N; prev_clusters = [[(0,0)]])
     if N == 1
         return [[(0,0)]]
     end
-    
     # initialize new list of clusters
     clusters = []
     for cluster_indices = prev_clusters # iterate over all previous clusters
@@ -79,8 +74,10 @@ function get_nontrivial_terms(N; prev_clusters = [[(0,0)]])
             for (k₂,j₂) = [(k₁+1,j₁), (k₁-1,j₁), (k₁,j₁+1), (k₁,j₁-1)]
                 proposed_cluster = sort(vcat(cluster_indices, ((k₂,j₂))))
                 if !(((k₂,j₂) in new_indices) || ((k₂,j₂) in cluster_indices) || proposed_cluster in clusters)
-                    push!(clusters, proposed_cluster)
-                    push!(new_indices, (k₂,j₂))
+                    if (proposed_cluster ∉ clusters) && (move(proposed_cluster, -1, 0) ∉ clusters) && (move(proposed_cluster, 1, 0) ∉ clusters) && (move(proposed_cluster, 0, 1) ∉ clusters) && (move(proposed_cluster, 0, -1) ∉ clusters)
+                        push!(clusters, proposed_cluster)
+                        push!(new_indices, (k₂,j₂))
+                    end
                 end
             end
         end
@@ -95,6 +92,7 @@ function get_all_indices(T, PEPO, p, β, twosite_op, onesite_op, spaces; levels_
             println("N = $(N)")
         end
         cluster_indices = get_nontrivial_terms(N; prev_clusters = previous_clusters)
+        # [sort!(c, by = p -> (-p[1], p[2])) for c in cluster_indices]
         clusters = [Cluster(c; levels_convention = levels_convention, symmetry = symmetry) for c in cluster_indices]
         sort!(clusters, by = p -> (p.m, p.n)) # Sort the clusters such that the loops and higher levels are solved last
         for cluster = clusters
@@ -104,18 +102,11 @@ function get_all_indices(T, PEPO, p, β, twosite_op, onesite_op, spaces; levels_
         if verbosity >= 2
             for (key, tens) = PEPO
                 println("key = $(key)")
-                println("Maximum is $(maximum(abs.(tens[]))), norm is $(norm(tens))")
+                println("Maximum is $(maximum(abs.(tens.data))), norm is $(norm(tens))")
                 println("Summary = $(summary(tens))")
             end
         end    
     end
-    # if verbosity >= 1
-    #     for (key, tens) = PEPO
-    #         println("key = $(key)")
-    #         println("Maximum is $(maximum(tens[])), norm is $(norm(tens))")
-    #         println("Summary = $(summary(tens))")
-    #     end
-    # end
 return PEPO
 end    
 
@@ -123,7 +114,7 @@ function clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = 
     (p < 10) || error("Only cluster up until 9th order are implemented correctly")
     dim(spaces(0)) == 1 || error("The zeroth space should be of dimension 1")
     pspace = domain(onesite_op)[1]
-    PEPO₀ = init_PEPO(T, β, onesite_op)
+    PEPO₀ = init_PEPO(T, β, onesite_op, spaces(0))
     PEPO = get_all_indices(T, PEPO₀, p, β, twosite_op, onesite_op, spaces; levels_convention = levels_convention, symmetry = symmetry, verbosity = verbosity)
     return PEPO, get_PEPO(T, pspace, PEPO, spaces)
 end

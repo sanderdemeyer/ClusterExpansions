@@ -8,24 +8,33 @@ end
 
 function init_PEPO(T, β, pspace::ElementarySpace, trivspace::ElementarySpace, onesite_op::AbstractTensorMap)
     A = zeros(T, pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ trivspace' ⊗ trivspace')
-    A[][:,:,1,1,1,1] = exp(-β*onesite_op)[]
+    I = sectortype(A)
+    if I == Trivial
+        trivsector = I()
+    else
+        trivsector = I(0)
+    end
+    block(A, trivsector) .= exp(-β*onesite_op).data
     return Dict((0,0,0,0) => A)
 end
 
-function init_PEPO(T, β, onesite_op::AbstractTensorMap)
-    return init_PEPO(T, β, ℂ^2, ℂ^1, onesite_op)
+function init_PEPO(T, β, onesite_op::AbstractTensorMap, trivspace)
+    I = sectortype(onesite_op)
+    return init_PEPO(T, β, domain(onesite_op)[1], trivspace, onesite_op)
 end
 
 function get_size_level(highest, highest_loop, spaces)
     return sum([dim(spaces(i)) for i = 0:highest]) + sum([dim(spaces(i)) for i = -1:-1:highest_loop])
 end
 
-function get_sum_space(highest, highest_loop, spaces; zerospace = ℂ^0)
-    total_space = zerospace
-    for ind = highest_loop:highest
-        total_space = total_space ⊕ spaces(ind)
+function get_sum_space(highest, highest_loop, spaces)
+    summedspace = ⊕([spaces(i) for i = 0:highest]...)
+    # zerospace = ℂ^0
+    # total_space = zerospace
+    for ind = -1:-1:highest_loop
+        summedspace = summedspace ⊕ spaces(ind)
     end
-    return total_space
+    return summedspace
 end
 
 function get_location_PEPO(ind, highest, spaces)
@@ -43,10 +52,12 @@ function get_PEPO(T, pspace, PEPO, spaces)
     highest = [maximum([i[dir] for i = keys(PEPO)]) for dir = 1:4]
     highest_loop = [minimum([i[dir] for i = keys(PEPO)]) for dir = 1:4]
     conjugated = Bool[0, 0, 1, 1]
-    O = zeros(T, pspace ⊗ pspace', prod([conj ? (get_sum_space(h, hloop, spaces))' : get_sum_space(h, hloop, spaces) for (conj,h,hloop) = zip(conjugated,highest,highest_loop)]))
+    O = zeros(T, SumSpace(pspace) ⊗ SumSpace(pspace)', ⊗([conj ? (get_sum_space(h, hloop, spaces))' : get_sum_space(h, hloop, spaces) for (conj,h,hloop) = zip(conjugated,highest,highest_loop)]...))
     for (key, tens) = PEPO
-        places = [get_location_PEPO(ind, highest[dir], spaces) for (dir,ind) = enumerate(key)]
-        O[][:,:,places[1],places[2],places[3],places[4]] = tens[]
+        key = [i < 0 ? h - i + 1 : i + 1 for (i,h) = zip(key,highest)]
+        # places = [get_location_PEPO(ind, highest[dir], spaces) for (dir,ind) = enumerate(key)]
+        O[1,1,key...] = tens
+        # O[][:,:,places[1],places[2],places[3],places[4]] = tens[]
     end
     return O
 end

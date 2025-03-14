@@ -19,12 +19,16 @@ function contract_PEPO(T, cluster, PEPO, spaces)
     highest = [maximum([i[dir] for i = keys(PEPO)]) for dir = 1:4]
     highest_loop = [minimum([i[dir] for i = keys(PEPO)]) for dir = 1:4]
     total_spaces = [get_sum_space(h, hloop, spaces) for (h,hloop) = zip(highest, highest_loop)]
-
     triv_tensors_dir = [zeros(T,total_spaces[1]), zeros(T,total_spaces[2]), zeros(T,(total_spaces[3])'), zeros(T,(total_spaces[4])')]
     for dir = 1:4
-        triv_tensors_dir[dir][][1] = 1.0
+        if dir > 2
+            triv_tensors_dir[dir][1] = ones(T,total_spaces[dir][1]')
+        else
+            triv_tensors_dir[dir][1] = ones(T,total_spaces[dir][1])
+        end
     end
-    O = get_PEPO(T, ℂ^2, PEPO, spaces)
+    pspace = codomain(PEPO[(0,0,0,0)])[1]
+    O = get_PEPO(T, pspace, PEPO, spaces)
     # O_rot = rotl90_fermionic(O)
     # for (key, value) = PEPO
     #     shifted = tuple(circshift(collect(key), 2)...)

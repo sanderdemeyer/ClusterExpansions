@@ -87,8 +87,7 @@ function get_A(T, cluster, PEPO, sites_to_update)
             end
         end
     end
-
-    trivspace = ℂ^1
+    trivspace = domain(PEPO[0,0,0,0])[1]
     included_sites = setdiff(1:length(cluster.levels_sites)[1], sites_to_update)
     nontriv_tensors = [PEPO[cluster.levels_sites[site]] for site = included_sites]
     triv_tensors = vcat(get_triv_tensors(T, conjugated, trivspace), get_triv_tensors(T, open_conjugated, trivspace))
@@ -102,9 +101,16 @@ end
 function apply_A_onesite(A, x::TensorMap, sites_to_update, N, ::Val{false})
     i = sites_to_update[1]
     included_sites = setdiff(1:N, sites_to_update)
-    contraction_indices = vcat(-included_sites, -included_sites .- N, [1, 2, 3, 4])
-    Ax = ncon([A, x], [contraction_indices, [-i, -N-i, 1, 2, 3, 4]])
-    Ax = permute(Ax, ((Tuple(1:N)), (Tuple(N+1:2*N))))
+    # contraction_indices = vcat(-included_sites, -included_sites .- N, [1, 2, 3, 4])
+    # Ax = ncon([A, x], [contraction_indices, [-i, -N-i, 1, 2, 3, 4]])
+    # Ax = permute(Ax, ((Tuple(1:N)), (Tuple(N+1:2*N))))
+
+    A′ = twist(A, [2*N-1 2*N])
+    # A′ = A
+    Ax = ncon([A′, x], [hcat(transpose(-1:-1:-2*N+2), [1 2 3 4]), [1 2 3 4 -2*N+1 -2*N]])
+    indices_cod = Tuple(insert!([1:N-1;], i, 2*N-1))
+    indices_dom = Tuple(insert!([N:2*N-2;], i, 2*N))
+    Ax = permute(Ax, (indices_cod, indices_dom))
     return Ax
 end
 
@@ -112,20 +118,28 @@ function apply_A_onesite(A, Ax::TensorMap, sites_to_update, N, ::Val{true})
     included_sites = setdiff(1:N, sites_to_update)
     updates = length(sites_to_update)
 
-    contracted_b = zeros(Int, 2*N)
-    for (i,s) = enumerate(sites_to_update)
-        contracted_b[s] = -i
-        contracted_b[s+N] = -i-length(sites_to_update)
-    end
-    count = 1
-    for i = 1:2*N
-        if contracted_b[i] == 0
-            contracted_b[i] = count
-            count += 1
-        end
-    end
-    x = ncon([A, Ax], [vcat(1:2*length(included_sites), [-3, -4, -5, -6]), contracted_b], [true false])
-    x = permute(x, ((Tuple(1:2*updates)), (Tuple(1+2*updates:4+2*updates))))
+    # contracted_b = zeros(Int, 2*N)
+    # for (i,s) = enumerate(sites_to_update)
+    #     contracted_b[s] = -i
+    #     contracted_b[s+N] = -i-length(sites_to_update)
+    # end
+    # count = 1
+    # for i = 1:2*N
+    #     if contracted_b[i] == 0
+    #         contracted_b[i] = count
+    #         count += 1
+    #     end
+    # end
+    # x = ncon([A, Ax], [vcat(1:2*length(included_sites), [-3, -4, -5, -6]), contracted_b], [true false])
+    # x = permute(x, ((Tuple(1:2*updates)), (Tuple(1+2*updates:4+2*updates))))
+
+    A′ = twist(A, N:2*N-2)
+    # A′ = A
+
+    indices_Ax = [((i ∈ sites_to_update) || (i-N ∈ sites_to_update)) ? -5-floor(Int, i/N) : i for i = 1:2*N]
+    indices_A = vcat(included_sites, included_sites .+N, [-1, -2, -3, -4])
+    x = ncon([A′, Ax], [indices_A, indices_Ax], [true false])
+    x = permute(x, ((1,2,3,4),(5,6)))
     return x
 end
 
@@ -191,12 +205,16 @@ function eig_with_truncation(x, space)
 end
 
 function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N, spaces; verbosity = 2)
-    pspace = ℂ^2
-    trivspace = ℂ^1
+    # pspace = codomain(exp_H)[1]
+    trivspace = spaces(0)
     if N == 2
-        x = zeros(T, pspace ⊗ pspace' ⊗ prod([conj ? trivspace : trivspace' for conj = conjugated[1]]), pspace' ⊗ pspace ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
+        # xtry = zeros(T, pspace ⊗ pspace' ⊗ prod([conj ? trivspace : trivspace' for conj = conjugated[1]]), pspace' ⊗ pspace ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
         b = permute(exp_H, ((1,3), (2,4)))
-        x[][:,:,1,1,1,:,:,1,1,1] = b[]
+        Isom_domain = isomorphism(domain(b), domain(b) ⊗ trivspace ⊗ trivspace' ⊗ trivspace')
+        Isom_codomain = isomorphism(codomain(b) ⊗ trivspace' ⊗ trivspace' ⊗ trivspace, codomain(b))
+        x = Isom_codomain * b * Isom_domain
+        # x.data = b.data
+        # x[][:,:,1,1,1,:,:,1,1,1] = b[]
     elseif length(sites_to_update) == 2
         apply_A = (x, val) -> apply_A_twosite(A, x, sites_to_update, N, val)
 
@@ -209,6 +227,10 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 1000))
         end
     elseif length(sites_to_update) == 1
+        A = permute(A, (Tuple(1:2*N-2),(Tuple(2*N-1:2*N+2))))
+        A = twist(A, [2*N-1 2*N])
+        # A = permute(A, ((1,2,3,4),(5,6,7,8)))
+        # x = permute(x, ((3,4,5,6), (1,2)))
         apply_A = (x, val) -> apply_A_onesite(A, x, sites_to_update, N, val)
         
         if scalartype(exp_H) == Complex{BigFloat}
@@ -216,11 +238,28 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         else
             x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 1000))
         end
+        test = apply_A_onesite(A, x, sites_to_update, N, Val(false))
+
+        i = sites_to_update[1]    
+        A = twist(A, [2*N-1 2*N])
+        Ax = ncon([A, x], [hcat(transpose(-1:-1:-2*N+2), [1 2 3 4]), [1 2 3 4 -2*N+1 -2*N]])
+        indices_cod = Tuple(insert!([1:N-1;], i, 2*N-1))
+        indices_dom = Tuple(insert!([N:2*N-2;], i, 2*N))
+        Ax = permute(Ax, (indices_cod, indices_dom))
+        @assert norm(test-exp_H)/norm(exp_H) < 1e-20 "fermionic mistakes: error = $(norm(test-exp_H)/norm(exp_H))"
+        # println(dfjkas)
+        x = permute(x, ((5,6),(1,2,3,4)))
         x = [x,]
     else
         error("Impossible to use a linear solver when the number of tensors to update is equal to $(length(sites_to_update))")
     end
-
+    if norm(x) == 0
+        if verbosity >= 1
+            @warn "Norm of the solution is zero"
+        end
+        return nothing
+    end
+    xold = copy(x)
     if length(sites_to_update) == 2
         svd = true
         if svd
@@ -261,8 +300,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         x2_rot = rotl180_fermionic(x2)
         x = [x1, x2]
         # x = symmetrize_cluster!(x1, x2, dir)
-    end
-    if length(sites_to_update) == 3
+    elseif length(sites_to_update) == 3
         @warn "This happens because the error in the previous levels is too small - be warned, things can go wrong"
         @warn "Using eigendecomposition regardless of what you want"
         if dir == (3,1)

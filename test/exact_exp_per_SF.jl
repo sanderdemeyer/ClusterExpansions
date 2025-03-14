@@ -13,28 +13,31 @@ symmetry = "C4"
 critical = false
 
 setprecision(128)
-T = Complex{Float64}
+T = Complex{BigFloat}
 
-if critical
-    J = T(1.0)
-    g = T(3.1)
-    e = -1.6417 * 2
-    mˣ = 0.91
-else
-    J = T(1.0)
-    g = T(2.0)
-    e = -1.2379 * 2
-    mˣ = 0.524
+t = T(1.0)
+V = T(-2.5)
+V = T(0.0)
+μ = 2*V
+
+kinetic_operator = -t * (c_plusmin(T) + c_minplus(T))
+number_operator = c_number(T)
+@tensor number_twosite[-1 -2; -3 -4] := number_operator[-1; -3] * number_operator[-2; -4]
+onesite_op = rmul!(number_operator, -μ)
+twosite_op = rmul!(kinetic_operator, -t) + rmul!(number_twosite, V)
+
+I = fℤ₂
+function spaces_dict(I, i)
+    if i == 0
+        return Vect[I](0 => 1)
+    elseif i < 0
+        return Vect[I](0 => 5, 1 => 5)
+    else
+        return Vect[I](0 => 2^(2*i-1), 1 => 2^(2*i-1))
+    end
 end
 
-g = T(0.0)
-
-pspace = ℂ^2
-twosite_op = rmul!(σᶻᶻ(T), -J)
-onesite_op = rmul!(σˣ(T), g * -J)
-
-# spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^20
-spaces = i -> (i >= 0) ? ℂ^(2^(i)) : ℂ^10
+spaces = i -> spaces_dict(I, i)
 
 
 
@@ -110,8 +113,8 @@ end
 
 bmin = -4
 bmax = -1
-pmax = 4
-βs = [10.0^(x) for x in LinRange(bmin, bmax, 10)]
+pmax = 3
+βs = [10.0^(x) for x in LinRange(bmin, bmax, 5)]
 ps = [i for i = 2:pmax]
 
 errors = zeros(length(βs), length(ps))
@@ -122,20 +125,24 @@ L = 2
 for (j,p) = enumerate(ps)
     for (i,β) = enumerate(βs)
         @warn "beta = $(β) (number i = $(i)), p = $p"
-        O, O_clust_full = clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 2)
-        O_clust = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
-        O_clust[] = O_clust_full[]
+        O, O_clust_full = clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 0)
+        # O_clust = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
+        O_clust = convert(TensorMap, O_clust_full)
+        # O_clust_approx = TensorMap(O_clust.data, ComplexF64, codomain(O_clust), domain(O_clust))
+        O_clust = TensorMap(convert(Array{ComplexF64}, O_clust.data), codomain(O_clust), domain(O_clust))
+        
+        println("bond dimension of PEPO = $(dim(domain(O_clust)[1]))")
 
         println("Cluster expansion done")
         exp_exact = exponentiate_hamiltonian_periodic(T, onesite_op, twosite_op, β, L)
         println("Exact exponential done")
         exp_approx = contract_PEPO_periodic(O_clust, L)
         println("Approx exponential done")
-
+        println("norms: $(norm(exp_exact)), $(norm(exp_approx))")
         error = norm(exp_exact-exp_approx)/norm(exp_approx)
         println("error = $(error)")
         errors[i,j] = error
-        file = jldopen("exact_exponential_periodic_intermediate_g_$(g)_p_$(pmax)_betas_$(bmin)_$(bmax)_T_$(T).jld2", "w")
+        file = jldopen("exact_exp_PBC_SF_intermediate_t_$(t)_V_$(V)_p_$(pmax)_betas_$(bmin)_$(bmax)_T_$(T).jld2", "w")
         file["errors"] = errors
         close(file)
     end
@@ -144,15 +151,16 @@ end
 using Plots
 plt = scatter(βs, errors[:,1], label = "p = 2")
 scatter!(βs, errors[:,2], label = "p = 3")
-scatter!(βs, errors[:,3], label = "p = 4")
+# scatter!(βs, errors[:,3], label = "p = 4")
 # scatter!(βs, errors[:,4], label = "p = 5")
+# scatter!(βs, errors[:,4], label = "p = 6")
 scatter!(xscale=:log10, yscale=:log10)
 xlabel!("β*J")
 ylabel!("Error on the exact exp for PBE with L = $(L)")
-title!("Ising model with g = $(real(g)), without loops")
+title!("Ising model with t = $(t), V = $(V), without loops")
 # savefig(plt, "Exact_exponential_PBE_L_$(L)_g_$(real(g))_p_$(pmax)_betas_$(bmin)_$(bmax)_withoutloops.png")
 display(plt)
 
-file = jldopen("exact_exponential_PBE_L_$(L)_g_$(real(g))_p_$(pmax)_betas_$(bmin)_$(bmax)_T_$(T)_withoutloops.jld2", "w")
+file = jldopen("exact_exp_PBC_SF_L_$(L)_t_$(t)_V_$(V)_p_$(pmax)_betas_$(bmin)_$(bmax)_T_$(T).jld2", "w")
 file["errors"] = errors
 close(file)

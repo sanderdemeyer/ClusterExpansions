@@ -28,8 +28,8 @@ function imaginary_time_evolution(ψ, O, χenv; maxiter = 10)
     return ψ, E, magn
 end
 
-p = 5
-β = 1e-1
+p = 3
+β = 1.0
 D = 2
 χenv = 40
 
@@ -50,6 +50,8 @@ else
     e = -1.2379 * 2
     mˣ = 0.524
 end
+
+# g = 0.0
 
 N1, N2 = (1,1)
 
@@ -72,10 +74,13 @@ H = transverse_field_ising(InfiniteSquare(); g)
 
 # spaces = i -> (i >= 0) ? ℂ^(2*i+1) : ℂ^30
 # spaces = i -> (i >= 0) ? ℂ^(2*i) : ℂ^30
-spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^30
+spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10
 
-O, O_clust = clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 2)
+O, O_clust = clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 0)
     
+O_clust_approx = zeros(ComplexF64, codomain(O_clust), domain(O_clust))
+O_clust_approx[] = O_clust[]
+
 println(a)
 ψ, E, magn = imaginary_time_evolution(ψ, O_clust, χenv; maxiter = 1000)
 

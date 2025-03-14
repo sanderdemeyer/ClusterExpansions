@@ -45,7 +45,7 @@ function test_ising(T, p, β, χenv; g = 2.5)
     ctm_alg = SimultaneousCTMRG(;
         tol=1e-10,
         miniter=4,
-        maxiter=100,
+        maxiter=1000,
         verbosity=2,
         svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10)),
     )
@@ -63,15 +63,15 @@ T = Complex{BigFloat}
 Ts = LinRange(T(2.2), T(2.35), 10)
 βs = [1/T for T = Ts]
 
-p = 5
-χenv = 16
+p = 6
+χenv = 45
 g = T(0.0)
 
 Zs = [test_ising(T, p, β, χenv; g = g) for β = βs]
 
 Magn = [i[2]/i[1] for i = Zs]
 
-plt = scatter(Float64.(Ts), abs.((Magn)), label = "p = 5, without loops")
+plt = scatter(Float64.(Ts), abs.((Magn)), label = "p = 6, χ = $(χenv)")
 xlabel!("T")
 ylabel!("Magnetization")
 title!("Ising model with g = $(real(g))")

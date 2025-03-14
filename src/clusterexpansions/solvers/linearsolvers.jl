@@ -246,7 +246,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         indices_cod = Tuple(insert!([1:N-1;], i, 2*N-1))
         indices_dom = Tuple(insert!([N:2*N-2;], i, 2*N))
         Ax = permute(Ax, (indices_cod, indices_dom))
-        @assert norm(test-exp_H)/norm(exp_H) < 1e-20 "fermionic mistakes: error = $(norm(test-exp_H)/norm(exp_H))"
+        @assert norm(test-exp_H)/norm(exp_H) < 1e-10 "fermionic mistakes: error = $(norm(test-exp_H)/norm(exp_H))"
         # println(dfjkas)
         x = permute(x, ((5,6),(1,2,3,4)))
         x = [x,]

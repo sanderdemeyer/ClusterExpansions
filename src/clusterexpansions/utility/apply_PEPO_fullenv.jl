@@ -20,8 +20,10 @@ function fidelity(A::AbstractTensorMap{E,S,1,4}, B::AbstractTensorMap{E,S,1,4}, 
 end
 
 function fidelity(A::AbstractTensorMap{E,S,2,4}, B::AbstractTensorMap{E,S,2,4}, ctm_alg, envspace) where {E,S}
-    @tensor A_fused[-1; -2 -3 -4 -5] := A[1 2; -2 -3 -4 -5] * isometry(fuse(codomain(A)), codomain(A))[-1; 1 2]
-    @tensor B_fused[-1; -2 -3 -4 -5] := B[1 2; -2 -3 -4 -5] * isometry(fuse(codomain(B)), codomain(B))[-1; 1 2]
+    @assert scalartype(A) == scalartype(B)
+    T = scarlartype(A)
+    @tensor A_fused[-1; -2 -3 -4 -5] := A[1 2; -2 -3 -4 -5] * isometry(T, fuse(codomain(A)), codomain(A))[-1; 1 2]
+    @tensor B_fused[-1; -2 -3 -4 -5] := B[1 2; -2 -3 -4 -5] * isometry(T, fuse(codomain(B)), codomain(B))[-1; 1 2]
 
     return fidelity(InfinitePEPS(A_fused), InfinitePEPS(B_fused), ctm_alg, envspace)
 end
@@ -129,11 +131,127 @@ function find_isometry_fullenv(
     envspace
     ) where {E,S}
 
-    @tensor ψ[-1; -2 -3 -4 -5] := O[1 2; -2 -3 -4 -5] * isometry(fuse(codomain(O)), codomain(O))[-1; 1 2]
+    T = scalartype(O)
+    @tensor ψ[-1; -2 -3 -4 -5] := O[1 2; -2 -3 -4 -5] * isometry(T, fuse(codomain(O)), codomain(O))[-1; 1 2]
     return find_isometry_fullenv(ψ, space, ctm_alg, envspace)
 end
 
-function apply_PEPO(
+function find_isometry_approx(
+    O::AbstractTensorMap{E,S,2,4},
+    space,
+    ctm_alg::PEPSKit.CTMRGAlgorithm,
+    envspace;
+    maxiter = 10,
+    tol = 1e-5, 
+    method = "approx"
+    ) where {E,S}
+
+    T = scalartype(O)
+    @tensor ψ[-1; -2 -3 -4 -5] := O[1 2; -2 -3 -4 -5] * isometry(T, fuse(codomain(O)), codomain(O))[-1; 1 2]
+    return find_isometry_approx(ψ, space, ctm_alg, envspace; maxiter, tol, method)
+end
+
+function contract_24_patch(network, env, Ws)
+    ψ = network[1,1][1]
+    ψ_trunc = network[1,1][2]
+    PEPSKit.@autoopt @tensor t[DCLa; DCRa] := env.corners[1,1,1][χ10; χ1] * env.edges[1,1,1][χ1 DNLa2 DNLb; χ2] * env.edges[1,1,1][χ2 DNRa2 DNRb; χ3] * env.corners[2,1,1][χ3; χ4] * 
+    env.edges[2,1,1][χ4 DEa2 DEb; χ5] * env.corners[3,1,1][χ5; χ6] * env.edges[3,1,1][χ6 DSRa2 DSRb; χ7] * env.edges[3,1,1][χ7 DSLa2 DSLb; χ8] * 
+    env.corners[4,1,1][χ8; χ9] * env.edges[4,1,1][χ9 DWa2 DWb; χ10] * 
+    ψ[DpL; DNLa1 DCLa DSLa1 DWa1] * ψ[DpR; DNRa1 DEa1 DSRa1 DCRa] * 
+    conj(ψ_trunc[DpL; DNLb DCb DSLb DWb]) * conj(ψ_trunc[DpR; DNRb DEb DSRb DCb]) * 
+    Ws[1][DNLa1; DNLa2] * Ws[3][DSLa1; DSLa2] * Ws[4][DWa1; DWa2] * 
+    Ws[1][DNRa1; DNRa2] * Ws[2][DEa1; DEa2] * Ws[3][DSRa1; DSRa2]
+    return t
+end
+
+function update_isometry(t, spaces, space_trunc)
+    _, _, V = tsvd(t, trunc = truncspace(space_trunc))
+    Ws_new = [dir > 2 ? zeros(T, spaces[dir], space_trunc') : zeros(T, spaces[dir], space_trunc) for dir = 1:4]
+    for dir in 1:4
+        Ws_new[dir][][:, :, :] = reshape(V[][:, :, :], (dim(spaces[dir]), dim(space_trunc)))
+    end
+    return Ws_new
+end
+
+function find_isometry_approx(
+    ψ::AbstractTensorMap{E,S,1,4},
+    space,
+    ctm_alg::PEPSKit.CTMRGAlgorithm, 
+    envspace;
+    maxiter = 10,
+    tol = 1e-5, 
+    method = "approx"
+    ) where {E,S}
+
+    Ws = [i > 2 ? randn(T, domain(ψ)[i], space') : randn(T, domain(ψ)[i], space) for i = 1:4]
+    error = Inf
+    fidel = Inf
+    for i = 1:maxiter
+        println("In iteration $i, the error is $error and fidelity = $fidel")
+
+        ψ_trunc = apply_isometry(ψ, Ws)
+        if method == "approx"
+            network_env = InfiniteSquareNetwork(InfinitePEPS(ψ_trunc), InfinitePEPS(ψ_trunc))
+            network = InfiniteSquareNetwork(InfinitePEPS(ψ), InfinitePEPS(ψ_trunc))
+        elseif method == "intermediate"
+            network_env = InfiniteSquareNetwork(InfinitePEPS(ψ_trunc), InfinitePEPS(ψ))
+            network = InfiniteSquareNetwork(InfinitePEPS(ψ), InfinitePEPS(ψ))
+        else
+            @error "Method $(method) not implemented"
+        end
+        env, = leading_boundary(CTMRGEnv(network_env, envspace), network_env, ctm_alg)
+
+        t = contract_24_patch(network, env, Ws)
+        Ws_new = update_isometry(t, domain(ψ), space)
+
+        error = maximum([norm(Ws_new[dir] - Ws[dir])/norm(Ws[dir]) for dir = 1:4])
+        ψ_trunc_new = apply_isometry(ψ, Ws_new)
+        fidel = fidelity(ψ_trunc_new, ψ_trunc, ctm_alg, envspace) 
+        Ws = copy(Ws_new)
+        if error < tol
+            break
+        end
+    end
+    println("Converged isometry gives error $error and fidelity $fidel")
+    return Ws
+end
+
+# function find_isometry_intermediate(
+#     ψ::AbstractTensorMap{E,S,1,4},
+#     space,
+#     ctm_alg::PEPSKit.CTMRGAlgorithm, 
+#     envspace;
+#     maxiter = 10,
+#     tol = 1e-5
+#     ) where {E,S}
+
+#     Ws = [i > 2 ? randn(T, domain(ψ)[i], space') : randn(T, domain(ψ)[i], space) for i = 1:4]
+#     error = Inf
+#     fidel = Inf
+#     for i = 1:maxiter
+#         println("In iteration $i, the error is $error and fidelity = $fidel")
+
+#         ψ_trunc = apply_isometry(ψ, Ws)
+#         network = InfiniteSquareNetwork(InfinitePEPS(ψ_trunc), InfinitePEPS(ψ))
+#         env, = leading_boundary(CTMRGEnv(network, envspace), network, ctm_alg)
+
+#         t = contract_24_patch(ψ, ψ, env)
+#         Ws_new = update_isometry(t, domain(ψ), space)
+
+#         error = maximum([norm(Ws_new[dir] - Ws[dir])/norm(Ws[dir]) for dir = 1:4])
+#         ψ_trunc_new = apply_isometry(ψ, Ws_new)
+#         fidel = fidelity(ψ_trunc_new, ψ_trunc, ctm_alg, envspace) 
+#         Ws = copy(Ws_new)
+#         if error < tol
+#             break
+#         end
+
+#     end
+#     println("Converged isometry gives error $error and fidelity $fidel")
+#     return Ws
+# end
+
+function apply_PEPO_fullenv(
     ψ::AbstractTensorMap{E,S,1,4},
     O::AbstractTensorMap{E,S,2,4},
     ctm_alg,

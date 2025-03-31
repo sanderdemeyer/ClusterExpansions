@@ -12,7 +12,7 @@ include("clusterexpansions/utility/loop_filtering.jl")
 include("clusterexpansions/utility/truncations.jl")
 include("clusterexpansions/utility/symmetries.jl")
 include("clusterexpansions/utility/apply_PEPO_utility.jl")
-include("clusterexpansions/utility/apply_PEPO_exactenv.jl")
+include("clusterexpansions/utility/apply_PEPO_fullenv.jl")
 
 include("clusterexpansions/generate_trees.jl")
 include("clusterexpansions/generate_loops.jl")
@@ -39,6 +39,7 @@ export truncate_tensor, truncate_hor, truncate_ver
 export flip_arrows, make_translationally_invariant, make_translationally_invariant_fermionic
 export find_truncation, apply
 
-export apply_PEPO, apply_PEPO_exact, approximate_exact, fidelity
+export fidelity, apply_isometry, find_isometry_fullenv
+export apply_PEPO, approximate_fullenv, apply_PEPO_exact
 
 end # module ClusterExpansions

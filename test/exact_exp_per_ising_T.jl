@@ -108,13 +108,11 @@ function contract_PEPO_periodic(O, L)
     return permute(term, Tuple(1:N), Tuple(N+1:2*N))
 end
 
-bmin = -3
-bmax = -3
-pmax = 3
-βs = [10.0^(x) for x in LinRange(bmin, bmax, 1)]
+bmin = -4
+bmax = -1
+pmax = 4
+βs = [10.0^(x) for x in LinRange(bmin, bmax, 10)]
 ps = [i for i = 2:pmax]
-
-cluster_index = 6
 
 errors = zeros(length(βs), length(ps))
 
@@ -127,7 +125,7 @@ L = 2
 for (j,p) = enumerate(ps)
     for (i,β) = enumerate(βs)
         @warn "beta = $(β) (number i = $(i)), p = $p"
-        O, O_clust_full = clusterexpansion([0 cluster_index 0], T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 2)
+        O, O_clust_full = clusterexpansion([0 0 0], T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 2)
         # O_clust = convert(TensorMap, O_clust_full)
         # O_clust = TensorMap(convert(Array{ComplexF64}, O_clust.data), codomain(O_clust), domain(O_clust))
 
@@ -146,19 +144,27 @@ for (j,p) = enumerate(ps)
     end
 end
 
+colors = [:red, :green, :blue]
 
 using Plots
-plt = scatter(βs, errors[:,1], label = "p = 2")
-scatter!(βs, errors[:,2], label = "p = 3")
-# scatter!(βs, errors[:,3], label = "p = 4")
-# scatter!(βs, errors[:,4], label = "p = 5")
-# scatter!(βs, errors[:,4], label = "p = 6")
+plt = scatter(βs, errors_bigfloat[:,1], label = "p = 2, T = BigFloat", markercolor = colors[1], markershape=:xcross)
+for i = 3:pmax
+    scatter!(βs, errors_bigfloat[:,i-1], label = "p = $(i), T = BigFloat", markercolor = colors[i-1], markershape=:xcross)
+end
+# for i = 2:pmax
+#     scatter!(βs, errors_double[:,i-1], label = "p = $(i), T = Float64", markercolor = colors[i-1], markershape=:cross)
+# end
+for i = 2:pmax
+    scatter!(βs, errors_single[:,i-1], label = "p = $(i), T = Float32", markercolor = colors[i-1], markershape=:cross)
+end
+
 scatter!(xscale=:log10, yscale=:log10)
 xlabel!("β*J")
 ylabel!("Error on the exact exp for PBE with L = $(L)")
-# title!("SF model with t = $(t), V = $(V), without loops")
-title!("Ising model cluster $cluster_index")
-# savefig(plt, "Exact_exponential_PBE_L_$(L)_g_$(real(g))_p_$(pmax)_betas_$(bmin)_$(bmax)_withoutloops.png")
+title!("Ising model with g = $(real(g))")
+savefig(plt, "Exact_exponential_PBE_L_$(L)_g_$(real(g))_p_$(pmax)_betas_$(bmin)_$(bmax)_comparison_32.png")
+scatter!(legend=:bottomright)
+
 display(plt)
 
 # file = jldopen("exact_exponential_PBE_L_$(L)_g_$(real(g))_p_$(pmax)_betas_$(bmin)_$(bmax)_comparison.jld2", "w")

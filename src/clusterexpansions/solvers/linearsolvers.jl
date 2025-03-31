@@ -32,6 +32,16 @@ function apply_A_N_2(x1, y ::Val{true})
     return flip(x2_new, 4)
 end
 
+function get_twists(dir)
+    if dir == (3,1) || dir == (4,2)
+        return [1 2 4]
+    elseif dir == (1,3) || dir == (2,4)
+        return [1 4 5]
+    else
+        @error "Unexpected value for dir"
+    end
+end
+
 function get_A(T, cluster, PEPO, sites_to_update)
     updates = length(sites_to_update)
     fixed_tensors = cluster.N - updates 
@@ -95,83 +105,52 @@ function get_A(T, cluster, PEPO, sites_to_update)
     all_contractions = vcat([contraction_indices[i,:] for i = 1:size(contraction_indices)[1]], triv_contractions)
     all_tensors = vcat(nontriv_tensors, triv_tensors)
 
-    return ncon(all_tensors, all_contractions)
+    A = ncon(all_tensors, all_contractions)
+    len = length(domain(A)) + length(codomain(A))
+    A = permute(A, (Tuple(1:len-4), Tuple(len-3:len)))
+    return A
 end
 
 function apply_A_onesite(A, x::TensorMap, sites_to_update, N, ::Val{false})
-    i = sites_to_update[1]
-    included_sites = setdiff(1:N, sites_to_update)
-    # contraction_indices = vcat(-included_sites, -included_sites .- N, [1, 2, 3, 4])
-    # Ax = ncon([A, x], [contraction_indices, [-i, -N-i, 1, 2, 3, 4]])
-    # Ax = permute(Ax, ((Tuple(1:N)), (Tuple(N+1:2*N))))
-
-    A′ = twist(A, [2*N-1 2*N])
-    # A′ = A
-    Ax = ncon([A′, x], [hcat(transpose(-1:-1:-2*N+2), [1 2 3 4]), [1 2 3 4 -2*N+1 -2*N]])
-    indices_cod = Tuple(insert!([1:N-1;], i, 2*N-1))
-    indices_dom = Tuple(insert!([N:2*N-2;], i, 2*N))
-    Ax = permute(Ax, (indices_cod, indices_dom))
+    Ax = ncon([A, x], [hcat(transpose(-1:-1:-2*N+2), [1 2 3 4]), [1 2 3 4 -2*N+1 -2*N]])
+    len = length(domain(Ax)) + length(codomain(Ax))
+    Ax = permute(Ax, (Tuple(1:len-2), Tuple(len-1:len)))
     return Ax
 end
 
 function apply_A_onesite(A, Ax::TensorMap, sites_to_update, N, ::Val{true})
-    included_sites = setdiff(1:N, sites_to_update)
-    updates = length(sites_to_update)
+    # f = x -> apply_A_onesite(A, x, sites_to_update, N, Val(true))
+    # _, g = Zygote.pullback(f)
+    # return g(Ax)
 
-    # contracted_b = zeros(Int, 2*N)
-    # for (i,s) = enumerate(sites_to_update)
-    #     contracted_b[s] = -i
-    #     contracted_b[s+N] = -i-length(sites_to_update)
-    # end
-    # count = 1
-    # for i = 1:2*N
-    #     if contracted_b[i] == 0
-    #         contracted_b[i] = count
-    #         count += 1
-    #     end
-    # end
-    # x = ncon([A, Ax], [vcat(1:2*length(included_sites), [-3, -4, -5, -6]), contracted_b], [true false])
-    # x = permute(x, ((Tuple(1:2*updates)), (Tuple(1+2*updates:4+2*updates))))
+    Ax′ = twist(Ax, N:2*N-2)
+    x = ncon([A, Ax′], [hcat(transpose(1:2*N-2), [-1 -2 -3 -4]), hcat(transpose(1:2*N-2), [-5 -6])], [true false])
 
-    A′ = twist(A, N:2*N-2)
-    # A′ = A
-
-    indices_Ax = [((i ∈ sites_to_update) || (i-N ∈ sites_to_update)) ? -5-floor(Int, i/N) : i for i = 1:2*N]
-    indices_A = vcat(included_sites, included_sites .+N, [-1, -2, -3, -4])
-    x = ncon([A′, Ax], [indices_A, indices_Ax], [true false])
+    x = twist(x, [1 2])
     x = permute(x, ((1,2,3,4),(5,6)))
     return x
 end
 
-function apply_A_twosite(A, x::TensorMap, sites_to_update, N, ::Val{false})
+function apply_A_twosite(A, x::TensorMap, sites_to_update, N, dir, ::Val{false})
     (i,j) = sites_to_update
     included_sites = setdiff(1:N, sites_to_update)
     contraction_indices = vcat(-included_sites, -included_sites .- N, [1, 2, 3, 4, 5, 6])
 
-    Ax = ncon([A, x], [contraction_indices, [-i, -N-i, 1, 2, 3, -j, -N-j, 4, 5, 6]])
-    Ax = permute(Ax, ((Tuple(1:N)), (Tuple(N+1:2*N))))
+    Ax = ncon([A, x], [hcat(transpose(-1:-1:-2*N+4), [1 2 3 4 5 6]), [1 2 3 4 5 6 -2*N+3 -2*N+2 -2*N+1 -2*N]])
+    len = length(domain(Ax)) + length(codomain(Ax))
+    Ax = permute(Ax, (Tuple(1:len-4), Tuple(len-3:len)))
     return Ax
 end
 
-function apply_A_twosite(A, Ax::TensorMap, sites_to_update, N, ::Val{true})
-    included_sites = setdiff(1:N, sites_to_update)
+function apply_A_twosite(A, Ax::TensorMap, sites_to_update, N, dir, ::Val{true})
+    # y, back = Zygote.pullback(apply_A_twosite)
+    
+    Ax′ = twist(Ax, N-1:2*N-4)
 
-    contracted_b = zeros(Int, 2*N)
-    contracted_b[sites_to_update[1]] = -1
-    contracted_b[sites_to_update[2]] = -6
-    contracted_b[sites_to_update[1]+N] = -2
-    contracted_b[sites_to_update[2]+N] = -7
+    x = ncon([A, Ax′], [hcat(transpose(1:2*N-4), [-1 -2 -3 -4 -5 -6]), hcat(transpose(1:2*N-4), [-7 -8 -9 -10])], [true false])
 
-    count = 1
-    for i = 1:2*N
-        if contracted_b[i] == 0
-            contracted_b[i] = count
-            count += 1
-        end
-    end
-
-    x = ncon([A, Ax], [vcat(1:2*length(included_sites), [-3, -4, -5, -8, -9, -10]), contracted_b], [true false])
-    x = permute(x, ((Tuple(1:5)), (Tuple(6:10))))    
+    x = twist(x, get_twists(dir))
+    x = permute(x, ((1,2,3,4,5,6),(7,8,9,10)))
     return x
 end
 
@@ -192,11 +171,7 @@ function eig_with_truncation(x, space)
     T = scalartype(x)
     D = dim(space)
     eigval, eigvec = eig(x)
-    # x_permuted = flip(permute(x, ((1,6,3,4,5),(7,2,8,9,10))), (2,7))
-    # @assert norm(x_permuted' - x_permuted) < eps(real(T))*1e2 "Permutation made x nonhermitian: $(norm(x_permuted' - x_permuted))"
-    # x_permuted = (x_permuted + x_permuted')/2
-    # eigval, eigvec = eig(x_permuted)
-    # println("eigvals = $(eigval)")
+
     eigval_trunc = zeros(T, space, space)
     eigvec_trunc = zeros(T, codomain(x), space)
     eigval_trunc[] = eigval[][1:D,1:D]
@@ -210,44 +185,57 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
     if N == 2
         # xtry = zeros(T, pspace ⊗ pspace' ⊗ prod([conj ? trivspace : trivspace' for conj = conjugated[1]]), pspace' ⊗ pspace ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
         b = permute(exp_H, ((1,3), (2,4)))
-        Isom_domain = isomorphism(domain(b), domain(b) ⊗ trivspace ⊗ trivspace' ⊗ trivspace')
-        Isom_codomain = isomorphism(codomain(b) ⊗ trivspace' ⊗ trivspace' ⊗ trivspace, codomain(b))
+        if dir == (3,1)
+            Isom_domain = isomorphism(domain(b), domain(b) ⊗ trivspace ⊗ trivspace' ⊗ trivspace')
+            Isom_codomain = isomorphism(codomain(b) ⊗ trivspace' ⊗ trivspace' ⊗ trivspace, codomain(b))
+        elseif dir == (2,4)
+            Isom_domain = isomorphism(domain(b), domain(b) ⊗ trivspace ⊗ trivspace ⊗ trivspace')
+            Isom_codomain = isomorphism(codomain(b) ⊗ trivspace' ⊗ trivspace ⊗ trivspace, codomain(b))
+        else
+            @error "Unexpected value for dir"
+        end
         x = Isom_codomain * b * Isom_domain
         # x.data = b.data
         # x[][:,:,1,1,1,:,:,1,1,1] = b[]
     elseif length(sites_to_update) == 2
-        apply_A = (x, val) -> apply_A_twosite(A, x, sites_to_update, N, val)
+        A = permute(A, (Tuple(1:2*N-4),Tuple(2*N-3:2*N+2)))
+
+        apply_A = (x, val) -> apply_A_twosite(A, x, sites_to_update, N, dir, val)
+
+        included_sites = setdiff(1:N, sites_to_update)
+        exp_H_flipped = permute(exp_H, ((included_sites..., (included_sites .+ N)...), (sites_to_update..., (sites_to_update .+ N)...)))
 
         if scalartype(exp_H) == Complex{BigFloat}
-            x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-36)))
+            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-36)))
             # x = permute(x, ((1,6,3,4,8), (2,7,9,5,10)))
             # x = (x + x')/2
             # x = permute(x, ((1,6,3,4,9), (2,7,5,8,10)))
         else
-            x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 1000))
+            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000))
         end
+        error = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
+        if error > 1e-10
+            @warn "Error made on the solution is of the order $(error)"
+        end
+        x = permute(x, ((7,9,1,2,3),(8,10,4,5,6)))
+
     elseif length(sites_to_update) == 1
-        A = permute(A, (Tuple(1:2*N-2),(Tuple(2*N-1:2*N+2))))
-        A = twist(A, [2*N-1 2*N])
-        # A = permute(A, ((1,2,3,4),(5,6,7,8)))
-        # x = permute(x, ((3,4,5,6), (1,2)))
+        A = permute(A, (Tuple(1:2*N-2),Tuple(2*N-1:2*N+2)))
+
         apply_A = (x, val) -> apply_A_onesite(A, x, sites_to_update, N, val)
         
-        if scalartype(exp_H) == Complex{BigFloat}
-            x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-36)))
-        else
-            x, info = lssolve(apply_A, exp_H, LSMR(verbosity = verbosity, maxiter = 1000))
-        end
-        test = apply_A_onesite(A, x, sites_to_update, N, Val(false))
+        included_sites = setdiff(1:N, sites_to_update[1])
+        exp_H_flipped = permute(exp_H, ((included_sites..., (included_sites .+ N)...), (sites_to_update[1], sites_to_update[1]+N)))
 
-        i = sites_to_update[1]    
-        A = twist(A, [2*N-1 2*N])
-        Ax = ncon([A, x], [hcat(transpose(-1:-1:-2*N+2), [1 2 3 4]), [1 2 3 4 -2*N+1 -2*N]])
-        indices_cod = Tuple(insert!([1:N-1;], i, 2*N-1))
-        indices_dom = Tuple(insert!([N:2*N-2;], i, 2*N))
-        Ax = permute(Ax, (indices_cod, indices_dom))
-        @assert norm(test-exp_H)/norm(exp_H) < 1e-10 "fermionic mistakes: error = $(norm(test-exp_H)/norm(exp_H))"
-        # println(dfjkas)
+        if scalartype(exp_H) == Complex{BigFloat}
+            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-36)))
+        else
+            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000))
+        end
+        error = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
+        if error > 1e-10
+            @warn "Error made on the solution is of the order $(error)"
+        end
         x = permute(x, ((5,6),(1,2,3,4)))
         x = [x,]
     else
@@ -259,14 +247,12 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         end
         return nothing
     end
-    xold = copy(x)
     if length(sites_to_update) == 2
         svd = true
         if svd
             U, Σ, V = tsvd(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
             x1 = U * sqrt(Σ)
             x2 = sqrt(Σ) * V
-            println("Norm of exp_H = $(norm(exp_H))")
             @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
         else
             if dir == (3,1)
@@ -296,8 +282,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             x1 = permute(flip(x1, 2+dir[1]), ((1,2),(3,4,5,6)))
             x2 = permute(flip(x2, 2+dir[2]), ((1,2),(3,4,5,6)))
         end
-
-        x2_rot = rotl180_fermionic(x2)
+        # x2_rot = rotl180_fermionic(x2)
         x = [x1, x2]
         # x = symmetrize_cluster!(x1, x2, dir)
     elseif length(sites_to_update) == 3
@@ -318,12 +303,9 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         x2 = sqrt(eigval) * eigvec'
         @assert norm(x - x1 * x2)/norm(x) < 1e-10 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2)/norm(x))"
         println("Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2)/norm(x))")
-        println("Eigenvalues are $(eigval)")
         x1 = flip(x1, (2,3,4))
         x2 = permute(x2, ((1,), (2,3,6,4,5)))
         x2 = flip(x2, (2,5,6))
-        println("norm of exp_H = $(norm(exp_H))")
-        println("norm of x = $(norm(x))")
 
         x1 = permute_dir(x1, dir[1], 0)
         x2 = permute_dir(x2, dir[2], 1)
@@ -332,7 +314,6 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             x2 = permute(flip(x2, 2+dir[2]), ((1,2),(3,4,5,6)))
         end
 
-        x2_rot = rotl180_fermionic(x2)
         x = [x1, x2]
         # x = symmetrize_cluster!(x1, x2, dir)
     end

@@ -1,5 +1,8 @@
 function contract_tensors_symmetric(A)
-    loop = ncon([A, A, A, A], [[-1 -5 4 1], [-2 -6 1 2], [-3 -7 2 3], [-4 -8 3 4]])
+    A2 = flip(A, 2)
+    A3 = twist(flip(A, [1 2]), 1)
+    A4 = flip(A, 1)
+    loop = ncon([A, A2, A3, A4], [[-1 -5 4 1], [-2 -6 1 2], [-3 -7 2 3], [-4 -8 3 4]])
     return permute(loop, ((1,2,3,4),(5,6,7,8)))
 end
 

@@ -36,7 +36,7 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; sym
         end
         return spaces
     end
-    if length(sites_to_update) == 4
+    if length(sites_to_update) == 4 && cluster.m > 0 # second condition to excluse the case where the previous solutions have not been found
         solutions, _, _ = solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = verbosity, symmetry = symmetry)
         # solutions, _, spaces = solve_4_loop_SVD(RHS, spaces(-1), levels_to_update; verbosity = verbosity, symmetry = symmetry)
     elseif length(sites_to_update) ∈ [1, 2]
@@ -45,6 +45,7 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; sym
         solutions = solve_index(T, A, exp_H-residual, conjugated, sites_to_update, levels_to_update, get_direction(dir), cluster.N, spaces; verbosity = verbosity)
     else
         @error "Number of sites to update = $(length(sites_to_update))"
+        return spaces
     end
     if isnothing(solutions)
         if verbosity >= 2
@@ -88,26 +89,25 @@ end
 function get_all_indices(T, PEPO, p, β, twosite_op, onesite_op, spaces; levels_convention = "tree_depth", symmetry = nothing, verbosity = 2)
     previous_clusters = [[(0,0)]]
     for N = 2:p
-        if verbosity >= 1
+        if verbosity >= 2
             println("N = $(N)")
         end
         cluster_indices = get_nontrivial_terms(N; prev_clusters = previous_clusters)
-        # [sort!(c, by = p -> (-p[1], p[2])) for c in cluster_indices]
         clusters = [Cluster(c; levels_convention = levels_convention, symmetry = symmetry) for c in cluster_indices]
         sort!(clusters, by = p -> (p.m, p.n)) # Sort the clusters such that the loops and higher levels are solved last
         for cluster = clusters
             spaces = solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; symmetry = symmetry, verbosity = verbosity)
         end
         previous_clusters = cluster_indices
-        if verbosity >= 2
-            for (key, tens) = PEPO
-                println("key = $(key)")
-                println("Maximum is $(maximum(abs.(tens.data))), norm is $(norm(tens))")
-                println("Summary = $(summary(tens))")
-            end
-        end    
     end
-return PEPO
+    if verbosity >= 2
+        for (key, tens) = PEPO
+            println("key = $(key)")
+            println("Maximum is $(maximum(abs.(tens.data))), norm is $(norm(tens))")
+            println("Summary = $(summary(tens))")
+        end
+    end    
+    return PEPO
 end    
 
 function clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10, symmetry = nothing, verbosity = 2)

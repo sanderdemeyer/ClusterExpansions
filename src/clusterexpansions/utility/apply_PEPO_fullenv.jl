@@ -1,4 +1,4 @@
-function fidelity(A::InfinitePEPS, B::InfinitePEPS, ctm_alg::PEPSKit.CTMRGAlgorithm, envspace)
+function fidelity(A::InfinitePEPS, B::InfinitePEPS, ctm_alg::PEPSKit.CTMRGAlgorithm, envspace::ElementarySpace)
     env0 = CTMRGEnv(A, envspace);
     envs, = leading_boundary(env0, A, ctm_alg);
     norm_orig = norm(A, envs)
@@ -21,31 +21,11 @@ end
 
 function fidelity(A::AbstractTensorMap{E,S,2,4}, B::AbstractTensorMap{E,S,2,4}, ctm_alg, envspace) where {E,S}
     @assert scalartype(A) == scalartype(B)
-    T = scarlartype(A)
+    T = scalartype(A)
     @tensor A_fused[-1; -2 -3 -4 -5] := A[1 2; -2 -3 -4 -5] * isometry(T, fuse(codomain(A)), codomain(A))[-1; 1 2]
     @tensor B_fused[-1; -2 -3 -4 -5] := B[1 2; -2 -3 -4 -5] * isometry(T, fuse(codomain(B)), codomain(B))[-1; 1 2]
 
     return fidelity(InfinitePEPS(A_fused), InfinitePEPS(B_fused), ctm_alg, envspace)
-end
-
-function apply_isometry(A::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}) where {E,S}
-    @tensor A_trunc[-1; -2 -3 -4 -5] := A[1; 2 4 6 8] * O[-1 1; 3 5 7 9] * Ws[1][2 3; -2] * Ws[2][4 5; -3] * Ws[3][6 7; -4] * Ws[4][8 9; -5]
-    return A_trunc
-end
-
-function apply_isometry(A::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,2,4}, W::AbstractTensorMap{E,S,2,1}) where {E,S}
-    @tensor A_trunc[-1; -2 -3 -4 -5] := A[1; 2 4 6 8] * O[-1 1; 3 5 7 9] * W[2 3; -2] * W[4 5; -3] * W[6 7; -4] * W[8 9; -5]
-    return A_trunc
-end
-
-function apply_isometry(A::AbstractTensorMap{E,S,2,4}, O::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}) where {E,S}
-    @tensor A_trunc[-1 -2; -3 -4 -5 -6] := A[1 -2; 2 4 6 8] * O[-1 1; 3 5 7 9] * Ws[1][2 3; -3] * Ws[2][4 5; -4] * Ws[3][6 7; -5] * Ws[4][8 9; -6]
-    return A_trunc
-end
-
-function apply_isometry(A::AbstractTensorMap{E,S,2,4}, O::AbstractTensorMap{E,S,2,4}, W::AbstractTensorMap{E,S,2,1}) where {E,S}
-    @tensor A_trunc[-1 -2; -3 -4 -5 -6] := A[1 -2; 2 4 6 8] * O[-1 1; 3 5 7 9] * W[2 3; -3] * W[4 5; -4] * W[6 7; -5] * W[8 9; -6]
-    return A_trunc
 end
 
 function apply_isometry(A::AbstractTensorMap{E,S,1,4}, Ws::Vector{<:AbstractTensorMap{E,S,1,1}}) where {E,S}
@@ -53,21 +33,42 @@ function apply_isometry(A::AbstractTensorMap{E,S,1,4}, Ws::Vector{<:AbstractTens
     return A_trunc
 end
 
-function apply_isometry(A::AbstractTensorMap{E,S,1,4}, W::AbstractTensorMap{E,S,1,1}) where {E,S}
-    @tensor A_trunc[-1; -2 -3 -4 -5] := A[-1; 1 2 3 4] * W[1; -2] * W[2; -3] * W[3; -4] * W[4; -5]
+function apply_isometry(O::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,1,1}}) where {E,S}
+    @tensor O_trunc[-1 -2; -3 -4 -5 -6] := O[-1 -2; 1 2 3 4] * Ws[1][1; -3] * Ws[2][2; -4] * Ws[3][3; -5] * Ws[4][4; -6]
+    return O_trunc
+end
+
+function apply_isometry(A::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}) where {E,S}
+    @tensor A_trunc[-1; -2 -3 -4 -5] := A[1; 2 4 6 8] * O[-1 1; 3 5 7 9] * Ws[1][2 3; -2] * Ws[2][4 5; -3] * Ws[3][6 7; -4] * Ws[4][8 9; -5]
     return A_trunc
 end
 
-function apply_isometry(A::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,1,1}}) where {E,S}
-    @tensor A_trunc[-1 -2; -3 -4 -5 -6] := A[-1 -2; 1 2 3 4] * Ws[1][1; -3] * Ws[2][2; -4] * Ws[3][3; -5] * Ws[4][4; -6]
-    return A_trunc
+function apply_isometry(O₁::AbstractTensorMap{E,S,2,4}, O₂::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}) where {E,S}
+    @tensor O_trunc[-1 -2; -3 -4 -5 -6] := O₁[1 -2; 2 4 6 8] * O₂[-1 1; 3 5 7 9] * Ws[1][2 3; -3] * Ws[2][4 5; -4] * Ws[3][6 7; -5] * Ws[4][8 9; -6]
+    return O_trunc
 end
 
-function apply_isometry(A::AbstractTensorMap{E,S,2,4}, W::AbstractTensorMap{E,S,1,1}) where {E,S}
-    @tensor A_trunc[-1 -2; -3 -4 -5 -6] := A[-1 -2; 1 2 3 4] * W[1; -3] * W[2; -4] * W[3; -5] * W[4; -6]
-    return A_trunc
+function apply_isometry(A::AbstractTensorMap{E,S,1,4}, Ws::Vector{<:AbstractTensorMap{E,S,1,1}}, inds::Vector{Int}) where {E,S}
+    A_trunc = ncon([A, [Ws[i] for i = setdiff(1:4, inds)]...], [[-1, [i ∈ inds ? -i-1 : i+1 for i = 1:4]...], [[i+1 -i-1] for i = setdiff(1:4,inds)]...])
+    return permute(A_trunc, ((1),(2,3,4,5)))
 end
 
+function apply_isometry(O::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,1,1}}, inds::Vector{Int}) where {E,S}
+    O_trunc = ncon([O, [Ws[i] for i = setdiff(1:4, inds)]...], [[-1, -2, [i ∈ inds ? -i-2 : i+2 for i = 1:4]...], [[i+2 -i-2] for i = setdiff(1:4,inds)]...])
+    return permute(O_trunc, ((1,2),(3,4,5,6)))
+end
+
+function apply_isometry(A::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}, inds::Vector{Int}) where {E,S}
+    A_trunc = ncon([A, O, [Ws[i] for i = setdiff(1:4, inds)]...], [[1, [i ∈ inds ? -i-1 : 2*i for i = 1:4]...], [-1, 1, [i ∈ inds ? -i-5 : 2*i+1 for i = 1:4]...], [[2*i, 2*i+1, -i-1] for i = setdiff(1:4,inds)]...])
+    return permute(A_trunc, ((1),Tuple(2:length(domain(A))+1)))
+end
+
+function apply_isometry(O₁::AbstractTensorMap{E,S,2,4}, O₂::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}, inds::Vector{Int}) where {E,S}
+    A_trunc = ncon([O₁, O₂, [Ws[i] for i = setdiff(1:4, inds)]...], [[1, -2, [i ∈ inds ? -i-2 : 2*i for i = 1:4]...], [-1, 1, [i ∈ inds ? -i-6 : 2*i+1 for i = 1:4]...], [[2*i, 2*i+1, -i-2] for i = setdiff(1:4,inds)]...])
+    return permute(A_trunc, ((1,2),Tuple(3:length(domain(A))+2)))
+end
+
+# Find the isometry to truncate a PEPO-PEPS to a PEPS with space `space` using the full environment.
 function find_isometry_fullenv(
     ψ::AbstractTensorMap{E,S,1,4},
     O::AbstractTensorMap{E,S,2,4},
@@ -80,7 +81,7 @@ function find_isometry_fullenv(
     unitcell = [1,1,1]
     O = InfinitePEPO(O; unitcell = Tuple(unitcell))
     O2 = repeat(O, unitcell[1], unitcell[2], 2*unitcell[3])
-    # O2[1,1,2] = O_conj
+    O2[1,1,2] = O_conj
 
     # n = InfiniteSquareNetwork(ψ, O)
     network = InfiniteSquareNetwork(InfinitePEPS(ψ; unitcell = Tuple(unitcell[1:2])), O2)
@@ -100,6 +101,7 @@ function find_isometry_fullenv(
     return Ws
 end
 
+# Find the isometry to truncate a PEPS to a PEPS with space `space` using the full environment.
 function find_isometry_fullenv(
     ψ::AbstractTensorMap{E,S,1,4}, 
     space,
@@ -124,6 +126,7 @@ function find_isometry_fullenv(
     return Ws
 end
 
+# Find the isometry to truncate a PEPO to a PEPO with space `space` using the full environment.
 function find_isometry_fullenv(
     O::AbstractTensorMap{E,S,2,4},
     space,
@@ -136,6 +139,7 @@ function find_isometry_fullenv(
     return find_isometry_fullenv(ψ, space, ctm_alg, envspace)
 end
 
+# Find the isometry to truncate a PEPO to a PEPO with space `space` using an approximate environment.
 function find_isometry_approx(
     O::AbstractTensorMap{E,S,2,4},
     space,
@@ -151,7 +155,8 @@ function find_isometry_approx(
     return find_isometry_approx(ψ, space, ctm_alg, envspace; maxiter, tol, method)
 end
 
-function contract_24_patch(network, env, Ws)
+# Utility function to contract the 2x4 patch of a PEPS network used in the truncation.
+function contract_34_patch(network, env, Ws)
     ψ = network[1,1][1]
     ψ_trunc = network[1,1][2]
     PEPSKit.@autoopt @tensor t[DCLa; DCRa] := env.corners[1,1,1][χ10; χ1] * env.edges[1,1,1][χ1 DNLa2 DNLb; χ2] * env.edges[1,1,1][χ2 DNRa2 DNRb; χ3] * env.corners[2,1,1][χ3; χ4] * 
@@ -164,8 +169,10 @@ function contract_24_patch(network, env, Ws)
     return t
 end
 
-function update_isometry(t, spaces, space_trunc)
-    _, _, V = tsvd(t, trunc = truncspace(space_trunc))
+# Utility function to update the isometry. t is the result of `contract_34_patch`.
+function update_isometry(t, trscheme, spaces)
+    _, _, V = tsvd(t, trunc = trscheme)
+    space_trunc = codomain(V)
     Ws_new = [dir > 2 ? zeros(T, spaces[dir], space_trunc') : zeros(T, spaces[dir], space_trunc) for dir = 1:4]
     for dir in 1:4
         Ws_new[dir][][:, :, :] = reshape(V[][:, :, :], (dim(spaces[dir]), dim(space_trunc)))
@@ -173,6 +180,7 @@ function update_isometry(t, spaces, space_trunc)
     return Ws_new
 end
 
+# Find the isometry to truncate a PEPS to a PEPS with space `space` using an approximate environment.
 function find_isometry_approx(
     ψ::AbstractTensorMap{E,S,1,4},
     space,
@@ -201,8 +209,8 @@ function find_isometry_approx(
         end
         env, = leading_boundary(CTMRGEnv(network_env, envspace), network_env, ctm_alg)
 
-        t = contract_24_patch(network, env, Ws)
-        Ws_new = update_isometry(t, domain(ψ), space)
+        t = contract_34_patch(network, env, Ws)
+        Ws_new = update_isometry(t, truncdim(space), domain(ψ))
 
         error = maximum([norm(Ws_new[dir] - Ws[dir])/norm(Ws[dir]) for dir = 1:4])
         ψ_trunc_new = apply_isometry(ψ, Ws_new)
@@ -235,7 +243,7 @@ end
 #         network = InfiniteSquareNetwork(InfinitePEPS(ψ_trunc), InfinitePEPS(ψ))
 #         env, = leading_boundary(CTMRGEnv(network, envspace), network, ctm_alg)
 
-#         t = contract_24_patch(ψ, ψ, env)
+#         t = contract_34_patch(ψ, ψ, env)
 #         Ws_new = update_isometry(t, domain(ψ), space)
 
 #         error = maximum([norm(Ws_new[dir] - Ws[dir])/norm(Ws[dir]) for dir = 1:4])
@@ -251,6 +259,7 @@ end
 #     return Ws
 # end
 
+# Apply the isometry to truncate a PEPO-PEPS to a PEPS with space `space` using the full environment.
 function apply_PEPO_fullenv(
     ψ::AbstractTensorMap{E,S,1,4},
     O::AbstractTensorMap{E,S,2,4},
@@ -303,6 +312,10 @@ end
 #     return A_trunc, overlap
 # end
 
+"""
+Find and apply the isometry to truncate A to A with space `space` using the full environment.
+A can be a PEPS, a PEPO, or a PEPO-PEPS.
+"""
 function approximate_fullenv(
     A::Vector,
     space,
@@ -321,6 +334,7 @@ function approximate_fullenv(
     return A_trunc, overlap
 end
 
+# Calculate a PEPO-PEPS exactly.
 function apply_PEPO_exact(
     ψ::Union{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},
     O::AbstractTensorMap{E,S,2,4},

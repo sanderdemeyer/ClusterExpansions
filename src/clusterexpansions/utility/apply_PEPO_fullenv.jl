@@ -54,50 +54,52 @@ function fidelity(A::Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}
 end
 
 function get_initial_isometry(T, cod::ElementarySpace, dom::ElementarySpace, func)
-    return [dir > 2 ? func(T, cod', dom') : func(T, cod, dom) for dir = 1:4]
+    # return [dir > 2 ? func(T, cod', dom') : func(T, cod, dom) for dir = 1:4]
+    return [func(T, cod, dom) for dir = 1:4]
 end
 
 function get_initial_isometry(T, cod::ProductSpace, dom::ElementarySpace, func)
-    return [dir > 2 ? func(T, prod([i' for i = cod]), dom') : func(T, cod, dom) for dir = 1:4]
+    # return [dir > 2 ? func(T, prod([i' for i = cod]), dom') : func(T, cod, dom) for dir = 1:4]
+    return [func(T, cod, dom) for dir = 1:4]
 end
 
 function apply_isometry(A::AbstractTensorMap{E,S,1,4}, Ws::Vector{<:AbstractTensorMap{E,S,1,1}}) where {E,S}
-    @tensor A_trunc[-1; -2 -3 -4 -5] := A[-1; 1 2 3 4] * Ws[1][1; -2] * Ws[2][2; -3] * Ws[3][3; -4] * Ws[4][4; -5]
+    @tensor A_trunc[-1; -2 -3 -4 -5] := A[-1; 1 2 3 4] * Ws[1][1; -2] * Ws[2][2; -3] * conj(Ws[3][3; -4]) * conj(Ws[4][4; -5])
     return A_trunc
 end
 
 function apply_isometry(O::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,1,1}}) where {E,S}
-    @tensor O_trunc[-1 -2; -3 -4 -5 -6] := O[-1 -2; 1 2 3 4] * Ws[1][1; -3] * Ws[2][2; -4] * Ws[3][3; -5] * Ws[4][4; -6]
+    @tensor O_trunc[-1 -2; -3 -4 -5 -6] := O[-1 -2; 1 2 3 4] * Ws[1][1; -3] * Ws[2][2; -4] * conj(Ws[3][3; -5]) * conj(Ws[4][4; -6])
     return O_trunc
 end
 
 function apply_isometry(A::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}) where {E,S}
-    @tensor A_trunc[-1; -2 -3 -4 -5] := A[1; 2 4 6 8] * O[-1 1; 3 5 7 9] * Ws[1][2 3; -2] * Ws[2][4 5; -3] * Ws[3][6 7; -4] * Ws[4][8 9; -5]
+    @tensor A_trunc[-1; -2 -3 -4 -5] := A[1; 2 4 6 8] * O[-1 1; 3 5 7 9] * Ws[1][2 3; -2] * Ws[2][4 5; -3] * conj(Ws[3][6 7; -4]) * conj(Ws[4][8 9; -5])
     return A_trunc
 end
 
 function apply_isometry(O₁::AbstractTensorMap{E,S,2,4}, O₂::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}) where {E,S}
-    @tensor O_trunc[-1 -2; -3 -4 -5 -6] := O₁[1 -2; 2 4 6 8] * O₂[-1 1; 3 5 7 9] * Ws[1][2 3; -3] * Ws[2][4 5; -4] * Ws[3][6 7; -5] * Ws[4][8 9; -6]
+    @tensor O_trunc[-1 -2; -3 -4 -5 -6] := O₁[1 -2; 2 4 6 8] * O₂[-1 1; 3 5 7 9] * Ws[1][2 3; -3] * Ws[2][4 5; -4] * conj(Ws[3][6 7; -5]) * conj(Ws[4][8 9; -6])
     return O_trunc
 end
 
 function apply_isometry(A::AbstractTensorMap{E,S,1,4}, Ws::Vector{<:AbstractTensorMap{E,S,1,1}}, inds::Vector{Int}) where {E,S}
-    A_trunc = ncon([A, [Ws[i] for i = setdiff(1:4, inds)]...], [[-1, [i ∈ inds ? -i-1 : i+1 for i = 1:4]...], [[i+1 -i-1] for i = setdiff(1:4,inds)]...])
+    A_trunc = ncon([A, [Ws[i] for i = setdiff(1:4, inds)]...], [[-1, [i ∈ inds ? -i-1 : i+1 for i = 1:4]...], [[i+1 -i-1] for i = setdiff(1:4,inds)]...], vcat(false,[dir > 2 ? true : false for dir = 1:4 if dir ∉ inds]))
     return permute(A_trunc, ((1,),(2,3,4,5)))
 end
 
 function apply_isometry(O::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,1,1}}, inds::Vector{Int}) where {E,S}
-    O_trunc = ncon([O, [Ws[i] for i = setdiff(1:4, inds)]...], [[-1, -2, [i ∈ inds ? -i-2 : i+2 for i = 1:4]...], [[i+2 -i-2] for i = setdiff(1:4,inds)]...])
+    O_trunc = ncon([O, [Ws[i] for i = setdiff(1:4, inds)]...], [[-1, -2, [i ∈ inds ? -i-2 : i+2 for i = 1:4]...], [[i+2 -i-2] for i = setdiff(1:4,inds)]...], vcat(false,[dir > 2 ? true : false for dir = 1:4 if dir ∉ inds]))
     return permute(O_trunc, ((1,2),(3,4,5,6)))
 end
 
 function apply_isometry(A::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}, inds::Vector{Int}) where {E,S}
-    A_trunc = ncon([A, O, [Ws[i] for i = setdiff(1:4, inds)]...], [[1, [i ∈ inds ? -i-1 : 2*i for i = 1:4]...], [-1, 1, [i ∈ inds ? -i-5 : 2*i+1 for i = 1:4]...], [[2*i, 2*i+1, -i-1] for i = setdiff(1:4,inds)]...])
+    A_trunc = ncon([A, O, [Ws[i] for i = setdiff(1:4, inds)]...], [[1, [i ∈ inds ? -i-1 : 2*i for i = 1:4]...], [-1, 1, [i ∈ inds ? -i-5 : 2*i+1 for i = 1:4]...], [[2*i, 2*i+1, -i-1] for i = setdiff(1:4,inds)]...], vcat(false,false,[dir > 2 ? true : false for dir = 1:4 if dir ∉ inds]))
     return permute(A_trunc, ((1,),Tuple(2:5+length(inds))))
 end
 
 function apply_isometry(O₁::AbstractTensorMap{E,S,2,4}, O₂::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}, inds::Vector{Int}) where {E,S}
-    A_trunc = ncon([O₁, O₂, [Ws[i] for i = setdiff(1:4, inds)]...], [[1, -2, [i ∈ inds ? -i-2 : 2*i for i = 1:4]...], [-1, 1, [i ∈ inds ? -i-6 : 2*i+1 for i = 1:4]...], [[2*i, 2*i+1, -i-2] for i = setdiff(1:4,inds)]...])
+    A_trunc = ncon([O₁, O₂, [Ws[i] for i = setdiff(1:4, inds)]...], [[1, -2, [i ∈ inds ? -i-2 : 2*i for i = 1:4]...], [-1, 1, [i ∈ inds ? -i-6 : 2*i+1 for i = 1:4]...], [[2*i, 2*i+1, -i-2] for i = setdiff(1:4,inds)]...], vcat(false,false,[dir > 2 ? true : false for dir = 1:4 if dir ∉ inds]))
     return permute(A_trunc, ((1,2),Tuple(3:6+length(inds))))
 end
 
@@ -113,13 +115,18 @@ end
 function update_isometry(t, trscheme)
     T = scalartype(t)
     U, _, _ = tsvd(t, trunc = trscheme)
+    println("U = $(summary(U))")
+    Q, R = leftorth(U; alg = QRpos())
+    println("Q = $(summary(Q))")
+    println("R = $(summary(R))")
     # U /= exp(im*angle(sum(U[]))) # This is horrible and should be changed. This will also not work in the fermionic case
     # space_trunc = codomain(V)
     # Ws_new = [dir > 2 ? zeros(T, spaces[dir], space_trunc') : zeros(T, spaces[dir], space_trunc) for dir = 1:4]
-    Ws_new = [dir > 2 ? zeros(T, prod([i' for i = codomain(U)]), domain(U)') : zeros(T, codomain(U), domain(U)) for dir = 1:4]
+    # Ws_new = [dir > 2 ? zeros(T, prod([i' for i = codomain(U)]), domain(U)') : zeros(T, codomain(U), domain(U)) for dir = 1:4]
+    Ws_new = [zeros(T, codomain(U), domain(U)) for dir = 1:4]
     for dir in 1:4
         # Ws_new[dir][][:, :, :] = reshape(V[][:, :, :], (dim(spaces[dir]), dim(space_trunc)))
-        Ws_new[dir][] = U[]
+        Ws_new[dir] = copy(U)
     end
     return Ws_new
 end

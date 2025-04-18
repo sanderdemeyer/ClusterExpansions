@@ -110,7 +110,10 @@ function find_isometry(
     for i = 1:trunc_alg.maxiter
         t = truncation_environment(A, Ws, trunc_alg)
         Ws_new = update_isometry(t, trunc_alg.trscheme)
-        error = maximum([norm(Ws_new[dir] - Ws[dir])/norm(Ws[dir]) for dir = 1:4])
+        _, Σ_new, _ = tsvd(Ws_new[1])
+        _, Σ, _ = tsvd(Ws[1])
+        error = (norm(Σ_new-Σ)/norm(Σ))
+        # error = maximum([norm(Ws_new[dir] - Ws[dir])/norm(Ws[dir]) for dir = 1:4])
         Ws = copy(Ws_new)
         if trunc_alg.verbosity > 1
             @info "Step $i: error = $error"

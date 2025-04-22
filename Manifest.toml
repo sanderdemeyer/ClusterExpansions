@@ -2,7 +2,7 @@
 
 julia_version = "1.11.2"
 manifest_format = "2.0"
-project_hash = "895aa7cee53f3d08218a6e4fe8b23fec496a74ce"
+project_hash = "b8ac14cc6ecbed47f2e37b850c36e0ed33492604"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -149,9 +149,11 @@ version = "1.4.0"
 
 [[deps.BlockTensorKit]]
 deps = ["BlockArrays", "LinearAlgebra", "Random", "Strided", "TensorKit", "TensorOperations", "TupleTools", "VectorInterface"]
-git-tree-sha1 = "0b93733269ad279a2b09ccc356bbebe471b2d693"
+git-tree-sha1 = "d5c042f05f9bcd4309f1ec28131d847c5f07ece6"
+repo-rev = "main"
+repo-url = "https://github.com/lkdvos/BlockTensorKit.jl.git"
 uuid = "5f87ffc2-9cf1-4a46-8172-465d160bd8cd"
-version = "0.1.3"
+version = "0.1.5"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -228,6 +230,11 @@ deps = ["ColorTypes", "FixedPointNumbers", "Reexport"]
 git-tree-sha1 = "64e15186f0aa277e174aa81798f7eb8598e0157e"
 uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
 version = "0.13.0"
+
+[[deps.Combinatorics]]
+git-tree-sha1 = "08c8b6831dc00bfea825826be0bc8336fc369860"
+uuid = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+version = "1.0.2"
 
 [[deps.CommonSubexpressions]]
 deps = ["MacroTools"]
@@ -494,7 +501,9 @@ version = "0.73.12+0"
 
 [[deps.GenericLinearAlgebra]]
 deps = ["LinearAlgebra", "Printf", "Random", "libblastrampoline_jll"]
-path = "GenericLinearAlgebra.jl"
+git-tree-sha1 = "477f10c563d0d8d5e3ad3e3ca89fed185de569d9"
+repo-rev = "master"
+repo-url = "https://github.com/sanderdemeyer/GenericLinearAlgebra.jl.git"
 uuid = "14197337-ba66-59df-a3e3-ca00e7dcff7a"
 version = "0.3.15"
 
@@ -643,9 +652,9 @@ version = "0.9.33"
 
 [[deps.KrylovKit]]
 deps = ["LinearAlgebra", "PackageExtensionCompat", "Printf", "Random", "VectorInterface"]
-git-tree-sha1 = "a3a6790c019c6dabc0afa54ff88b4d4863c70f48"
+path = "KrylovKit.jl"
 uuid = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
-version = "0.9.4"
+version = "0.9.5"
 weakdeps = ["ChainRulesCore"]
 
     [deps.KrylovKit.extensions]
@@ -962,7 +971,7 @@ version = "10.42.0+1"
 
 [[deps.PEPSKit]]
 deps = ["Accessors", "ChainRulesCore", "Compat", "FiniteDifferences", "KrylovKit", "LinearAlgebra", "LoggingExtras", "MPSKit", "MPSKitModels", "OhMyThreads", "OptimKit", "Printf", "Random", "Statistics", "TensorKit", "TensorOperations", "VectorInterface", "Zygote"]
-git-tree-sha1 = "cdbde95fc006f51db94b88c44a8b5c6033d0b52d"
+git-tree-sha1 = "b79fa02dab9e92b839e1c8bee651a203570edf4c"
 repo-rev = "lb/pepo_ctmrg"
 repo-url = "https://github.com/QuantumKitHub/PEPSKit.jl.git"
 uuid = "52969e89-939e-4361-9b68-9bc7cde4bdeb"
@@ -1381,10 +1390,12 @@ uuid = "62fd8b95-f654-4bbd-a8a5-9c27f68ccd50"
 version = "0.1.1"
 
 [[deps.TensorKit]]
-deps = ["GenericLinearAlgebra", "LRUCache", "LinearAlgebra", "PackageExtensionCompat", "Random", "SparseArrays", "Strided", "TensorKitSectors", "TensorOperations", "TupleTools", "VectorInterface"]
-path = "TensorKit.jl"
+deps = ["LRUCache", "LinearAlgebra", "PackageExtensionCompat", "Random", "SparseArrays", "Strided", "TensorKitSectors", "TensorOperations", "TupleTools", "VectorInterface"]
+git-tree-sha1 = "23c1a15613f50f319394fe3003050e53ec81c1df"
+repo-rev = "master"
+repo-url = "https://github.com/sanderdemeyer/TensorKit.jl.git"
 uuid = "07d1fe3e-3e46-537d-9eac-e9e13d0d4cec"
-version = "0.14.4"
+version = "0.14.5"
 weakdeps = ["ChainRulesCore", "FiniteDifferences"]
 
     [deps.TensorKit.extensions]
@@ -1402,6 +1413,12 @@ deps = ["HalfIntegers", "LinearAlgebra", "TensorOperations", "WignerSymbols"]
 git-tree-sha1 = "0888f3bf5eb46a9006cf94354bbae331a1cc1633"
 uuid = "13a9c161-d5da-41f0-bcbd-e1a08ae0647f"
 version = "0.1.2"
+
+[[deps.TensorKitTensors]]
+deps = ["LinearAlgebra", "TensorKit"]
+git-tree-sha1 = "3471b4e0fd979159fcdf5c419350e93efed7520f"
+uuid = "41b62e7d-e9d1-4e23-942c-79a97adf954b"
+version = "0.1.0"
 
 [[deps.TensorOperations]]
 deps = ["LRUCache", "LinearAlgebra", "PackageExtensionCompat", "PtrArrays", "Strided", "StridedViews", "TupleTools", "VectorInterface"]

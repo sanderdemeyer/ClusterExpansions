@@ -9,10 +9,9 @@ using Zygote, OptimKit
 
 include("clusterexpansions/utility/loop_filtering.jl")
 
-include("clusterexpansions/utility/truncations.jl")
 include("clusterexpansions/utility/symmetries.jl")
-include("clusterexpansions/utility/apply_PEPO_utility.jl")
-include("clusterexpansions/utility/apply_PEPO_fullenv.jl")
+include("clusterexpansions/utility/truncations_utility.jl")
+include("clusterexpansions/utility/truncations.jl")
 
 include("clusterexpansions/generate_trees.jl")
 include("clusterexpansions/generate_loops.jl")
@@ -21,10 +20,7 @@ include("clusterexpansions/contractions.jl")
 include("clusterexpansions/PEPOs.jl")
 
 include("clusterexpansions/solvers/linearsolvers.jl")
-# include("clusterexpansions/solvers/nonlinearsolvers.jl")
 include("clusterexpansions/solvers/nonlinearsolvers_optimkit.jl")
-# include("clusterexpansions/solvers/nonlinearsolvers_SVD.jl")
-
 include("clusterexpansions/solve_clusters.jl")
 
 export entanglement_filtering
@@ -39,7 +35,9 @@ export truncate_tensor, truncate_hor, truncate_ver
 export flip_arrows, make_translationally_invariant, make_translationally_invariant_fermionic
 export find_truncation, apply
 
-export fidelity, apply_isometry, find_isometry_fullenv
-export apply_PEPO, approximate_fullenv, apply_PEPO_exact
+export fidelity, apply_isometry
+export apply_PEPO_exact
+export ExactEnvTruncation, ApproximateEnvTruncation, IntermediateEnvTruncation
+export approximate_state, find_isometry, truncation_environment
 
 end # module ClusterExpansions

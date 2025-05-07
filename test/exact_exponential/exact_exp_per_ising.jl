@@ -108,9 +108,9 @@ function contract_PEPO_periodic(O, L)
     return permute(term, Tuple(1:N), Tuple(N+1:2*N))
 end
 
-bmin = -3
-bmax = -3
-pmax = 3
+bmin = 1
+bmax = 1
+pmax = 4
 βs = [10.0^(x) for x in LinRange(bmin, bmax, 1)]
 ps = [i for i = 2:pmax]
 
@@ -127,7 +127,7 @@ L = 2
 for (j,p) = enumerate(ps)
     for (i,β) = enumerate(βs)
         @warn "beta = $(β) (number i = $(i)), p = $p"
-        O, O_clust_full = clusterexpansion([0 cluster_index 0], T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 2)
+        O, O_clust_full = clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 2)
         # O_clust = convert(TensorMap, O_clust_full)
         # O_clust = TensorMap(convert(Array{ComplexF64}, O_clust.data), codomain(O_clust), domain(O_clust))
 

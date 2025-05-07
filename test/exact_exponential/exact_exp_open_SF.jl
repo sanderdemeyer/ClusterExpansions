@@ -11,6 +11,7 @@ using JLD2
 
 symmetry = nothing
 critical = false
+solving_loops = false
 
 setprecision(128)
 T = Complex{Float64}
@@ -20,7 +21,7 @@ V = T(0.0)
 # μ = 2*V
 μ = T(0.0)
 
-kinetic_operator = -t * (c_plusmin(T) + c_minplus(T))
+kinetic_operator = -t * (c_plusmin(T) - c_minplus(T))
 number_operator = c_number(T)
 @tensor number_twosite[-1 -2; -3 -4] := number_operator[-1; -3] * number_operator[-2; -4]
 onesite_op = rmul!(number_operator, -μ)
@@ -128,9 +129,9 @@ L = 3
 for (j,p) = enumerate(ps)
     for (i,β) = enumerate(βs)
         @warn "beta = $(β) (number i = $(i)), p = $p"
-        O, O_clust_full = clusterexpansion([0 0 0], T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = symmetry, verbosity = 2)
-        # O_clust = convert(TensorMap, O_clust_full)
-        # O_clust = TensorMap(convert(Array{ComplexF64}, O_clust.data), codomain(O_clust), domain(O_clust))
+        O, O_clust_full = clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = symmetry, verbosity = 2, solving_loops = solving_loops)
+        O_clust = convert(TensorMap, O_clust_full)
+        O_clust = TensorMap(convert(Array{ComplexF64}, O_clust.data), codomain(O_clust), domain(O_clust))
 
         println("Cluster expansion done")
         exp_exact = exponentiate_hamiltonian_open(T, onesite_op, twosite_op, β, L)

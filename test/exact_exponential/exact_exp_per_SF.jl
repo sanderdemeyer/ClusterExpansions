@@ -39,8 +39,6 @@ end
 
 spaces = i -> spaces_dict(I, i)
 
-
-
 # c = [(0, 0), (0, 1), (1, 0), (2, 0), (2, -1), (2, 1), (3, 0), (4, 0)]
 # N = 2
 # c = []
@@ -152,20 +150,20 @@ function contract_PEPO_periodic(O, L)
     end
     indices = [[indices[n,i] for i = 1:6] for n = 1:N]
     tensors = [O for _ = 1:N]
-    # # Top twists
-    # for j = 1:L
-    #     (x,y) = (j,1)
-    #     i = L*(y-1) + x
-    #     println("For j = $j, i = $i")
-    #     tensors[i] = twist(tensors[i], [3])
-    # end
-    # # Left twists
-    # for j = 1:L
-    #     (x,y) = (1,j)
-    #     i = L*(y-1) + x
-    #     println("For j = $j, i = $i")
-    #     tensors[i] = twist(tensors[i], [6])
-    # end
+    # Top twists
+    for j = 1:L
+        (x,y) = (j,1)
+        i = L*(y-1) + x
+        println("For j = $j, i = $i")
+        tensors[i] = twist(tensors[i], [3])
+    end
+    # Left twists
+    for j = 1:L
+        (x,y) = (1,j)
+        i = L*(y-1) + x
+        println("For j = $j, i = $i")
+        tensors[i] = twist(tensors[i], [6])
+    end
     println("indices = $indices")
     term = ncon(tensors, indices, [false for _ = 1:N])
 
@@ -188,7 +186,7 @@ L = 2
 for (j,p) = enumerate(ps)
     for (i,β) = enumerate(βs)
         @warn "beta = $(β) (number i = $(i)), p = $p"
-        O, O_clust_full = clusterexpansion([0 cluster_index 0], T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = symmetry, verbosity = 2)
+        O, O_clust_full = clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = symmetry, verbosity = 2)
         # O_clust = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
         O_clust = convert(TensorMap, O_clust_full)
         # O_clust_approx = TensorMap(O_clust.data, ComplexF64, codomain(O_clust), domain(O_clust))
@@ -197,7 +195,7 @@ for (j,p) = enumerate(ps)
         println("bond dimension of PEPO = $(dim(domain(O_clust)[1]))")
 
         println("Cluster expansion done")
-        exp_exact = exponentiate_hamiltonian_periodic_fermionic(T, onesite_op, twosite_op, β, L)
+        exp_exact = exponentiate_hamiltonian_periodic(T, onesite_op, twosite_op, β, L)
         println("Exact exponential done")
         exp_approx = contract_PEPO_periodic(O_clust, L)
         println("Approx exponential done")
@@ -228,3 +226,6 @@ display(plt)
 # file = jldopen("exact_exp_PBC_SF_L_$(L)_t_$(t)_V_$(V)_p_$(pmax)_betas_$(bmin)_$(bmax)_T_$(T).jld2", "w")
 # file["errors"] = errors
 # close(file)
+
+
+

@@ -19,8 +19,8 @@ function fidelity(A::InfinitePEPS, O::InfinitePEPO, B::InfinitePEPS, ctm_alg::PE
     # O_conj = permute(O_conj_unperm, ((1,4),(2,3,5,6)));
     # O2[1,1,2] = O_conj
     O_stack = repeat(O.A, 1, 1, 2)
-    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit.dagger.(O.A)))
-    # O_stack[:, :, 2] .= PEPSKit.unitcell(PEPSKit.dagger(O))
+    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(O.A)))
+    # O_stack[:, :, 2] .= PEPSKit.unitcell(PEPSKit._dag(O))
     OOdag = InfinitePEPO(O_stack)
     
     network_orig = InfiniteSquareNetwork(A, OOdag)
@@ -40,13 +40,13 @@ end
 function fidelity(A::InfinitePEPO, B::InfinitePEPO, C::InfinitePEPO, ctm_alg::PEPSKit.CTMRGAlgorithm, envspace::ElementarySpace)
     O_stack = repeat(A.A, 1, 1, 3)
     O_stack[:, :, 2] .= B.A
-    O_stack[:, :, 3] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit.dagger.(C.A)))
+    O_stack[:, :, 3] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(C.A)))
     triple_layer = InfinitePEPO(O_stack)
     
     O_stack = repeat(A.A, 1, 1, 4)
     O_stack[:, :, 2] .= B.A
-    O_stack[:, :, 3] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit.dagger.(B.A)))
-    O_stack[:, :, 4] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit.dagger.(A.A)))
+    O_stack[:, :, 3] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(B.A)))
+    O_stack[:, :, 4] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(A.A)))
     quadruple_layer = InfinitePEPO(O_stack)
 
     network_orig = InfiniteSquareNetwork(quadruple_layer)

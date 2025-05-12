@@ -182,7 +182,7 @@ function contract_34_patch(
     env.edges[2,1,1][χ4 DEa DEb; χ5] * env.corners[3,1,1][χ5; χ6] * env.edges[3,1,1][χ6 DSRa DSRb; χ7] * env.edges[3,1,1][χ7 DSLa DSLb; χ8] * 
     env.corners[4,1,1][χ8; χ9] * env.edges[4,1,1][χ9 DWa DWb; χ10] * 
     AL_above[DpbL DptL; DNLa DCLa DSLa DWa] * AR_above[DpbR DptR; DNRa DEa DSRa DCRa] * 
-    PEPSKit.dagger(AL_below)[DptL DpbL; DNLb DCb DSLb DWb] * PEPSKit.dagger(AR_below)[DptR DpbR; DNRb DEb DSRb DCb]
+    PEPSKit._dag(AL_below)[DptL DpbL; DNLb DCb DSLb DWb] * PEPSKit._dag(AR_below)[DptR DpbR; DNRb DEb DSRb DCb]
     return patch
 end
 
@@ -197,7 +197,7 @@ function contract_34_patch(
     env.edges[2,1,1][χ4 DEa DEb; χ5] * env.corners[3,1,1][χ5; χ6] * env.edges[3,1,1][χ6 DSRa DSRb; χ7] * env.edges[3,1,1][χ7 DSLa DSLb; χ8] * 
     env.corners[4,1,1][χ8; χ9] * env.edges[4,1,1][χ9 DWa DWb; χ10] * 
     AL_above[DpbL DptL; DNLa DCLa DSLa DWa DCLOa] * AR_above[DpbR DptR; DNRa DEa DSRa DCRa DCROa] * 
-    PEPSKit.dagger(AL_below)[DptL DpbL; DNLb DCb DSLb DWb] * PEPSKit.dagger(AR_below)[DptR DpbR; DNRb DEb DSRb DCb]
+    PEPSKit._dag(AL_below)[DptL DpbL; DNLb DCb DSLb DWb] * PEPSKit._dag(AR_below)[DptR DpbR; DNRb DEb DSRb DCb]
     return patch
 end
 
@@ -212,7 +212,7 @@ function contract_34_patch(
     env.edges[2,1,1][χ4 DEa2 DEb; χ5] * env.corners[3,1,1][χ5; χ6] * env.edges[3,1,1][χ6 DSRa2 DSRb; χ7] * env.edges[3,1,1][χ7 DSLa2 DSLb; χ8] * 
     env.corners[4,1,1][χ8; χ9] * env.edges[4,1,1][χ9 DWa2 DWb; χ10] * 
     AL_above[DpbL DptL; DNLa1 DCLa  DSLa1 DWa1 DCLOa] * AR_above[DpbR DptR; DNRa1 DEa1 DSRa1 DCRa DCROa] * 
-    PEPSKit.dagger(AL_below)[DptL DpbL; DNLb DCb DSLb DWb DCOb] * PEPSKit.dagger(AR_below)[DptR DpbR; DNRb DEb DSRb DCb DCOb]
+    PEPSKit._dag(AL_below)[DptL DpbL; DNLb DCb DSLb DWb DCOb] * PEPSKit._dag(AR_below)[DptR DpbR; DNRb DEb DSRb DCb DCOb]
     return patch
 end
 
@@ -231,7 +231,7 @@ function truncation_environment(
     trunc_alg::ExactEnvTruncation
 ) where {E,S}
     A_stack = fill(A, 1, 1, 2)
-    A_stack[1, 1, 2] = dagger(A)
+    A_stack[1, 1, 2] = PEPSKit._dag(A)
     AAdag = InfinitePEPO(A_stack)
 
     network = InfiniteSquareNetwork(AAdag)
@@ -244,7 +244,7 @@ function truncation_environment(
     trunc_alg::ExactEnvTruncation
 ) where {E,S}
     O_stack = fill(A[2], 1, 1, 2)
-    O_stack[1, 1, 2] = dagger(A[2])
+    O_stack[1, 1, 2] = PEPSKit._dag(A[2])
     OOdag = InfinitePEPO(O_stack)
 
     network = InfiniteSquareNetwork(InfinitePEPS(A[1]), OOdag)
@@ -258,8 +258,8 @@ function truncation_environment(
 ) where {E,S}
     O_stack = fill(A[1], 1, 1, 4)
     O_stack[1, 1, 2] = copy(A[2])
-    O_stack[1, 1, 3] = dagger(A[2])
-    O_stack[1, 1, 4] = dagger(A[1])
+    O_stack[1, 1, 3] = PEPSKit._dag(A[2])
+    O_stack[1, 1, 4] = PEPSKit._dag(A[1])
     OOdag = InfinitePEPO(O_stack)
 
     network = InfiniteSquareNetwork(OOdag)
@@ -286,7 +286,7 @@ function truncation_environment(
 ) where {E,S}
     A_trunc = apply_isometry(A, Ws)
     A_stack = fill(A, 1, 1, 2)
-    A_stack[1, 1, 2] = dagger(A_trunc)
+    A_stack[1, 1, 2] = PEPSKit._dag(A_trunc)
     AAdag = InfinitePEPO(A_stack)
 
     network = InfiniteSquareNetwork(AAdag)
@@ -314,7 +314,7 @@ function truncation_environment(
     A_trunc = apply_isometry(A..., Ws)
     A_stack = fill(A[1], 1, 1, 3)
     A_stack[1, 1, 2] = copy(A[2])
-    A_stack[1, 1, 3] = dagger(A_trunc)
+    A_stack[1, 1, 3] = PEPSKit._dag(A_trunc)
     AAdag = InfinitePEPO(A_stack)
 
     network = InfiniteSquareNetwork(AAdag)
@@ -344,7 +344,7 @@ function truncation_environment(
 ) where {E,S}
     A_trunc = apply_isometry(A, Ws)
     A_stack = fill(A_trunc, 1, 1, 2)
-    A_stack[1, 1, 2] = dagger(A_trunc)
+    A_stack[1, 1, 2] = PEPSKit._dag(A_trunc)
     AAdag = InfinitePEPO(A_stack)
 
     network = InfiniteSquareNetwork(AAdag)
@@ -378,7 +378,7 @@ function truncation_environment(
 ) where {E,S}
     A_trunc = apply_isometry(A..., Ws)
     A_stack = fill(A_trunc, 1, 1, 2)
-    A_stack[1, 1, 2] = dagger(A_trunc)
+    A_stack[1, 1, 2] = PEPSKit._dag(A_trunc)
     AAdag = InfinitePEPO(A_stack)
 
     network = InfiniteSquareNetwork(AAdag)

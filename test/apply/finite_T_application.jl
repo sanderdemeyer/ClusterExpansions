@@ -49,10 +49,10 @@ T = Complex{BigFloat}
 
 β₀ = T(0.1)
 β₊ = T(0.05)
-iterations = ceil(Int,(0.5-β₀)/β₊)
+iterations = ceil(Int,(0.55-β₀)/β₊)
 p = 3
-χenv_approx = 10
-χenv = 12
+χenv_approx = 45
+χenv = 45
 envspace_approx = ℂ^χenv_approx
 Dcut = 5
 g = T(0.0)

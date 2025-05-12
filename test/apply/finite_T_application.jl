@@ -22,21 +22,24 @@ function calculate_magnetization(O, χenv, Magn, ctm_alg)
     Z = network_value(partfunc, env);
     magn = network_value(partfunc_M, env)
     println("Z = $(Z), magn = $(magn)")
-    return Z/magn
+    return magn / Z
 end
 
-function get_phase_transition(β₀, O, Magn, trunc_alg, ctm_alg, χenv, iterations)
+function get_phase_transition(expon1, expon2, Magn, trunc_alg, ctm_alg, χenv, iterations)
+    (O₀, β₀) = expon1
+    (O₊, β₊) = expon2
     β = β₀
     βs = []
     Zs = []    
+    O = copy(O₀)
     for _ = 1:iterations
         println("For β = $(β), T = $(1/β), O  = $(summary(O))")
         Z = calculate_magnetization(O, χenv, Magn, ctm_alg)
-        push!(βs, β₀)
+        push!(βs, β)
         push!(Zs, Z)
         println("For β = $(β), T = $(1/β), magn  = $(Z)")
-        O, _ = approximate_state((O,O), trunc_alg)
-        β *= 2
+        O, _ = approximate_state((O,O₊), trunc_alg)
+        β += β₊
     end
     return βs, Zs
 end
@@ -44,13 +47,14 @@ end
 setprecision(128)
 T = Complex{BigFloat}
 
-β₀ = 1e-3
-iterations = ceil(log(2, 1/(2.2*β₀)))
-p = 5
-χenv_approx = 30
-χenv = 40
+β₀ = T(0.1)
+β₊ = T(0.05)
+iterations = ceil(Int,(0.5-β₀)/β₊)
+p = 3
+χenv_approx = 10
+χenv = 12
 envspace_approx = ℂ^χenv_approx
-Dcut = 3
+Dcut = 5
 g = T(0.0)
 
 ctm_alg = SimultaneousCTMRG(;
@@ -60,7 +64,7 @@ maxiter=1000,
 verbosity=2,
 svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10)),)
 
-trunc_alg = ApproximateEnvTruncation(ctm_alg, envspace_approx, truncdim(Dcut); check_fidelity = false, maxiter = 30, verbosity = 0)
+trunc_alg = ApproximateEnvTruncation(ctm_alg, envspace_approx, truncdim(Dcut); check_fidelity = false, maxiter = 1, verbosity = 0)
 
 J = T(1.0)
 twosite_op = rmul!(σˣˣ(T), -J)
@@ -73,18 +77,29 @@ O, O_clust_full = clusterexpansion(T, p, β₀, twosite_op, onesite_op; spaces =
 O_clust_full = convert(TensorMap, O_clust_full)
 O_clust = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
 O_clust[] = O_clust_full[]
+O₀ = copy(O_clust)
 
-βs, Zs = get_phase_transition(β₀, O_clust, Magn, trunc_alg, ctm_alg, χenv, iterations)
+# O, O_clust_full = clusterexpansion(T, p, β₊, twosite_op, onesite_op; spaces = spaces, verbosity = 0, symmetry = "C4")
+# O_clust_full = convert(TensorMap, O_clust_full)
+# O_clust = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
+# O_clust[] = O_clust_full[]
+# O₊ = copy(O_clust)
+O₊ = copy(O₀)
 
-plt = scatter(Float64.(Ts), abs.((Magn)), label = "p = 6, χ = $(χenv)")
+βs, Zs = get_phase_transition((O₀, β₀), (O₊, β₊), Magn, trunc_alg, ctm_alg, χenv, iterations)
+
+Ts = [1/β for β = βs]
+plt = scatter(Float64.(Ts), abs.((Zs)), label = "p = 6, χ = $(χenv)")
 xlabel!("T")
 ylabel!("Magnetization")
 title!("Ising model with g = $(real(g))")
-savefig(plt, "Ising_phase_transition_g_$(real(g))_p_$(p)_chienv_$(χenv).png")
+# savefig(plt, "Ising_phase_transition_g_$(real(g))_p_$(p)_chienv_$(χenv).png")
 display(plt)
 
-# file = jldopen("ClusterExpansion_g_$(g)_p_$(p)_chienv_$(χenv).jld2", "w")
-# file["Ts"] = Ts
-# file["Zs"] = Zs
-# file["Magn"] = Magn
-# close(file)
+file = jldopen("ClusterExpansion_g_$(g)_p_$(p)_chienv_$(χenv).jld2", "w")
+file["Ts"] = Ts
+file["Zs"] = Zs
+file["Magn"] = Magn
+file["β₀"] = β₀
+file["β₊"] = β₊
+close(file)

@@ -45,13 +45,15 @@ end
 
 function approximate_state(
     A::Union{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4},Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}},
-    trunc_alg::EnvTruncation
+    trunc_alg::EnvTruncation;
+    envspace_fidelity = trunc_alg.envspace,
+    ctm_alg_fidelity = trunc_alg.ctm_alg
 ) where {E,S<:ElementarySpace}
     Ws = find_isometry(A, trunc_alg)
     A_trunc = apply_isometry(A, Ws)
 
     trunc_alg.check_fidelity || return A_trunc, nothing
-    overlap = fidelity(A, A_trunc, trunc_alg.ctm_alg, trunc_alg.envspace)
+    overlap = fidelity(A, A_trunc, ctm_alg_fidelity, envspace_fidelity)
     if trunc_alg.verbosity > 0
         @info "Fidelity of approximation is $overlap"
     end

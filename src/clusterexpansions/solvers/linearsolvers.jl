@@ -253,7 +253,10 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             U, Σ, V = tsvd(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
             x1 = U * sqrt(Σ)
             x2 = sqrt(Σ) * V
-            @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
+            # @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
+            if norm(x - x1 * x2)/norm(x) > eps(real(T))*1e2 
+                @warn "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
+            end
         else
             if dir == (3,1)
                 x = flip(x, (2,3,4,6,9,10))

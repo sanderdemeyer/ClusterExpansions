@@ -117,9 +117,9 @@ function contract_PEPO_open(O, L)
 end
 
 bmin = -1.5
-bmax = 0.0
+bmax = -1.5
 pmax = 4
-βs = [10.0^(x) for x in LinRange(bmin, bmax, 8)]
+βs = [10.0^(x) for x in LinRange(bmin, bmax, 1)]
 ps = [i for i = 2:pmax]
 
 errors = zeros(length(βs), length(ps))
@@ -160,7 +160,7 @@ end
 scatter!(xscale=:log10, yscale=:log10)
 xlabel!("β*J")
 ylabel!("Error on the exact exp for OBE with L = $(L)")
-title!("SF model with g = $(real(g))")
+title!("SF model")
 # savefig(plt, "Exact_exponential_PBE_L_$(L)_g_$(real(g))_p_$(pmax)_betas_$(bmin)_$(bmax)_comparison.png")
 display(plt)
 

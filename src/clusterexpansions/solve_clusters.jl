@@ -42,7 +42,7 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; sym
     elseif length(sites_to_update) ∈ [1, 2]
         A = get_A(T, cluster, PEPO, sites_to_update)
         dir, conjugated = get_update_dir(cluster.cluster, sites_to_update)
-        solutions = solve_index(T, A, exp_H-residual, conjugated, sites_to_update, levels_to_update, get_direction(dir), cluster.N, spaces; verbosity = verbosity)
+        solutions = solve_index(T, A, RHS, conjugated, sites_to_update, levels_to_update, get_direction(dir), cluster.N, spaces; verbosity = verbosity)
     else
         @error "Number of sites to update = $(length(sites_to_update))"
         return spaces

@@ -9,13 +9,14 @@ using PEPSKit
 using Plots
 
 J = 1.0
-g = 3.04438
 
 χenv, χenv_approx = 50, 6
-trscheme = truncbelow(1e-3) & truncdim(4)
-time_alg = SquaringEvolution(0.1, 4)
-H = localoperator_model(ℂ^2, σᶻ())
-times, expvals, As = time_evolve_model(ising_operators, (J, g), time_alg, χenv; χenv_approx, trscheme, observables = [H]);
+trscheme = truncbelow(1e-8) & truncdim(4)
+time_alg = UniformTimeEvolution(0.1, 0.1, 8; verbosity = 2)
+
+pspace = ℂ^2
+H = localoperator_model(pspace, σᶻ())
+times, expvals, As = time_evolve_model(ising_operators_Z2, (J), time_alg, χenv; χenv_approx, trscheme, observables = [H], convert_symm = true);
 
 magnetizations = [e[1] for e in expvals]
 
@@ -26,6 +27,6 @@ vline!([Tc])
 xlabel!("T")
 xlims!(plt, (1.0, 4.0))
 ylabel!("Magnetization")
-title!("Ising model with g = $(real(g))")
+title!("Ising model with g =0.0)")
 
 display(plt)

@@ -230,7 +230,6 @@ function solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = 1, symmet
 
     # cfun = x -> get_A_nudge(x, exp_H; c = 0.0)
 
-    verbosity = 3
     println("Norm of RHS = $(norm(RHS))")
     # result = optimtest(cfun, A; inner = my_inner)
     # println("result = $result")
@@ -241,12 +240,13 @@ function solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = 1, symmet
     # println("dfs2 = $(sort(real.(dfs2)))")
 
     RHS_rot = permute(RHS, ((2,3,4,1),(6,7,8,5)))
+    println("Rot inv before: $(norm(permute(RHS, ((2,3,4,1),(6,7,8,5)))-RHS)/norm(RHS))")
     RHS = (RHS + permute(RHS, ((2,3,4,1),(6,7,8,5))) + permute(RHS, ((3,4,1,2),(7,8,5,6))) + permute(RHS, ((4,1,2,3),(8,5,6,7)))) / 4
-    println("Rot inv: $(norm(permute(RHS, ((2,3,4,1),(6,7,8,5)))-RHS)/norm(RHS))")
+    println("Rot inv after: $(norm(permute(RHS, ((2,3,4,1),(6,7,8,5)))-RHS)/norm(RHS))")
 
     # A, fx, gx, numfg, normgradhistory = optimize(cfun, A, GradientDescent(; verbosity=verbosity, gradtol = gradtol, maxiter=4); inner=my_inner);
 
-    opt_alg = LBFGS(; maxiter=500, gradtol=1e-9, verbosity=3)
+    opt_alg = LBFGS(; maxiter=500, gradtol=1e-9, verbosity)
 
     custom_costfun = ψ -> check_loop(ψ, RHS, spaces)
     # optimize free energy per site

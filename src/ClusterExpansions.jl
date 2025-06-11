@@ -1,6 +1,7 @@
 module ClusterExpansions
 
-using TensorKit, KrylovKit
+using TensorKit, TensorKitTensors
+using KrylovKit
 using BlockTensorKit: ⊕, SumSpace
 using MPSKit, MPSKitModels
 using PEPSKit
@@ -12,6 +13,10 @@ include("clusterexpansions/utility/loop_filtering.jl")
 include("clusterexpansions/utility/symmetries.jl")
 include("clusterexpansions/utility/truncations_utility.jl")
 include("clusterexpansions/utility/truncations.jl")
+
+include("clusterexpansions/utility/models.jl")
+include("clusterexpansions/utility/time_evolve.jl")
+include("clusterexpansions/utility/time_evolve_models.jl")
 
 include("clusterexpansions/generate_trees.jl")
 include("clusterexpansions/generate_loops.jl")
@@ -39,5 +44,13 @@ export fidelity, apply_isometry
 export apply_PEPO_exact
 export ExactEnvTruncation, ApproximateEnvTruncation, IntermediateEnvTruncation
 export approximate_state, find_isometry, truncation_environment
+
+export ClusterExpansion, evolution_operator
+export ising_operators, ising_operators_Z2, spinless_fermion_operators, heisenberg_operators, hubbard_operators, tJ_operators
+
+export StaticTimeEvolution, TimeDependentTimeEvolution
+export UniformTimeEvolution, SquaringEvolution
+export time_evolve, time_scan
+export localoperator_model, time_evolve_model, time_scan_model
 
 end # module ClusterExpansions

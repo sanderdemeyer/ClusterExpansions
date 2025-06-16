@@ -42,7 +42,7 @@ export find_truncation, apply
 
 export fidelity, apply_isometry
 export apply_PEPO_exact
-export ExactEnvTruncation, ApproximateEnvTruncation, IntermediateEnvTruncation
+export ExactEnvTruncation, ApproximateEnvTruncation, IntermediateEnvTruncation, NoEnvTruncation
 export approximate_state, find_isometry, truncation_environment
 
 export ClusterExpansion, evolution_operator

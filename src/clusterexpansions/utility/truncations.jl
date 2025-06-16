@@ -28,6 +28,12 @@ struct IntermediateEnvTruncation <: EnvTruncation
     verbosity::Int
 end
 
+struct NoEnvTruncation <: EnvTruncation
+    trscheme::TruncationScheme
+    check_fidelity::Bool
+    verbosity::Int
+end
+
 function ExactEnvTruncation(ctm_alg, envspace::ElementarySpace, trscheme::TruncationScheme;
     check_fidelity::Bool = false, verbosity::Int = 0)
     ExactEnvTruncation(ctm_alg, envspace, trscheme, check_fidelity, verbosity)
@@ -43,28 +49,52 @@ function IntermediateEnvTruncation(ctm_alg, envspace::ElementarySpace, trscheme:
     IntermediateEnvTruncation(ctm_alg, envspace, trscheme, check_fidelity, maxiter, tol, verbosity)
 end
 
+function NoEnvTruncation(trscheme::TruncationScheme;
+    check_fidelity::Bool = false, verbosity::Int = 0)
+    NoEnvTruncation(trscheme, check_fidelity, verbosity)
+end
+
 function approximate_state(
     A::Union{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4},Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}},
     trunc_alg::EnvTruncation;
     envspace_fidelity = trunc_alg.envspace,
     ctm_alg_fidelity = trunc_alg.ctm_alg
 ) where {E,S<:ElementarySpace}
+    # Ws = find_isometry(A, trunc_alg; hor = true)
+    # A_trunc_hor = apply_isometry_hor(A, Ws)
+    # Ws = find_isometry(A_trunc_hor, trunc_alg; hor = false)
+    # A_trunc = apply_isometry_ver(A, Ws)
+
     Ws = find_isometry(A, trunc_alg)
     A_trunc = apply_isometry(A, Ws)
 
     trunc_alg.check_fidelity || return A_trunc, nothing
     overlap = fidelity(A, A_trunc, ctm_alg_fidelity, envspace_fidelity)
-    if trunc_alg.verbosity > 0
+    if trunc_alg.verbosity > 1
         @info "Fidelity of approximation is $overlap"
     end
     return A_trunc, overlap
 end
 
+function approximate_state(
+    A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}},
+    trunc_alg::NoEnvTruncation
+) where {E,S<:ElementarySpace}
+    @tensor Otmp[-1 -2; -3 -4 -5 -6 -7 -8 -9 -10] := A[1][1 -2; -7 -8 -9 -10] * A[2][-1 1; -3 -4 -5 -6];
+    PN, PW = find_proj(Otmp, (3,7), (6,10), trunc_alg.trscheme);
+    # PE,PS = find_proj(Otmp, (4,8), (5,9), trunc_alg.trscheme);
+    # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * P610[6 10;-6] * P37[-3; 3 7] * P48[4 8; -4] * P59[-5; 5 9]
+    # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * PN[3 7; -3] * PE[4 8; -4] * PS[-5; 5 9] * PW[-6; 6 10]
+    @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * PN[3 7; -3] * conj(PW[-4; 4 8]) * conj(PN[5 9; -5]) * PW[-6; 6 10]
+    return Onew, nothing
+end
+
 function find_isometry(
     A::Union{AbstractTensorMap{E,S,1,4}, AbstractTensorMap{E,S,2,4},Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}} where {E,S<:ElementarySpace},
-    trunc_alg::ExactEnvTruncation
+    trunc_alg::ExactEnvTruncation;
+    hor = true
 )
-    t = truncation_environment(A, trunc_alg)
+    t = truncation_environment(A, trunc_alg)#; hor = hor)
     # truncspace = get_trunc_space(A)
     Ws = update_isometry(t, trunc_alg.trscheme)#, truncspace
     return Ws
@@ -72,10 +102,11 @@ end
 
 function find_isometry(
     A::Union{AbstractTensorMap{E,S,1,4}, AbstractTensorMap{E,S,2,4},Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}} where {E,S<:ElementarySpace},
-    trunc_alg::Union{ApproximateEnvTruncation, IntermediateEnvTruncation}
+    trunc_alg::Union{ApproximateEnvTruncation, IntermediateEnvTruncation};
+    hor = true
 ) 
     T = scalartype(A)
-    space = ℂ^(trunc_alg.trscheme.dim)
+    space = get_top_space(A) #ℂ^(trunc_alg.trscheme.dim)
     Ws = get_initial_isometry(T, get_trunc_space(A), space, randn)
     error = Inf
     for i = 1:trunc_alg.maxiter
@@ -83,17 +114,22 @@ function find_isometry(
         Ws_new = update_isometry(t, trunc_alg.trscheme)
         _, Σ_new, _ = tsvd(Ws_new[1])
         _, Σ, _ = tsvd(Ws[1])
-        error = (norm(Σ_new-Σ)/norm(Σ))
+        len = minimum([length(Σ_new.data), length(Σ.data)])
+        error = (norm(Σ_new.data[1:len]-Σ.data[1:len])/norm(Σ.data[1:len]))
         Ws = copy(Ws_new)
         if trunc_alg.verbosity > 1
             @info "Step $i: error = $error"
         end
         if error < trunc_alg.tol
-            @info "Converged after $i iterations: error = $error"
+            if trunc_alg.verbosity > 1
+                @info "Converged after $i iterations: error = $error"
+            end
             break
         end
         if i == trunc_alg.maxiter && trunc_alg.verbosity > 0
-            @warn "Not converged after $i iterations: error = $error"
+            if trunc_alg.verbosity > 0
+                @warn "Not converged after $i iterations: error = $error"
+            end
         end
     end
     return Ws
@@ -123,6 +159,33 @@ function contract_23_patch(
     patch = PEPSKit.@autoopt @tensor t[DNa; DSa] := 
         env.corners[1,1,1][χ6; χ1] * env.edges[1,1,1][χ1 DNa Db; χ2] * env.corners[2,1,1][χ2; χ3] * 
         env.corners[3,1,1][χ3; χ4] * env.edges[3,1,1][χ4 DSa Db; χ5] * env.corners[4,1,1][χ5; χ6]
+    return patch
+end
+
+function contract_32_patch(
+    env::CTMRGEnv{C,T}
+) where {C,E,S,T<:AbstractTensorMap{E,S,5,1}}
+    patch = PEPSKit.@autoopt @tensor t[DEa DEOa; DWa DWOa] := 
+        env.corners[1,1,1][χ6; χ1] * env.corners[2,1,1][χ1; χ2] * env.edges[2,1,1][χ2 DEa DEOa Db DOb; χ3] * 
+        env.corners[3,1,1][χ3; χ4] * env.corners[4,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DWa DWOa Db DOb; χ6]
+    return patch
+end
+
+function contract_32_patch(
+    env::CTMRGEnv{C,T}
+) where {C,E,S,T<:AbstractTensorMap{E,S,4,1}}
+    patch = PEPSKit.@autoopt @tensor t[DEa DEOa; DWa DWOa] := 
+        env.corners[1,1,1][χ6; χ1] * env.corners[2,1,1][χ1; χ2] * env.edges[2,1,1][χ2 DEa DEOa Db; χ3] * 
+        env.corners[3,1,1][χ3; χ4] * env.corners[4,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DWa DWOa Db; χ6]
+    return patch
+end
+
+function contract_32_patch(
+    env::CTMRGEnv{C,T}
+) where {C,E,S,T<:AbstractTensorMap{E,S,3,1}}
+    patch = PEPSKit.@autoopt @tensor t[DEa; DWa] := 
+        env.corners[1,1,1][χ6; χ1] * env.corners[2,1,1][χ1; χ2] * env.edges[2,1,1][χ2 DEa Db; χ3] * 
+        env.corners[3,1,1][χ3; χ4] * env.corners[4,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DWa Db; χ6]
     return patch
 end
 
@@ -219,10 +282,14 @@ end
 
 function truncation_environment(
     A::AbstractTensorMap{E,S,1,4},
-    trunc_alg::ExactEnvTruncation
+    trunc_alg::ExactEnvTruncation;
+    hor = true
 ) where {E,S}
     network = InfiniteSquareNetwork(InfinitePEPS(A))
     env, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
+    if hor
+        return contract_32_patch(env)
+    end
     return contract_23_patch(env)
 end
 
@@ -236,7 +303,7 @@ function truncation_environment(
 
     network = InfiniteSquareNetwork(AAdag)
     env, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
-    return contract_23_patch(env)
+    return contract_32_patch(env)
 end
 
 function truncation_environment(
@@ -249,7 +316,7 @@ function truncation_environment(
 
     network = InfiniteSquareNetwork(InfinitePEPS(A[1]), OOdag)
     env, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
-    return contract_23_patch(env)
+    return contract_32_patch(env)
 end
 
 function truncation_environment(
@@ -264,7 +331,7 @@ function truncation_environment(
 
     network = InfiniteSquareNetwork(OOdag)
     env, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
-    return contract_23_patch(env)
+    return contract_32_patch(env)
 end
 
 function truncation_environment(
@@ -275,7 +342,7 @@ function truncation_environment(
     A_trunc = apply_isometry(A, Ws)
     network = InfiniteSquareNetwork(InfinitePEPS(A), InfinitePEPS(A_trunc))
     env, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
-    t =  contract_23_patch(env)
+    t =  contract_32_patch(env)
     return t
 end
 
@@ -291,7 +358,7 @@ function truncation_environment(
 
     network = InfiniteSquareNetwork(AAdag)
     env, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
-    t =  contract_23_patch(env)
+    t =  contract_32_patch(env)
     return t
 end
 
@@ -303,7 +370,7 @@ function truncation_environment(
     A_trunc = apply_isometry(A..., Ws)
     network = InfiniteSquareNetwork(InfinitePEPS(A[1]), InfinitePEPO(A[2]), InfinitePEPS(A_trunc))
     env, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
-    return contract_23_patch(env)
+    return contract_32_patch(env)
 end
 
 function truncation_environment(
@@ -319,7 +386,7 @@ function truncation_environment(
 
     network = InfiniteSquareNetwork(AAdag)
     env, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
-    return contract_23_patch(env)
+    return contract_32_patch(env)
 end
 
 function truncation_environment(
@@ -397,6 +464,7 @@ function apply_PEPO_exact(
 ) where {E,S}
     T = scalartype(ψ)
     # Not sure whether this works for fermions
-    Ws = [dir > 2 ? isometry(T, domain(ψ)[dir] ⊗ domain(O)[dir], fuse(domain(ψ)[dir], domain(O)[dir])') : isometry(T, domain(ψ)[dir] ⊗ domain(O)[dir], fuse(domain(ψ)[dir], domain(O)[dir])) for dir = 1:4]
+    # Ws = [dir > 2 ? isometry(T, domain(ψ)[dir] ⊗ domain(O)[dir], fuse(domain(ψ)[dir], domain(O)[dir])') : isometry(T, domain(ψ)[dir] ⊗ domain(O)[dir], fuse(domain(ψ)[dir], domain(O)[dir])) for dir = 1:4]
+    Ws = [isometry(T, domain(ψ)[1] ⊗ domain(O)[1], fuse(domain(ψ)[1], domain(O)[1])) for dir = 1:4]
     return apply_isometry(ψ, O, Ws)
 end

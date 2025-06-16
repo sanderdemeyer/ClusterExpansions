@@ -104,6 +104,16 @@ function apply_isometry(A::AbstractTensorMap{E,S,1,4}, Ws::Vector{<:AbstractTens
     return A_trunc
 end
 
+function apply_isometry_hor(A::AbstractTensorMap{E,S,1,4}, W::AbstractTensorMap{E,S,1,1}) where {E,S}
+    @tensor A_trunc[-1; -2 -3 -4 -5] := A[-1; -2 1 -4 2] * W[1; -3] * conj(W[2; -5])
+    return A_trunc
+end
+
+function apply_isometry_ver(A::AbstractTensorMap{E,S,1,4}, W::AbstractTensorMap{E,S,1,1}) where {E,S}
+    @tensor A_trunc[-1; -2 -3 -4 -5] := A[-1; 1 -3 2 -5] * W[1; -2] * conj(W[2; -4])
+    return A_trunc
+end
+
 function apply_isometry(O::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,1,1}}) where {E,S}
     @tensor O_trunc[-1 -2; -3 -4 -5 -6] := O[-1 -2; 1 2 3 4] * Ws[1][1; -3] * Ws[2][2; -4] * conj(Ws[3][3; -5]) * conj(Ws[4][4; -6])
     return O_trunc
@@ -150,15 +160,10 @@ end
 # Utility function to update the isometry. t is the result of `contract_34_patch`.
 function update_isometry(t, trscheme)
     T = scalartype(t)
-    U, _, _ = tsvd(t, trunc = trscheme)
-    Q, R = leftorth(U; alg = QRpos())
-    # U /= exp(im*angle(sum(U[]))) # This is horrible and should be changed. This will also not work in the fermionic case
-    # space_trunc = codomain(V)
-    # Ws_new = [dir > 2 ? zeros(T, spaces[dir], space_trunc') : zeros(T, spaces[dir], space_trunc) for dir = 1:4]
-    # Ws_new = [dir > 2 ? zeros(T, prod([i' for i = codomain(U)]), domain(U)') : zeros(T, codomain(U), domain(U)) for dir = 1:4]
+    U, _, V = tsvd(t, trunc = trscheme)
+    # Q, R = leftorth(U; alg = QRpos())
     Ws_new = [zeros(T, codomain(U), domain(U)) for dir = 1:4]
     for dir in 1:4
-        # Ws_new[dir][][:, :, :] = reshape(V[][:, :, :], (dim(spaces[dir]), dim(space_trunc)))
         Ws_new[dir] = copy(U)
     end
     return Ws_new
@@ -174,4 +179,47 @@ function get_trunc_space(
     A::Union{Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}} where {E,S<:ElementarySpace}
 )
     return domain(A[1])[1] ⊗ domain(A[2])[1]
+end
+
+function get_top_space(
+    A::Union{AbstractTensorMap{E,S,1,4}, AbstractTensorMap{E,S,2,4}} where {E,S<:ElementarySpace}
+)
+    return domain(A)[1]
+end
+
+function get_top_space(
+    A::Union{Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}} where {E,S<:ElementarySpace}
+)
+    return domain(A[1])[1]
+end
+
+# Utility functions for NoEnvTruncation
+
+# QR decomposition
+function QR_proj(A, p1, p2; check_space=true)
+    q1 = Tuple(setdiff(1:10, p1))
+    _, RA1 = leftorth(A, (q1, p1))
+    q2 = Tuple(setdiff(1:10, p2))
+    RA2, _ = rightorth(A, (p2, q2))
+    if check_space
+        if domain(RA1) != codomain(RA2)
+            throw(SpaceMismatch("domain and codomain of projectors do not match"))
+        end
+    end
+    return RA1, RA2
+end
+
+function oblique_projector(R1, R2, trunc)
+    mat = R1 * R2
+    U, S, Vt = tsvd(mat; trunc)
+
+    P1 = R2 * adjoint(Vt) * inv(sqrt(S))
+    P2 = inv(sqrt(S)) * adjoint(U) * R1
+    return P1, P2
+end
+
+function find_proj(A, p1, p2, trunc; check_space=true)
+    R1, R2 = QR_proj(A, p1, p2; check_space=check_space)
+    P1, P2 = oblique_projector(R1, R2, trunc)
+    return P1, P2
 end

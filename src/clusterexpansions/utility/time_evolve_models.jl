@@ -68,8 +68,8 @@ function time_evolve_model(model, param, time_alg, χenv; χenv_approx = χenv, 
     if isnothing(trscheme)
         trscheme = truncdim(bond_dimension(ce_alg))
     end
-    trunc_alg = ApproximateEnvTruncation(ctm_alg, envspace_approx, trscheme; verbosity = verbosity_trunc)
-
+    # trunc_alg = ApproximateEnvTruncation(ctm_alg, envspace_approx, trscheme; verbosity = verbosity_trunc)
+    trunc_alg = NoEnvTruncation(trscheme)
     # observable_time_evolve = (O, env) -> pf_observable(O, env, obs, ctm_alg)
     times, expvals, As = time_evolve(ce_alg, time_alg, trunc_alg, O -> observable_time_evolve(O, observables, envspace, ctm_alg; convert_symm))
     return times, expvals, As

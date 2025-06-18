@@ -49,7 +49,7 @@ export ClusterExpansion, evolution_operator
 export ising_operators, ising_operators_Z2, spinless_fermion_operators, heisenberg_operators, hubbard_operators, tJ_operators
 
 export StaticTimeEvolution, TimeDependentTimeEvolution
-export UniformTimeEvolution, SquaringEvolution
+export UniformTimeEvolution, SquaringTimeEvolution
 export time_evolve, time_scan
 export localoperator_model, time_evolve_model, time_scan_model
 

@@ -197,9 +197,10 @@ end
 
 # QR decomposition
 function QR_proj(A, p1, p2; check_space=true)
-    q1 = Tuple(setdiff(1:10, p1))
+    len = length(codomain(A)) + 8
+    q1 = Tuple(setdiff(1:len, p1))
     _, RA1 = leftorth(A, (q1, p1))
-    q2 = Tuple(setdiff(1:10, p2))
+    q2 = Tuple(setdiff(1:len, p2))
     RA2, _ = rightorth(A, (p2, q2))
     if check_space
         if domain(RA1) != codomain(RA2)

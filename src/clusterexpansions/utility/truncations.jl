@@ -89,6 +89,19 @@ function approximate_state(
     return Onew, nothing
 end
 
+function approximate_state(
+    A::Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},
+    trunc_alg::NoEnvTruncation
+) where {E,S<:ElementarySpace}
+    @tensor Otmp[-1; -2 -3 -4 -5 -6 -7 -8 -9] := A[1][1; -7 -8 -9 -10] * A[2][-1 1; -3 -4 -5 -6];
+    PN, PW = find_proj(Otmp, (2,6), (5,9), trunc_alg.trscheme);
+    # PE,PS = find_proj(Otmp, (4,8), (5,9), trunc_alg.trscheme);
+    # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * P610[6 10;-6] * P37[-3; 3 7] * P48[4 8; -4] * P59[-5; 5 9]
+    # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * PN[3 7; -3] * PE[4 8; -4] * PS[-5; 5 9] * PW[-6; 6 10]
+    @tensor opt=true contractcheck=true Onew[-1; -2 -3 -4 -5] := Otmp[-1; 3 4 5 6 7 8 9 10] * PN[3 7; -2] * conj(PW[-3; 4 8]) * conj(PN[5 9; -4]) * PW[-5; 6 10]
+    return Onew, nothing
+end
+
 function find_isometry(
     A::Union{AbstractTensorMap{E,S,1,4}, AbstractTensorMap{E,S,2,4},Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}} where {E,S<:ElementarySpace},
     trunc_alg::ExactEnvTruncation;

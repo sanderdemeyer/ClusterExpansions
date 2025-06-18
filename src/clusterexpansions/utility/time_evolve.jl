@@ -62,7 +62,7 @@ function UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 0)
     return StaticTimeEvolution(β₀, [Δβ], [1 for i = 1:maxiter], verbosity)
 end
 
-function SquaringEvolution(β₀, maxiter; verbosity = 0)
+function SquaringTimeEvolution(β₀, maxiter; verbosity = 0)
     return StaticTimeEvolution(β₀, [], 1:maxiter, verbosity)
 end
 

@@ -28,9 +28,9 @@ function evolution_operator(ce_alg::ClusterExpansion, β::Number)
     return O
 end
 
-function ising_operators(J, g; T = ComplexF64, loop_space = ℂ^10, kwargs...)
+function ising_operators(J, g, z; T = ComplexF64, loop_space = ℂ^10, kwargs...)
     twosite_op = rmul!(PEPSKit.σᶻᶻ(T), -J)
-    onesite_op = rmul!(PEPSKit.σˣ(T), g * -J)
+    onesite_op = rmul!(PEPSKit.σˣ(T), g * -J) + rmul!(PEPSKit.σᶻ(T), z * -J)
 
     if g == 0.0
         spaces = i -> (i >= 0) ? ℂ^(2^(i)) : loop_space
@@ -41,7 +41,7 @@ function ising_operators(J, g; T = ComplexF64, loop_space = ℂ^10, kwargs...)
 end
 
 function ising_operators(; kwargs...)
-    return ising_operators(1.0, 0.0; kwargs...)
+    return ising_operators(1.0, 0.0, 0.0; kwargs...)
 end
 
 function ising_operators_Z2(J; T = ComplexF64, loop_space = ℂ^10, kwargs...)

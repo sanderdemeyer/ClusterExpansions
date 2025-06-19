@@ -34,7 +34,7 @@ end
 #     return O
 # end
 
-function evolution_operator(ce_alg::ClusterExpansion, time_alg::TimeDependentTimeEvolution, β)
+function evolution_operator(ce_alg::ClusterExpansion, time_alg::TimeDependentTimeEvolution, β::Number)
     _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, time_alg.Δβ, time_alg.f₂(β) * ce_alg.twosite_op, time_alg.f₁(β) * ce_alg.onesite_op; spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
     O_clust_full = convert(TensorMap, O_clust_full)
     O = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
@@ -44,7 +44,13 @@ function evolution_operator(ce_alg::ClusterExpansion, time_alg::TimeDependentTim
     return O
 end
 
-function evolution_operator(ce_alg::ClusterExpansion, β)
+function evolution_operator(ce_alg::ClusterExpansion, β::Number)
+    if β == 0.0
+        pspace = domain(ce_alg.onesite_op)[1]
+        vspace = ce_alg.spaces(0)
+        t = id(pspace ⊗ vspace ⊗ vspace)
+        return permute(t, ((1,4),(5,6,2,3)))
+    end
     _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
     O_clust_full = convert(TensorMap, O_clust_full)
     O = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
@@ -120,15 +126,23 @@ function time_evolve(
     time_alg::StaticTimeEvolution,
     trunc_alg::EnvTruncation,
     observable;
-    finalize! = nothing
+    finalize! = nothing,
+    A0 = nothing
 )
-    As = [evolution_operator(ce_alg, β) for β = time_alg.βs_helper]
+    As = AbstractTensorMap[evolution_operator(ce_alg, β) for β = time_alg.βs_helper]
     times = copy(time_alg.βs_helper)
-    A = evolution_operator(ce_alg, time_alg.β₀)
+
+    if isnothing(A0)
+        A = evolution_operator(ce_alg, time_alg.β₀)
+    else
+        A = A0
+    end
+
     expvals = [observable(A)]
     push!(As, copy(A))
     push!(times, time_alg.β₀)
     for (i,ind) in enumerate(time_alg.update_list)
+        println("norm = $(norm(A))")
         A, _ = approximate_state((A, As[ind]), trunc_alg)
 
         obs = observable(A)
@@ -143,7 +157,7 @@ function time_evolve(
             @info "Bond dimension is now $(dim(domain(A)[1]))"
         end
         if !isnothing(finalize!)
-            finalize!(A, obs, i)
+            A = finalize!(A, obs, i)
         end
     end
     return times[length(time_alg.βs_helper)+1:end], expvals, As[length(time_alg.βs_helper)+1:end]

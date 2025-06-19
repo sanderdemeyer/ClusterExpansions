@@ -18,16 +18,6 @@ function bond_dimension(ce_alg::ClusterExpansion)
     return sum([dim(ce_alg.spaces(i)) for i = 0:div(ce_alg.p,2)]) + (ce_alg.p >= 4) * dim(ce_alg.spaces(-1)) + + (ce_alg.p >= 6) * dim(ce_alg.spaces(-2))
 end
 
-function evolution_operator(ce_alg::ClusterExpansion, β::Number)
-    _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
-    O_clust_full = convert(TensorMap, O_clust_full)
-    O = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
-    for (f_full, f_conv) in zip(blocks(O_clust_full), blocks(O))
-        f_conv[2] .= f_full[2]
-    end
-    return O
-end
-
 function ising_operators(J, g, z; T = ComplexF64, loop_space = ℂ^10, kwargs...)
     twosite_op = rmul!(PEPSKit.σᶻᶻ(T), -J)
     onesite_op = rmul!(PEPSKit.σˣ(T), g * -J) + rmul!(PEPSKit.σᶻ(T), z * -J)

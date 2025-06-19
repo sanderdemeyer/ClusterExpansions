@@ -40,7 +40,7 @@ function localoperator_model(pspace, op; Nr = 1, Nc = 1)
     return PEPSKit.LocalOperator(pspaces, ((idx,) => op for idx in PEPSKit.vertices(lattice))...,)
 end
 
-function observable_time_evolve(O, observables, envspace, ctm_alg; convert_symm)
+function observable_time_evolve(O::AbstractTensorMap{T,S,2,4}, observables, envspace, ctm_alg; convert_symm = false) where {T,S}
     if convert_symm
         codom_asym = [(i == 2) ? ComplexSpace(dim(codomain(O)[i]))' : ComplexSpace(dim(codomain(O)[i])) for i = 1:2]
         dom_asym = [(i > 2) ? ComplexSpace(dim(domain(O)[i]))' : ComplexSpace(dim(domain(O)[i])) for i = 1:4]
@@ -52,7 +52,12 @@ function observable_time_evolve(O, observables, envspace, ctm_alg; convert_symm)
     return [expectation_value(InfinitePEPO(O), obs, envspace, ctm_alg) for obs in observables]
 end
 
-function time_evolve_model(model, param, time_alg, χenv; χenv_approx = χenv, trscheme = nothing, T = ComplexF64, observables = [σˣ()], convert_symm = false, verbosity_ce = 0, verbosity_ctm = 0, verbosity_trunc = 0)
+function observable_time_evolve(O::AbstractTensorMap{T,S,1,4}, observables, envspace, ctm_alg; convert_symm = false) where {T,S}
+    env, = leading_boundary(CTMRGEnv(InfinitePEPS(O), envspace), InfinitePEPS(O), ctm_alg)
+    return [expectation_value(InfinitePEPS(O), obs, env) for obs in observables]
+end
+
+function time_evolve_model(model, param, time_alg, χenv; χenv_approx = χenv, trscheme = nothing, T = ComplexF64, observables = [σˣ()], convert_symm = false, verbosity_ce = 0, verbosity_ctm = 0, verbosity_trunc = 0, A0 = nothing, finalize! = nothing)
     ce_alg = model(param...; T, verbosity = verbosity_ce)
     envspace = ce_alg.envspace(χenv)
     envspace_approx = ce_alg.envspace(χenv_approx)
@@ -71,7 +76,7 @@ function time_evolve_model(model, param, time_alg, χenv; χenv_approx = χenv, 
     # trunc_alg = ApproximateEnvTruncation(ctm_alg, envspace_approx, trscheme; verbosity = verbosity_trunc)
     trunc_alg = NoEnvTruncation(trscheme)
     # observable_time_evolve = (O, env) -> pf_observable(O, env, obs, ctm_alg)
-    times, expvals, As = time_evolve(ce_alg, time_alg, trunc_alg, O -> observable_time_evolve(O, observables, envspace, ctm_alg; convert_symm))
+    times, expvals, As = time_evolve(ce_alg, time_alg, trunc_alg, O -> observable_time_evolve(O, observables, envspace, ctm_alg; convert_symm); A0, finalize!)
     return times, expvals, As
 end
 

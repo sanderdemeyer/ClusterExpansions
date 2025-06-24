@@ -2,7 +2,7 @@
 
 julia_version = "1.11.2"
 manifest_format = "2.0"
-project_hash = "bf3ac19bec83ab6520ba0b1ccafc470ba268cc81"
+project_hash = "b471ecc84ecdffa6f0fbaedce99f24bda57cd025"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1502,7 +1502,7 @@ version = "0.1.1"
 
 [[deps.TensorKit]]
 deps = ["GenericLinearAlgebra", "LRUCache", "LinearAlgebra", "PackageExtensionCompat", "Random", "SparseArrays", "Strided", "TensorKitSectors", "TensorOperations", "TupleTools", "VectorInterface"]
-git-tree-sha1 = "2bcc1154bc7e028814f630f406ed209b41e5579a"
+git-tree-sha1 = "6df309314471b07b1006297527641d8c4c94232a"
 repo-rev = "bigfloats"
 repo-url = "https://github.com/sanderdemeyer/TensorKit.jl.git"
 uuid = "07d1fe3e-3e46-537d-9eac-e9e13d0d4cec"
@@ -1527,11 +1527,11 @@ version = "0.1.4"
 
 [[deps.TensorKitTensors]]
 deps = ["LinearAlgebra", "TensorKit"]
-git-tree-sha1 = "ec1a20146674f568911594621ad65aba2c226fe3"
+git-tree-sha1 = "c67749813fa4a92898e7bd7af0dbb7ed484912c1"
 repo-rev = "main"
 repo-url = "https://github.com/QuantumKitHub/TensorKitTensors.jl.git"
 uuid = "41b62e7d-e9d1-4e23-942c-79a97adf954b"
-version = "0.1.0"
+version = "0.2.0"
 
 [[deps.TensorOperations]]
 deps = ["LRUCache", "LinearAlgebra", "PackageExtensionCompat", "PrecompileTools", "Preferences", "PtrArrays", "Strided", "StridedViews", "TupleTools", "VectorInterface"]

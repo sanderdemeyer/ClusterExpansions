@@ -214,7 +214,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000))
         end
         error = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
-        if error > 1e-10
+        if error > 1e-10 && verbosity > 0
             @warn "Error made on the solution is of the order $(error)"
         end
         x = permute(x, ((7,9,1,2,3),(8,10,4,5,6)))
@@ -233,7 +233,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000))
         end
         error = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
-        if error > 1e-10
+        if error > 1e-10 && verbosity > 0
             @warn "Error made on the solution is of the order $(error)"
         end
         x = permute(x, ((5,6),(1,2,3,4)))
@@ -242,7 +242,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         error("Impossible to use a linear solver when the number of tensors to update is equal to $(length(sites_to_update))")
     end
     if norm(x) == 0
-        if verbosity >= 1
+        if verbosity > 0
             @warn "Norm of the solution is zero"
         end
         return nothing
@@ -250,11 +250,14 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
     if length(sites_to_update) == 2
         svd = true
         if svd
+            U, Σ, V = tsvd(x)
+            println("Σ = $(Σ)")
+            println("Truncspace = $(truncspace(spaces(levels_to_update[1][dir[1]])))")
             U, Σ, V = tsvd(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
             x1 = U * sqrt(Σ)
             x2 = sqrt(Σ) * V
             # @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
-            if norm(x - x1 * x2)/norm(x) > eps(real(T))*1e2 
+            if norm(x - x1 * x2)/norm(x) > eps(real(T))*1e2 && verbosity > 0
                 @warn "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
             end
         else
@@ -266,7 +269,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             end
             if !(ishermitian(x))
                 x = (x + x')/2
-                if verbosity >= 1
+                if verbosity > 0
                     @warn "Hermiticicing: Change is of order $(norm(x-x')/(2*norm(x)))"
                 end
             end

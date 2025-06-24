@@ -3,6 +3,8 @@ struct Cluster
     cluster
     bonds_sites
     bonds_indices
+    diag_bonds_sites
+    diag_bonds_indices
     levels_sites
     m
     n
@@ -11,6 +13,7 @@ end
 function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
     N = length(cluster)
     bonds_sites, bonds_indices = get_bonds(cluster)
+    diag_bonds_sites, diag_bonds_indices = get_diag_bonds(cluster)
     
     # coordination_number = [sum(i .∈ bonds_indices) for i = 1:N]
 
@@ -80,7 +83,11 @@ function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
         end
         levels_sites = get_levels_sites(bonds_sites, bonds_indices, levels, N)
     end
-    return Cluster(N, cluster, bonds_sites, bonds_indices, levels_sites, m, n)
+    return Cluster(N, cluster, bonds_sites, bonds_indices, diag_bonds_sites, diag_bonds_indices, levels_sites, m, n)
+end
+
+function isdiagonal(site₁, site₂)
+    return (abs(site₁[1] - site₂[1]) == 1) && (abs(site₁[2] - site₂[2]) == 1)
 end
 
 function distance(ind₁, ind₂)
@@ -136,6 +143,20 @@ function get_bonds(cluster)
         end
     end
     return bonds_sites, bonds_indices
+end
+
+function get_diag_bonds(cluster)
+    diag_bonds_sites = Vector{Tuple{Tuple{Int,Int},Tuple{Int,Int}}}()
+    diag_bonds_indices = Vector{Tuple{Int,Int}}()
+    for (i,ind₁) = enumerate(cluster)
+        for (j,ind₂) = enumerate(cluster)
+            if (j > i) && isdiagonal(ind₁, ind₂)
+                push!(diag_bonds_sites, (ind₁, ind₂))
+                push!(diag_bonds_indices, (i, j))
+            end
+        end
+    end
+    return diag_bonds_sites, diag_bonds_indices
 end
 
 function get_coordination_number(bonds_indices, N)

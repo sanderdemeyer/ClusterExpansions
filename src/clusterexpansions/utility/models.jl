@@ -1,6 +1,7 @@
 struct ClusterExpansion
     twosite_op
     onesite_op
+    nn_term
     p
     verbosity
     T
@@ -10,8 +11,8 @@ struct ClusterExpansion
     envspace
 end
 
-function ClusterExpansion(twosite_op, onesite_op; p = 3, verbosity = 0, T = ComplexF64, spaces = i -> (i >= 0) ? ℂ^(2^(i)) : ℂ^10, symmetry = "C4", solving_loops = true, envspace = χ -> ℂ^χ)
-    return ClusterExpansion(twosite_op, onesite_op, p, verbosity, T, spaces, symmetry, solving_loops, envspace)
+function ClusterExpansion(twosite_op, onesite_op; nn_term = nothing, p = 3, verbosity = 0, T = ComplexF64, spaces = i -> (i >= 0) ? ℂ^(2^(i)) : ℂ^10, symmetry = "C4", solving_loops = true, envspace = χ -> ℂ^χ)
+    return ClusterExpansion(twosite_op, onesite_op, nn_term ,p, verbosity, T, spaces, symmetry, solving_loops, envspace)
 end
 
 function bond_dimension(ce_alg::ClusterExpansion)
@@ -105,9 +106,9 @@ function heisenberg_operators(; kwargs...)
     return heisenberg_operators(-1.0, 1.0, -1.0, 0.0; kwargs...)
 end
 
-function tJ_operators(t, J, μ; particle_symmetry = Trivial, spin_symmetry = Trivial, slave_fermion = false, T = ComplexF64, loop_space = Vect[fℤ₂](0 => 20, 1 => 20), kwargs...)
-    hopping_operator = HubbardOperators.e_hop(T, particle_symmetry, spin_symmetry; slave_fermion)
-    number_operator = FermionOperators.e_num(T, particle_symmetry, spin_symmetry; slave_fermion)
+function tJ_operators(t, J, μ; t′ = 0.0, particle_symmetry = Trivial, spin_symmetry = Trivial, slave_fermion = false, T = ComplexF64, loop_space = Vect[fℤ₂](0 => 20, 1 => 20), kwargs...)
+    hopping_operator = TJOperators.e_hop(T, particle_symmetry, spin_symmetry; slave_fermion)
+    number_operator = TJOperators.e_num(T, particle_symmetry, spin_symmetry; slave_fermion)
     heisenberg_operators = TJOperators.S_exchange(particle_symmetry, spin_symmetry; slave_fermion) - (1 / 4) * (number_operator ⊗ number_operator)
 
     twosite_op = rmul!(hopping_operator, -T(t)) + rmul!(heisenberg_operators, T(J))
@@ -118,13 +119,21 @@ function tJ_operators(t, J, μ; particle_symmetry = Trivial, spin_symmetry = Tri
     end
     spaces = i -> if i == 0
         Vect[fℤ₂](0 => 1)
+    elseif i == 1
+        Vect[fℤ₂](0 => 5, 1 => 4)
     elseif i > 0
-        Vect[fℤ₂](0 => 3^(2*i-1), 1 => 3^(2*i-1))
+        Vect[fℤ₂](0 => 2*3^(2*i-1), 1 => 2*3^(2*i-1))
     else
         loop_space
     end
     envspace = χ -> Vect[fℤ₂](0 => div(χ,2), 1 => div(χ,2))
-    return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, kwargs...)
+
+    if t′ == 0.0
+        nn_term = nothing
+    else
+        nn_term = rmul!(hopping_operator, -T(t′))
+    end
+    return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, nn_term, kwargs...)
 end
 
 function tJ_operators(; kwargs...)
@@ -133,8 +142,8 @@ end
 
 function hubbard_operators(t, U, μ; particle_symmetry = Trivial, spin_symmetry = Trivial, T = ComplexF64, loop_space = Vect[fℤ₂](0 => 50, 1 => 50), kwargs...)
     hopping_operator = HubbardOperators.e_hop(T, particle_symmetry, spin_symmetry)
-    U_operator = FermionOperators.nꜛꜜ(T, particle_symmetry, spin_symmetry)
-    number_operator = FermionOperators.e_num(T, particle_symmetry, spin_symmetry)
+    U_operator = HubbardOperators.nꜛꜜ(T, particle_symmetry, spin_symmetry)
+    number_operator = HubbardOperators.e_num(T, particle_symmetry, spin_symmetry)
     twosite_op = rmul!(hopping_operator, -T(t))
     onesite_op = rmul!(number_operator, -T(μ)) + rmul!(U_operator, T(U))
 
@@ -144,7 +153,7 @@ function hubbard_operators(t, U, μ; particle_symmetry = Trivial, spin_symmetry 
     spaces = i -> if i == 0
         Vect[fℤ₂](0 => 1)
     elseif i > 0
-        Vect[fℤ₂](0 => 4^(2*i-1), 1 => 4^(2*i-1))
+        Vect[fℤ₂](0 => 2*4^(2*i-1), 1 => 2*4^(2*i-1))
     else
         loop_space
     end

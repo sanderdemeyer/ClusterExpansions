@@ -11,7 +11,7 @@ function get_update_dir(c, sites_to_update)
     return dir, conjugated
 end
 
-function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; symmetry = nothing, verbosity = 2, solving_loops = true)
+function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; nn_term = nothing, symmetry = nothing, verbosity = 2, solving_loops = true)
     if verbosity >= 2
         println(cluster)
         println(cluster.cluster)
@@ -24,7 +24,7 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; sym
     end
     levels_to_update = cluster.levels_sites[sites_to_update]
 
-    exp_H = exponentiate_hamiltonian(twosite_op, onesite_op, cluster, β)
+    exp_H = exponentiate_hamiltonian(twosite_op, onesite_op, cluster, β; nn_term)
     residual = contract_PEPO(T, cluster, PEPO, spaces)
     # RHS = (exp_H/norm(exp_H) - residual/norm(exp_H))*norm(exp_H)
     RHS = exp_H - residual
@@ -86,7 +86,7 @@ function get_nontrivial_terms(N; prev_clusters = [[(0,0)]])
     return clusters
 end
 
-function get_all_indices(T, PEPO, p, β, twosite_op, onesite_op, spaces; levels_convention = "tree_depth", symmetry = nothing, verbosity = 2, solving_loops = true)
+function get_all_indices(T, PEPO, p, β, twosite_op, onesite_op, spaces; nn_term = nothing, levels_convention = "tree_depth", symmetry = nothing, verbosity = 2, solving_loops = true)
     previous_clusters = [[(0,0)]]
     for N = 2:p
         if verbosity >= 2
@@ -96,7 +96,7 @@ function get_all_indices(T, PEPO, p, β, twosite_op, onesite_op, spaces; levels_
         clusters = [Cluster(c; levels_convention = levels_convention, symmetry = symmetry) for c in cluster_indices]
         sort!(clusters, by = p -> (p.m, p.n)) # Sort the clusters such that the loops and higher levels are solved last
         for cluster = clusters
-            spaces = solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; symmetry = symmetry, verbosity = verbosity, solving_loops = solving_loops)
+            spaces = solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; nn_term, symmetry, verbosity, solving_loops)
         end
         previous_clusters = cluster_indices
     end
@@ -110,12 +110,12 @@ function get_all_indices(T, PEPO, p, β, twosite_op, onesite_op, spaces; levels_
     return PEPO
 end    
 
-function clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10, symmetry = nothing, verbosity = 2, solving_loops = true)
+function clusterexpansion(T, p, β, twosite_op, onesite_op; nn_term = nothing, levels_convention = "tree_depth", spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10, symmetry = nothing, verbosity = 2, solving_loops = true)
     (p < 10) || error("Only cluster up until 9th order are implemented correctly")
     dim(spaces(0)) == 1 || error("The zeroth space should be of dimension 1")
     pspace = domain(onesite_op)[1]
     PEPO₀ = init_PEPO(T, β, onesite_op, spaces(0))
-    PEPO = get_all_indices(T, PEPO₀, p, β, twosite_op, onesite_op, spaces; levels_convention = levels_convention, symmetry = symmetry, verbosity = verbosity, solving_loops = solving_loops)
+    PEPO = get_all_indices(T, PEPO₀, p, β, twosite_op, onesite_op, spaces; nn_term, levels_convention, symmetry, verbosity, solving_loops)
     return PEPO, get_PEPO(T, pspace, PEPO, spaces)
 end
 

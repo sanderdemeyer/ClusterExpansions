@@ -251,8 +251,6 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         svd = true
         if svd
             U, Σ, V = tsvd(x)
-            println("Σ = $(Σ)")
-            println("Truncspace = $(truncspace(spaces(levels_to_update[1][dir[1]])))")
             U, Σ, V = tsvd(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
             x1 = U * sqrt(Σ)
             x2 = sqrt(Σ) * V

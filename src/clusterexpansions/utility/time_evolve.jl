@@ -76,51 +76,6 @@ function TimeDependentTimeEvolution(β₀, Δβ, maxiter; verbosity = 0, f₁ = 
     return TimeDependentTimeEvolution(β₀, Δβ, maxiter, verbosity, f₁, f₂)
 end
 
-# function get_env0(O::PEPSKit.PEPOTensor, envspace::ElementarySpace)
-#     @tensor Z₀[-3 -4; -1 -2] := O[1 1; -1 -2 -3 -4]
-#     return CTMRGEnv(InfinitePartitionFunction(Z₀), envspace)
-# end
-
-# function get_env0(A::PEPSKit.PEPSTensor, envspace::ElementarySpace)
-#     return CTMRGEnv(InfinitePEPS(A), envspace)
-# end
-
-# function time_evolve(
-#     A, 
-#     observable, # function A, env -> f(A, env)
-#     env::CTMRGEnv,
-#     ce_alg::ClusterExpansion,
-#     time_alg::TimeDependentTimeEvolution,
-#     trunc_alg::PEPSKit.CTMRGAlgorithm
-# )
-#     if time_alg.verbosity > 2
-#         @info "Time evolution with Δβ = $(time_alg.Δβ), maxiter = $(time_alg.maxiter)"
-#         @info "Bond dimension is now $(dim(domain(A)[1]))"
-#     end
-#     expvals = [observable(A, env)]
-#     times = ComplexF64[0.0]
-#     As = [copy(A)]
-#     for i = 1:maxiter
-#         O = evolution_operator(time_alg, ce_alg, i * time_alg.Δβ)
-#         A, _ = approximate_state((A, O), trunc_alg)
-
-#         obs = observable(A)
-#         if time_alg.verbosity > 0 && any([imag(ob) / real(ob) > 1e-5 for ob in obs])
-#             @warn "Complex value for observable: $([imag(ob) / real(ob) for ob in obs])"
-#         end
-#         push!(times, i * time_alg.Δβ)
-#         push!(expvals, real(obs))
-#         push!(As, copy(A))
-#         if time_alg.verbosity > 1
-#             @info "Time evolution step $(i) with β = $(i * time_alg.Δβ), obs = $(obs)"
-#         end
-#         if !isnothing(finalize!)
-#             finalize!(A, env, obs, i)
-#         end
-#     end
-#     return times, expvals, As
-# end
-
 function time_evolve(
     ce_alg::ClusterExpansion,
     time_alg::StaticTimeEvolution,
@@ -142,19 +97,19 @@ function time_evolve(
     push!(As, copy(A))
     push!(times, time_alg.β₀)
     for (i,ind) in enumerate(time_alg.update_list)
-        println("norm = $(norm(A))")
         A, _ = approximate_state((A, As[ind]), trunc_alg)
 
         obs = observable(A)
-        if time_alg.verbosity > 0 && any([imag(ob) / real(ob) > 1e-5 for ob in obs])
-            @warn "Complex value for observable: $([imag(ob) / real(ob) for ob in obs])"
-        end
         push!(times, times[end] + times[ind])
         push!(expvals, real(obs))
         push!(As, copy(A))
+        
         if time_alg.verbosity > 1
             @info "Time evolution step $(i) with β = $(times[end]), obs = $(obs)"
             @info "Bond dimension is now $(dim(domain(A)[1]))"
+            if time_alg.verbosity > 2
+                @info "Current norm is $(norm(A))"
+            end
         end
         if !isnothing(finalize!)
             A = finalize!(A, obs, i)

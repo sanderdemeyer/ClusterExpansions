@@ -40,43 +40,41 @@ function localoperator_model(pspace, op; Nr = 1, Nc = 1)
     return PEPSKit.LocalOperator(pspaces, ((idx,) => op for idx in PEPSKit.vertices(lattice))...,)
 end
 
-function observable_time_evolve(O::AbstractTensorMap{T,S,2,4}, observables, envspace, ctm_alg; convert_symm = false) where {T,S}
+function observable_time_evolve(O::AbstractTensorMap{T,S,2,4}, observable::Union{InfinitePEPO,PEPSKit.LocalOperator}, envspace, ctm_alg; convert_symm = false) where {T,S}
     if convert_symm
         codom_asym = [(i == 2) ? ComplexSpace(dim(codomain(O)[i]))' : ComplexSpace(dim(codomain(O)[i])) for i = 1:2]
         dom_asym = [(i > 2) ? ComplexSpace(dim(domain(O)[i]))' : ComplexSpace(dim(domain(O)[i])) for i = 1:4]
         O_asym = TensorMap(convert(Array, O), prod(codom_asym), prod(dom_asym))
         # O_asym += 1e-5*randn(ComplexF64, prod(codom_asym), prod(dom_asym))
-        obs = [expectation_value(InfinitePEPO(O_asym), obs, ComplexSpace(dim(envspace)), ctm_alg) for obs in observables]
-        return obs
+        return expectation_value(InfinitePEPO(O_asym), observable, ComplexSpace(dim(envspace)), ctm_alg)
     end
-    return [expectation_value(InfinitePEPO(O), obs, envspace, ctm_alg) for obs in observables]
+    return expectation_value(InfinitePEPO(O), observable, envspace, ctm_alg)
 end
 
-function observable_time_evolve(O::AbstractTensorMap{T,S,1,4}, observables, envspace, ctm_alg; convert_symm = false) where {T,S}
+function observable_time_evolve(O::AbstractTensorMap{T,S,1,4}, observable::PEPSKit.LocalOperator, envspace, ctm_alg; convert_symm = false) where {T,S}
     env, = leading_boundary(CTMRGEnv(InfinitePEPS(O), envspace), InfinitePEPS(O), ctm_alg)
-    return [expectation_value(InfinitePEPS(O), obs, env) for obs in observables]
+    return expectation_value(InfinitePEPS(O), observable, env)
 end
 
-function time_evolve_model(model, param, time_alg, χenv; χenv_approx = χenv, trscheme = nothing, T = ComplexF64, observables = [σˣ()], convert_symm = false, verbosity_ce = 0, verbosity_ctm = 0, verbosity_trunc = 0, A0 = nothing, finalize! = nothing)
-    ce_alg = model(param...; T, verbosity = verbosity_ce)
+function observable_time_evolve(O::Union{AbstractTensorMap{T,S,1,4},AbstractTensorMap{T,S,2,4}}, observable::F, envspace, ctm_alg; convert_symm = false) where {T,S,F<:Function}
+    return observable(O, envspace, ctm_alg)
+end
+
+function time_evolve_model(model, param, time_alg, χenv, trscheme, trscheme_parameters; trscheme_kwargs = (), ce_kwargs = (), observables = [σˣ()], convert_symm = false, verbosity_ctm = 0, verbosity_trunc = 0, A0 = nothing, finalize! = nothing)
+    ce_alg = model(param...; ce_kwargs...)
     envspace = ce_alg.envspace(χenv)
-    envspace_approx = ce_alg.envspace(χenv_approx)
 
     ctm_alg = SimultaneousCTMRG(;
         tol=1e-10,
         miniter=4,
-        maxiter=150,
+        maxiter=250,
         verbosity=verbosity_ctm,
         svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10))
     )
 
-    if isnothing(trscheme)
-        trscheme = truncdim(bond_dimension(ce_alg))
-    end
-    # trunc_alg = ApproximateEnvTruncation(ctm_alg, envspace_approx, trscheme; verbosity = verbosity_trunc)
-    trunc_alg = NoEnvTruncation(trscheme)
-    # observable_time_evolve = (O, env) -> pf_observable(O, env, obs, ctm_alg)
-    times, expvals, As = time_evolve(ce_alg, time_alg, trunc_alg, O -> observable_time_evolve(O, observables, envspace, ctm_alg; convert_symm); A0, finalize!)
+    trunc_alg = trscheme(trscheme_parameters...; verbosity = verbosity_trunc, trscheme_kwargs...)
+    obs_function = O -> [observable_time_evolve(O, obs, envspace, ctm_alg; convert_symm) for obs in observables]
+    times, expvals, As = time_evolve(ce_alg, time_alg, trunc_alg, obs_function; A0, finalize!)
     return times, expvals, As
 end
 
@@ -93,7 +91,5 @@ function time_scan_model(model, param, times, χenv; T = ComplexF64, observables
         svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10))
         )
     end
-
-    # observable_time_evolve = (O, env) -> pf_observable(O, env, obs, ctm_alg)
     return time_scan(ce_alg, times,  O -> observable_time_evolve(O, observables, envspace, ctm_alg; convert_symm); verbosity)
 end

@@ -13,7 +13,9 @@ function data_collapse_generation(χenv, schmidt_cut, Dcut)
     J = 1.0
     g = 3.04438 # Quantum phase transition dynamics in the two-dimensional transverse-field Ising model. https://www.science.org/doi/10.1126/sciadv.abl6850
     z = 0.0
-    trscheme = truncbelow(10.0^(-schmidt_cut)) & truncdim(Dcut)
+
+    trscheme = NoEnvTruncation
+    trscheme_parameters = (truncbelow(10.0^(-schmidt_cut)) & truncdim(Dcut), )
 
     β₀ = 0.1
     maxiter = 20
@@ -21,7 +23,7 @@ function data_collapse_generation(χenv, schmidt_cut, Dcut)
 
     H = localoperator_model(ℂ^2, σᶻ())
 
-    times, expvals, As = time_evolve_model(ising_operators, (J, g, z), time_alg, χenv; trscheme, observables = [H], T = Complex{BigFloat});
+    times, expvals, As = time_evolve_model(ising_operators, (J, g, z), time_alg, χenv, trscheme, trscheme_parameters; observables = [H]);
 
     magnetizations = [e[1] for e in expvals]
 
@@ -89,9 +91,9 @@ function data_collapse_generation(χenv, schmidt_cut, Dcut)
     display(plt)
 end
 
-χenvs = [10 20 30 40]
-Dcuts = [4 6 8 10 12]
-schmidt_cuts = [1.0 1.25 1.5 1.75 2.0]
+χenvs = [4 6] #[10 20 30 40]
+Dcuts = [2 4] #[4 6 8 10 12]
+schmidt_cuts = [1.0 1.25] #[1.0 1.25 1.5 1.75 2.0]
 for χenv in χenvs
     for (schmidt_cut, Dcut) in zip(schmidt_cuts, Dcuts)
         data_collapse_generation(χenv, schmidt_cut, Dcut)

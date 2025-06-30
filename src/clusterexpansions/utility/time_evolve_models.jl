@@ -48,7 +48,10 @@ function observable_time_evolve(O::AbstractTensorMap{T,S,2,4}, observable::Union
         # O_asym += 1e-5*randn(ComplexF64, prod(codom_asym), prod(dom_asym))
         return expectation_value(InfinitePEPO(O_asym), observable, ComplexSpace(dim(envspace)), ctm_alg)
     end
-    return expectation_value(InfinitePEPO(O), observable, envspace, ctm_alg)
+    pepo = InfinitePEPO(O)
+    network = PEPSKit.trace_out(pepo)
+    env, = leading_boundary(CTMRGEnv(network, envspace), network, ctm_alg)
+    return expectation_value(pepo, observable, env)
 end
 
 function observable_time_evolve(O::AbstractTensorMap{T,S,1,4}, observable::PEPSKit.LocalOperator, envspace, ctm_alg; convert_symm = false) where {T,S}

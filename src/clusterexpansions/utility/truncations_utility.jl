@@ -13,14 +13,8 @@ function fidelity(A::InfinitePEPS, B::InfinitePEPS, ctm_alg::PEPSKit.CTMRGAlgori
 end
 
 function fidelity(A::InfinitePEPS, O::InfinitePEPO, B::InfinitePEPS, ctm_alg::PEPSKit.CTMRGAlgorithm, envspace::ElementarySpace)
-    # O2 = repeat(O, 1,1,2)
-    # O_perm = permute(O[1,1], ((1,5,6),(2,3,4))); # Currently only works for a trivial unit cell.
-    # O_conj_unperm = convert(TensorMap, O_perm');
-    # O_conj = permute(O_conj_unperm, ((1,4),(2,3,5,6)));
-    # O2[1,1,2] = O_conj
     O_stack = repeat(O.A, 1, 1, 2)
     O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(O.A)))
-    # O_stack[:, :, 2] .= PEPSKit.unitcell(PEPSKit._dag(O))
     OOdag = InfinitePEPO(O_stack)
     
     network_orig = InfiniteSquareNetwork(A, OOdag)
@@ -64,17 +58,30 @@ function fidelity(A::InfinitePEPO, B::InfinitePEPO, C::InfinitePEPO, ctm_alg::PE
     return abs(overlap / sqrt(norm_orig*norm_trunc))
 end
 
+function fidelity(A::InfinitePEPO, B::InfinitePEPO, ctm_alg::PEPSKit.CTMRGAlgorithm, envspace::ElementarySpace)
+    O_stack = repeat(A.A, 1, 1, 2)
+    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(B.A)))
+    double_layer = InfinitePEPO(O_stack)
+    network_overlap = InfiniteSquareNetwork(double_layer)
+    env_overlap, = leading_boundary(CTMRGEnv(network_overlap, envspace), network_overlap, ctm_alg)
+    overlap = network_value(network_overlap, env_overlap)
+
+    network_top = InfiniteSquareNetwork(A)
+    env_top, = leading_boundary(CTMRGEnv(network_top, envspace), network_top, ctm_alg);
+    norm_top = network_value(network_top, env_top)
+
+    network_bot = InfiniteSquareNetwork(A)
+    env_bot, = leading_boundary(CTMRGEnv(network_bot, envspace), network_bot, ctm_alg);
+    norm_bot = network_value(network_bot, env_bot)
+    return abs(overlap / sqrt(norm_top*norm_bot))
+end
+
 function fidelity(A::AbstractTensorMap{E,S,1,4}, B::AbstractTensorMap{E,S,1,4}, ctm_alg, envspace) where {E,S}
     return fidelity(InfinitePEPS(A), InfinitePEPS(B), ctm_alg, envspace)
 end
 
 function fidelity(A::AbstractTensorMap{E,S,2,4}, B::AbstractTensorMap{E,S,2,4}, ctm_alg, envspace) where {E,S}
-    @assert scalartype(A) == scalartype(B)
-    T = scalartype(A)
-    @tensor A_fused[-1; -2 -3 -4 -5] := A[1 2; -2 -3 -4 -5] * isometry(T, fuse(codomain(A)), codomain(A))[-1; 1 2]
-    @tensor B_fused[-1; -2 -3 -4 -5] := B[1 2; -2 -3 -4 -5] * isometry(T, fuse(codomain(B)), codomain(B))[-1; 1 2]
-
-    return fidelity(InfinitePEPS(A_fused), InfinitePEPS(B_fused), ctm_alg, envspace)
+    return fidelity(InfinitePEPO(A), InfinitePEPO(B), ctm_alg, envspace)
 end
 
 function fidelity(A::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,2,4}, B::AbstractTensorMap{E,S,1,4}, ctm_alg, envspace) where {E,S}
@@ -86,7 +93,7 @@ function fidelity(A::Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}
 end
 
 function fidelity(A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}, B::AbstractTensorMap{E,S,2,4}, ctm_alg, envspace) where {E,S}
-    return fidelity(InfinitePEPO(A[1]),InfinitePEPO(A[2]), InfinitePEPO(B), ctm_alg, envspace)
+    return fidelity(A..., B, ctm_alg, envspace)
 end
 
 function get_initial_isometry(T, cod::ElementarySpace, dom::ElementarySpace, func)

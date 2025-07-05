@@ -34,10 +34,16 @@
 #     return real(obs), env
 # end
 
-function localoperator_model(pspace, op; Nr = 1, Nc = 1)
+function localoperator_model(pspace, op::TensorMap{T,S,1,1}; Nr = 1, Nc = 1) where {T,S}
     pspaces = fill(pspace, Nr, Nc)
     lattice = InfiniteSquare(Nr, Nc)
     return PEPSKit.LocalOperator(pspaces, ((idx,) => op for idx in PEPSKit.vertices(lattice))...,)
+end
+
+function localoperator_model(pspace, op::TensorMap{T,S,2,2}; Nr = 1, Nc = 1) where {T,S}
+    pspaces = fill(pspace, Nr, Nc)
+    lattice = InfiniteSquare(Nr, Nc)
+    return PEPSKit.LocalOperator(pspaces, (neighbor => op for neighbor in PEPSKit.nearest_neighbours(lattice))...,)
 end
 
 function observable_time_evolve(O::AbstractTensorMap{T,S,2,4}, observable::Union{InfinitePEPO,PEPSKit.LocalOperator}, envspace, ctm_alg; convert_symm = false) where {T,S}
@@ -51,6 +57,8 @@ function observable_time_evolve(O::AbstractTensorMap{T,S,2,4}, observable::Union
     pepo = InfinitePEPO(O)
     network = PEPSKit.trace_out(pepo)
     env, = leading_boundary(CTMRGEnv(network, envspace), network, ctm_alg)
+    println("Env:")
+    println(summary(env.corners[1,1,1]))
     return expectation_value(pepo, observable, env)
 end
 
@@ -72,7 +80,8 @@ function time_evolve_model(model, param, time_alg, χenv, trscheme, trscheme_par
         miniter=4,
         maxiter=250,
         verbosity=verbosity_ctm,
-        svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10))
+        svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10)),
+        trscheme = (; alg = :truncdim, η = χenv,)
     )
 
     trunc_alg = trscheme(trscheme_parameters...; verbosity = verbosity_trunc, trscheme_kwargs...)
@@ -81,18 +90,18 @@ function time_evolve_model(model, param, time_alg, χenv, trscheme, trscheme_par
     return times, expvals, As
 end
 
-function time_scan_model(model, param, times, χenv; T = ComplexF64, observables = [σˣ()], verbosity = 0, ctm_alg = nothing, p = 3)
-    ce_alg = model(param...; T, p)
+function time_scan_model(model, param, times, χenv; ce_kwargs = (), observables = [σˣ()], verbosity_time = 0, verbosity_ctm = 0, convert_symm = false)
+    ce_alg = model(param...; ce_kwargs...)
     envspace = ce_alg.envspace(χenv)
 
-    if isnothing(ctm_alg)
-        ctm_alg = SimultaneousCTMRG(;
+    ctm_alg = SimultaneousCTMRG(;
         tol=1e-10,
         miniter=4,
-        maxiter=100,
-        verbosity=2,
+        maxiter=500,
+        verbosity=verbosity_ctm,
         svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10))
         )
-    end
-    return time_scan(ce_alg, times,  O -> observable_time_evolve(O, observables, envspace, ctm_alg; convert_symm); verbosity)
+    obs_function = O -> [observable_time_evolve(O, obs, envspace, ctm_alg; convert_symm) for obs in observables]
+
+    return time_scan(ce_alg, times,  obs_function; verbosity_time)
 end

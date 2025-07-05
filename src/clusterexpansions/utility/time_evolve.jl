@@ -101,7 +101,7 @@ function time_evolve(
 
         obs = observable(A)
         push!(times, times[end] + times[ind])
-        push!(expvals, real(obs))
+        push!(expvals, obs)
         push!(As, copy(A))
         
         if time_alg.verbosity > 1

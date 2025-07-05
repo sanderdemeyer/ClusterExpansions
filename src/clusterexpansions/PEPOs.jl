@@ -6,14 +6,20 @@ function init_PEPO()
     return init_PEPO(T, ℂ^2, ℂ^1)
 end
 
+# Very involved way to get the trivial sector
+get_length_of_trivspace(sig::Core.SimpleVector) = sig[1] <: Tuple ? length(sig[1].parameters) : error("Not a Tuple type")
+
 function init_PEPO(T, β, pspace::ElementarySpace, trivspace::ElementarySpace, onesite_op::AbstractTensorMap)
     A = zeros(T, pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ trivspace' ⊗ trivspace')
     I = sectortype(A)
     if I == Trivial
-        trivsector = I()
+        len_trivspace = 0
+    elseif length(typeof(pspace).parameters[1].parameters)[1] == 0
+        len_trivspace = 1
     else
-        trivsector = I(0)
+        len_trivspace = get_length_of_trivspace(typeof(pspace).parameters[1].parameters)
     end
+    trivsector = I(fill(0, len_trivspace)...)
     block(A, trivsector) .= exp(-β*onesite_op).data
     return Dict((0,0,0,0) => A)
 end

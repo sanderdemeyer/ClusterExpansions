@@ -85,7 +85,7 @@ function approximate_state(
     # PE,PS = find_proj(Otmp, (4,8), (5,9), trunc_alg.trscheme);
     # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * P610[6 10;-6] * P37[-3; 3 7] * P48[4 8; -4] * P59[-5; 5 9]
     # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * PN[3 7; -3] * PE[4 8; -4] * PS[-5; 5 9] * PW[-6; 6 10]
-    @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * PN[3 7; -3] * conj(PW[-4; 4 8]) * conj(PN[5 9; -5]) * PW[-6; 6 10]
+    @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := twist(Otmp, (5,6,9,10))[-1 -2; 3 4 5 6 7 8 9 10] * PN[3 7; -3] * conj(PW[-4; 4 8]) * conj(PN[5 9; -5]) * PW[-6; 6 10]
     return Onew, nothing
 end
 

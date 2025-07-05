@@ -32,7 +32,7 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; nn_
     @assert !(any(isnan.(RHS.data))) "RHS contains elements that are NaN"
     if (norm(RHS) < eps(real(T))*1e3)
         if verbosity >= 2
-            println("Not solving this cluster: norm(RHS) = $(norm(RHS))")
+            @warn "Not solving this cluster: norm(RHS) = $(norm(RHS))"
         end
         return spaces
     end
@@ -49,7 +49,7 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; nn_
     end
     if isnothing(solutions)
         if verbosity >= 2
-            println("Solution returned nothing")
+            @warn "Solution returned nothing"
         end
         return spaces
     end

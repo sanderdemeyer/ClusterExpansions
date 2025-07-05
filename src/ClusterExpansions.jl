@@ -13,6 +13,7 @@ include("clusterexpansions/utility/loop_filtering.jl")
 include("clusterexpansions/utility/symmetries.jl")
 include("clusterexpansions/utility/truncations_utility.jl")
 include("clusterexpansions/utility/truncations.jl")
+include("clusterexpansions/utility/vumps.jl")
 
 include("clusterexpansions/utility/models.jl")
 include("clusterexpansions/utility/time_evolve.jl")
@@ -44,6 +45,7 @@ export fidelity, apply_isometry
 export apply_PEPO_exact
 export ExactEnvTruncation, ApproximateEnvTruncation, IntermediateEnvTruncation, NoEnvTruncation
 export approximate_state, find_isometry, truncation_environment
+export get_marek_gap
 
 export ClusterExpansion, evolution_operator
 export ising_operators, ising_operators_Z2, spinless_fermion_operators, heisenberg_operators, hubbard_operators, tJ_operators

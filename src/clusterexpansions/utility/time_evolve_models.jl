@@ -57,8 +57,6 @@ function observable_time_evolve(O::AbstractTensorMap{T,S,2,4}, observable::Union
     pepo = InfinitePEPO(O)
     network = PEPSKit.trace_out(pepo)
     env, = leading_boundary(CTMRGEnv(network, envspace), network, ctm_alg)
-    println("Env:")
-    println(summary(env.corners[1,1,1]))
     return expectation_value(pepo, observable, env)
 end
 
@@ -78,7 +76,7 @@ function time_evolve_model(model, param, time_alg, χenv, trscheme, trscheme_par
     ctm_alg = SimultaneousCTMRG(;
         tol=1e-10,
         miniter=4,
-        maxiter=250,
+        maxiter=400,
         verbosity=verbosity_ctm,
         svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10)),
         trscheme = (; alg = :truncdim, η = χenv,)

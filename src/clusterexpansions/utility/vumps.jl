@@ -1,5 +1,9 @@
 function get_marek_gap(O::TensorMap{E,S,2,4}, virtualspace, vumps_alg) where {E,S}
-    pf = PEPSKit.trace_out(InfinitePEPO(O))
+    return get_marek_gap(InfinitePEPO(O), virtualspace, vumps_alg)
+end
+
+function get_marek_gap(O::InfinitePEPO, virtualspace, vumps_alg)
+    pf = PEPSKit.trace_out(O)
     T = InfiniteMPO([pf[1,1]])
 
     pspace = domain(pf[1,1])[2]

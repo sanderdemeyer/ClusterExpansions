@@ -132,7 +132,7 @@ function apply_isometry(A::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,
 end
 
 function apply_isometry(O₁::AbstractTensorMap{E,S,2,4}, O₂::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}) where {E,S}
-    @tensor O_trunc[-1 -2; -3 -4 -5 -6] := O₁[1 -2; 2 4 6 8] * O₂[-1 1; 3 5 7 9] * Ws[1][2 3; -3] * Ws[2][4 5; -4] * conj(Ws[3][6 7; -5]) * conj(Ws[4][8 9; -6])
+    @tensor O_trunc[-1 -2; -3 -4 -5 -6] := twist(O₁, (5,6))[1 -2; 2 4 6 8] * twist(O₂, (5,6))[-1 1; 3 5 7 9] * Ws[1][2 3; -3] * Ws[2][4 5; -4] * conj(Ws[3][6 7; -5]) * conj(Ws[4][8 9; -6])
     return O_trunc
 end
 
@@ -152,7 +152,7 @@ function apply_isometry(A::AbstractTensorMap{E,S,1,4}, O::AbstractTensorMap{E,S,
 end
 
 function apply_isometry(O₁::AbstractTensorMap{E,S,2,4}, O₂::AbstractTensorMap{E,S,2,4}, Ws::Vector{<:AbstractTensorMap{E,S,2,1}}, inds::Vector{Int}) where {E,S}
-    A_trunc = ncon([O₁, O₂, [Ws[i] for i = setdiff(1:4, inds)]...], [[1, -2, [i ∈ inds ? -i-2 : 2*i for i = 1:4]...], [-1, 1, [i ∈ inds ? -i-6 : 2*i+1 for i = 1:4]...], [[2*i, 2*i+1, -i-2] for i = setdiff(1:4,inds)]...], vcat(false,false,[dir > 2 ? true : false for dir = 1:4 if dir ∉ inds]))
+    A_trunc = ncon([twist(O₁,(5,6)), twist(O₂,(5,6)), [Ws[i] for i = setdiff(1:4, inds)]...], [[1, -2, [i ∈ inds ? -i-2 : 2*i for i = 1:4]...], [-1, 1, [i ∈ inds ? -i-6 : 2*i+1 for i = 1:4]...], [[2*i, 2*i+1, -i-2] for i = setdiff(1:4,inds)]...], vcat(false,false,[dir > 2 ? true : false for dir = 1:4 if dir ∉ inds]))
     return permute(A_trunc, ((1,2),Tuple(3:6+length(inds))))
 end
 

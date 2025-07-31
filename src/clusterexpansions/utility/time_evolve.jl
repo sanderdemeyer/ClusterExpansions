@@ -34,27 +34,29 @@ end
 #     return O
 # end
 
-function evolution_operator(ce_alg::ClusterExpansion, time_alg::TimeDependentTimeEvolution, β::Number)
-    _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, time_alg.Δβ, time_alg.f₂(β) * ce_alg.twosite_op, time_alg.f₁(β) * ce_alg.onesite_op; spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
+function evolution_operator(ce_alg::ClusterExpansion, time_alg::TimeDependentTimeEvolution, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+    _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, time_alg.Δβ, time_alg.f₂(β) * ce_alg.twosite_op, time_alg.f₁(β) * ce_alg.onesite_op; nn_term = ce_alg.nn_term, spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
     O_clust_full = convert(TensorMap, O_clust_full)
-    O = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
-    for (f_full, f_conv) in zip(blocks(O_clust_full), blocks(O))
+    O_canoc = canonicalize(O_clust_full, canoc_alg)
+    O = zeros(T_conv, codomain(O_canoc), domain(O_canoc))
+    for (f_full, f_conv) in zip(blocks(O_canoc), blocks(O))
         f_conv[2] .= f_full[2]
     end
     return O
 end
 
-function evolution_operator(ce_alg::ClusterExpansion, β::Number)
+function evolution_operator(ce_alg::ClusterExpansion, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
     if β == 0.0
         pspace = domain(ce_alg.onesite_op)[1]
         vspace = ce_alg.spaces(0)
-        t = id(pspace ⊗ vspace ⊗ vspace)
+        t = id(T_conv, pspace ⊗ vspace ⊗ vspace)
         return permute(t, ((1,4),(5,6,2,3)))
     end
-    _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
+    _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; nn_term = ce_alg.nn_term, spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
     O_clust_full = convert(TensorMap, O_clust_full)
-    O = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
-    for (f_full, f_conv) in zip(blocks(O_clust_full), blocks(O))
+    O_canoc = canonicalize(O_clust_full, canoc_alg)
+    O = zeros(T_conv, codomain(O_canoc), domain(O_canoc))
+    for (f_full, f_conv) in zip(blocks(O_canoc), blocks(O))
         f_conv[2] .= f_full[2]
     end
     return O
@@ -79,26 +81,39 @@ end
 function time_evolve(
     ce_alg::ClusterExpansion,
     time_alg::StaticTimeEvolution,
-    trunc_alg::EnvTruncation,
+    trunc_alg::Union{EnvTruncation,VOPEPO},
     observable;
     finalize! = nothing,
     A0 = nothing
 )
-    As = AbstractTensorMap[evolution_operator(ce_alg, β) for β = time_alg.βs_helper]
+    # canoc_alg = Canonicalization(; verbosity = 1)
+    canoc_alg = nothing
+    As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
     times = copy(time_alg.βs_helper)
-
     if isnothing(A0)
-        A = evolution_operator(ce_alg, time_alg.β₀)
+        A = evolution_operator(ce_alg, time_alg.β₀; canoc_alg)
     else
-        A = A0
+        A = canonicalize(A0, canoc_alg)
     end
 
     expvals = [observable(A)]
     push!(As, copy(A))
     push!(times, time_alg.β₀)
+    
+    if trunc_alg isa VOPEPO
+        env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[time_alg.update_list[1]])[1], trunc_alg)
+    end
     for (i,ind) in enumerate(time_alg.update_list)
-        A, _ = approximate_state((A, As[ind]), trunc_alg)
-
+        if trunc_alg isa VOPEPO
+            if domain(env_triple.edges[1,1,1])[1] ≠ domain(A)[1] ⊗ domain(As[ind])[1] ⊗ trunc_alg.truncspace'
+                env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[ind])[1], trunc_alg)
+            end
+            A, env_double, env_triple, _ = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i)
+        else
+            A, _ = approximate_state((A, As[ind]), trunc_alg)
+        end
+        A /= norm(A)
+        A = canonicalize(A, canoc_alg)
         obs = observable(A)
         push!(times, times[end] + times[ind])
         push!(expvals, obs)

@@ -2,7 +2,7 @@
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "2b17ae0bee4c40c8cf94df560f222424a367c6f5"
+project_hash = "138d19902668d09c03ad0f6e563d79e219e9ba1d"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1055,7 +1055,7 @@ version = "10.42.0+1"
 
 [[deps.PEPSKit]]
 deps = ["Accessors", "ChainRulesCore", "Compat", "DocStringExtensions", "FiniteDifferences", "KrylovKit", "LinearAlgebra", "LoggingExtras", "MPSKit", "MPSKitModels", "OhMyThreads", "OptimKit", "Printf", "Random", "Statistics", "TensorKit", "TensorOperations", "VectorInterface", "Zygote"]
-git-tree-sha1 = "463ed378661b8e1b36b669b4733ca728ceeeb809"
+git-tree-sha1 = "cae936d699024aa895c0816488fdbf728209422d"
 repo-rev = "density_operators"
 repo-url = "https://github.com/sanderdemeyer/PEPSKit.jl.git"
 uuid = "52969e89-939e-4361-9b68-9bc7cde4bdeb"
@@ -1211,6 +1211,18 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Qt6Base_jll", "Qt6Declarative_jll"
 git-tree-sha1 = "729927532d48cf79f49070341e1d918a65aba6b0"
 uuid = "e99dba38-086e-5de3-a5b1-6e4c66e897c3"
 version = "6.7.1+1"
+
+[[deps.QuadGK]]
+deps = ["DataStructures", "LinearAlgebra"]
+git-tree-sha1 = "9da16da70037ba9d701192e27befedefb91ec284"
+uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
+version = "2.11.2"
+
+    [deps.QuadGK.extensions]
+    QuadGKEnzymeExt = "Enzyme"
+
+    [deps.QuadGK.weakdeps]
+    Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 
 [[deps.Quadmath]]
 deps = ["Compat", "Printf", "Random", "Requires"]

@@ -1,33 +1,16 @@
 using Test
 using TensorKit
-using KrylovKit
 using MPSKitModels
-using Graphs
 using ClusterExpansions
-using OptimKit
 using PEPSKit
-import PEPSKit: rmul!, σᶻᶻ, σˣ, InfiniteSquare, InfinitePartitionFunction, LocalOperator, vertices
-using JLD2
+import PEPSKit: rmul!, σᶻᶻ, σˣ
 
-symmetry = "C4"
+symmetry = nothing
 critical = false
 
-setprecision(128)
-T = Complex{BigFloat}
-
-if critical
-    J = T(1.0)
-    g = T(3.1)
-    e = -1.6417 * 2
-    mˣ = 0.91
-else
-    J = T(1.0)
-    g = T(2.0)
-    e = -1.2379 * 2
-    mˣ = 0.524
-end
-
-g = T(0.0)
+T = ComplexF64
+J = T(1.0)
+g = T(2.5)
 
 pspace = ℂ^2
 twosite_op = rmul!(σᶻᶻ(T), -J)
@@ -35,18 +18,6 @@ onesite_op = rmul!(σˣ(T), g * -J)
 
 # spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^20
 spaces = i -> (i >= 0) ? ℂ^(2^(i)) : ℂ^10
-
-
-
-# c = [(0, 0), (0, 1), (1, 0), (2, 0), (2, -1), (2, 1), (3, 0), (4, 0)]
-# N = 2
-# c = []
-# for i = 1:N
-#     for j = 1:N
-#         push!(c, (i,j))
-#     end
-# end
-# cluster = Cluster(c)
 
 function exponentiate_hamiltonian_periodic(T, onesite_op, twosite_op, β, L)
     N = L^2
@@ -71,7 +42,7 @@ function exponentiate_hamiltonian_periodic(T, onesite_op, twosite_op, β, L)
             push!(H, permute(term, Tuple(1:N), Tuple(N+1:2*N)))
         end
     end
-    exp_H = exp(-β*sum(H)) 
+    exp_H = exp(-β*sum(H))
     return exp_H
 end
 
@@ -108,60 +79,33 @@ function contract_PEPO_periodic(O, L)
     return permute(term, Tuple(1:N), Tuple(N+1:2*N))
 end
 
-bmin = 1
-bmax = 1
+bmin = -1
+bmax = -3
 pmax = 4
-βs = [10.0^(x) for x in LinRange(bmin, bmax, 1)]
+nodp = 4
+βs = [T(10.0)^(x) for x in LinRange(bmin, bmax, nodp)]
 ps = [i for i = 2:pmax]
-
-cluster_index = 6
 
 errors = zeros(length(βs), length(ps))
 
-# O, O_clust = clusterexpansion(T, 4, 1e-2, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 2)
-# println(a)
 L = 2
-
-# O, O_clust_full = clusterexpansion([0 0 0], T, 3, 1e-3, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = nothing, verbosity = 2)
-# print(fdjsa)
 for (j,p) = enumerate(ps)
+    ce_alg = ising_operators(J, g, 0.0; p, verbosity = 0, symmetry)
     for (i,β) = enumerate(βs)
-        @warn "beta = $(β) (number i = $(i)), p = $p"
-        O, O_clust_full = clusterexpansion(T, p, β, twosite_op, onesite_op; levels_convention = "tree_depth", spaces = spaces, symmetry = "C4", verbosity = 2)
-        # O_clust = convert(TensorMap, O_clust_full)
-        # O_clust = TensorMap(convert(Array{ComplexF64}, O_clust.data), codomain(O_clust), domain(O_clust))
+        O_clust_full = evolution_operator(ce_alg, β)
 
-        println("Cluster expansion done")
         exp_exact = exponentiate_hamiltonian_periodic(T, onesite_op, twosite_op, β, L)
-        println("Exact exponential done")
         exp_approx = contract_PEPO_periodic(O_clust_full, L)
-        println("Approx exponential done")
 
         error = norm(exp_exact-exp_approx)/norm(exp_approx)
-        println("error = $(error)")
         errors[i,j] = error
-        file = jldopen("exact_exponential_periodic_intermediate_g_$(g)_p_$(pmax)_betas_$(bmin)_$(bmax)_T_$(T).jld2", "w")
-        file["errors"] = errors
-        close(file)
     end
 end
 
-
-using Plots
-plt = scatter(βs, errors[:,1], label = "p = 2")
-scatter!(βs, errors[:,2], label = "p = 3")
-# scatter!(βs, errors[:,3], label = "p = 4")
-# scatter!(βs, errors[:,4], label = "p = 5")
-# scatter!(βs, errors[:,4], label = "p = 6")
-scatter!(xscale=:log10, yscale=:log10)
-xlabel!("β*J")
-ylabel!("Error on the exact exp for PBE with L = $(L)")
-# title!("SF model with t = $(t), V = $(V), without loops")
-title!("Ising model cluster $cluster_index")
-# savefig(plt, "Exact_exponential_PBE_L_$(L)_g_$(real(g))_p_$(pmax)_betas_$(bmin)_$(bmax)_withoutloops.png")
-display(plt)
-
-# file = jldopen("exact_exponential_PBE_L_$(L)_g_$(real(g))_p_$(pmax)_betas_$(bmin)_$(bmax)_comparison.jld2", "w")
-# file["errors_Float64"] = errors_double
-# file["errors_BigFloat"] = errors_bigfloat
-# close(file)
+@testset "Order of the cluster expansion" begin
+    for p = 2:pmax
+        for n = 1:nodp-1
+            @test log(errors[n+1,p-1]/errors[n,p-1]) / log(βs[n+1]/βs[n]) / p ≈ 1 atol=5e-2
+        end
+    end
+end

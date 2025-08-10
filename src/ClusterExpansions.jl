@@ -9,17 +9,21 @@ using Graphs
 using Zygote, OptimKit
 
 include("clusterexpansions/utility/loop_filtering.jl")
-
 include("clusterexpansions/utility/symmetries.jl")
-include("clusterexpansions/utility/truncations_utility.jl")
-include("clusterexpansions/utility/truncations.jl")
-include("clusterexpansions/utility/vomps.jl")
-include("clusterexpansions/utility/vumps.jl")
-include("clusterexpansions/utility/canonical_form.jl")
 
-include("clusterexpansions/utility/models.jl")
-include("clusterexpansions/utility/time_evolve.jl")
-include("clusterexpansions/utility/time_evolve_models.jl")
+include("utility/canonical_form.jl")
+include("utility/observables.jl")
+
+include("time_evolution/truncations_utility.jl")
+include("time_evolution/truncations.jl")
+include("time_evolution/vomps.jl")
+
+include("models/models.jl")
+
+include("time_evolution/time_evolve.jl")
+include("models/time_evolve_models.jl")
+
+include("models/data_generation.jl")
 
 include("clusterexpansions/generate_trees.jl")
 include("clusterexpansions/generate_loops.jl")
@@ -31,32 +35,34 @@ include("clusterexpansions/solvers/linearsolvers.jl")
 include("clusterexpansions/solvers/nonlinearsolvers_optimkit.jl")
 include("clusterexpansions/solve_clusters.jl")
 
-export entanglement_filtering
-export exponentiate_hamiltonian, contract_PEPO
-
-export Cluster
-export get_nontrivial_terms, get_levels
-export solve_4_loop, solve_N_loop
-export init_PEPO, get_PEPO
-export solve_cluster, get_all_indices, clusterexpansion
-export truncate_tensor, truncate_hor, truncate_ver
-export flip_arrows, make_translationally_invariant, make_translationally_invariant_fermionic
-export find_truncation, apply
+export EntanglementFiltering, filter_loop, truncate_loop
+export rotl90_fermionic, rotl180_fermionic
+export symmetrize
 
 export Canonicalization, canonicalize
+export PEPOObservable, PEPO_observables, localoperator_model, calculate_observables
+
 export fidelity, apply_isometry
-export apply_PEPO_exact
 export ExactEnvTruncation, ApproximateEnvTruncation, IntermediateEnvTruncation, NoEnvTruncation
-export VOPEPO
-export approximate_state, find_isometry, truncation_environment
-export get_marek_gap
+export VOPEPO_CTMRG, VOPEPO_VUMPS
+export approximate_state, find_isometry, apply_PEPO_exact
 
 export ClusterExpansion, evolution_operator
-export ising_operators, ising_operators_Z2, spinless_fermion_operators, heisenberg_operators, J1J2_operators, hubbard_operators, tJ_operators
+export ising_operators, ising_operators_Z2
+export spinless_fermion_operators, spinless_fermion_model
+export heisenberg_operators, J1J2_operators
+export tJ_operators, hubbard_operators
 
+export evolution_operator
 export StaticTimeEvolution, TimeDependentTimeEvolution
 export UniformTimeEvolution, SquaringTimeEvolution
-export time_evolve, time_scan
-export localoperator_model, time_evolve_model, time_scan_model
+export UniformGroundStateTimeEvolution, SquaringGroundStateTimeEvolution
+export time_evolve, get_time_array, time_scan
+export time_evolve_model, time_scan_model
+
+export data_generation_SF_CE, data_generation_ising_CE
+export data_generation_SF_SU, data_generation_ising_SU
+
+export clusterexpansion
 
 end # module ClusterExpansions

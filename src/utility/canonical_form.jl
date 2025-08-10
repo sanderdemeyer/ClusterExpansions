@@ -18,15 +18,14 @@ function canonicalize_QR(A::TensorMap{T,E,2,4}, canoc_alg::Canonicalization) whe
     _, S, _ = tsvd(A)
     for i = 1:canoc_alg.maxiter
         for dir = 3:6
-            Qnew, R = leftorth(Q, (Tuple(setdiff(1:6, dir)),(dir,)); alg = canoc_alg.decomposition_alg)
-            Qnew = permute(Qnew, ((1,2),Tuple(insert!([3,4,5], dir-2, 6))))
+            Q, R = leftorth(Q, (Tuple(setdiff(1:6, dir)),(dir,)); alg = canoc_alg.decomposition_alg)
+            Q = permute(Q, ((1,2),Tuple(insert!([3,4,5], dir-2, 6))))
 
             if dir > 4
                 @tensor Rs[dir-2][-1; -2] := twist(R, 1)[-1; 1] * Rs[dir-2][1; -2]
             else
                 @tensor Rs[dir-2][-1; -2] := R[-1; 1] * Rs[dir-2][1; -2]
             end
-            Q = copy(Qnew)
             _, Snew, _ = tsvd(Q)
             ϵ = norm(Snew - S)
             S = copy(Snew)
@@ -47,7 +46,7 @@ function canonicalize_QR(A::TensorMap{T,E,2,4}, canoc_alg::Canonicalization) whe
                 return Q, Rs
             end
             if canoc_alg.verbosity >= 3
-                @info "Iteration $i and dir = $dir. Error is $A_errors"
+                @info "Iteration $i and dir = $dir. Error is $ϵ with reconstruction error $(ϵ_A)"
             end
         end
     end
@@ -59,7 +58,6 @@ function canonicalize_QR(A::TensorMap{T,E,2,4}, canoc_alg::Canonicalization) whe
 end
 
 function canonicalize(A, canoc_alg::Canonicalization)
-    println(typeof(A))
     Q, Rs = canonicalize_QR(A, canoc_alg)
     @tensor h_bond[-1; -2] := Rs[2][-1; 1] * twist(Rs[4],1)[-2; 1]
     @tensor v_bond[-1; -2] := Rs[1][-1; 1] * twist(Rs[3],1)[-2; 1]

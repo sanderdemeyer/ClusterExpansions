@@ -24,6 +24,14 @@ struct StaticTimeEvolution <: TimeEvolution
     verbosity
 end
 
+struct GroundStateTimeEvolution <: TimeEvolution
+    β₀
+    βs_helper
+    update_list
+    tol_energy
+    verbosity
+end
+
 # function evolution_operator(ce_alg::ClusterExpansion, time_alg::StaticTimeEvolution)
 #     _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, time_alg.Δβ, ce_alg.twosite_op, ce_alg.onesite_op; spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
 #     O_clust_full = convert(TensorMap, O_clust_full)
@@ -70,24 +78,31 @@ function UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 0)
     return StaticTimeEvolution(β₀, [Δβ], [1 for i = 1:maxiter], verbosity)
 end
 
+function UniformGroundStateTimeEvolution(β₀, Δβ, maxiter, tol_energy; verbosity = 0)
+    return GroundStateTimeEvolution(β₀, [Δβ], [1 for i = 1:maxiter], tol_energy, verbosity)
+end
+
 function SquaringTimeEvolution(β₀, maxiter; verbosity = 0)
     return StaticTimeEvolution(β₀, [], 1:maxiter, verbosity)
+end
+
+function SquaringGroundStateTimeEvolution(β₀, maxiter, tol_energy; verbosity = 0)
+    return GroundStateTimeEvolution(β₀, [], 1:maxiter, tol_energy, verbosity)
 end
 
 function TimeDependentTimeEvolution(β₀, Δβ, maxiter; verbosity = 0, f₁ = β -> 1.0, f₂ = β -> 1.0)
     return TimeDependentTimeEvolution(β₀, Δβ, maxiter, verbosity, f₁, f₂)
 end
 
-function time_evolve(
+function MPSKit.time_evolve(
     ce_alg::ClusterExpansion,
     time_alg::StaticTimeEvolution,
     trunc_alg::Union{EnvTruncation,VOPEPO},
     observable;
     finalize! = nothing,
-    A0 = nothing
+    A0 = nothing,
+    canoc_alg::Union{Canonicalization,Nothing} = nothing
 )
-    # canoc_alg = Canonicalization(; verbosity = 1)
-    canoc_alg = nothing
     As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
     times = copy(time_alg.βs_helper)
     if isnothing(A0)
@@ -118,7 +133,6 @@ function time_evolve(
         push!(times, times[end] + times[ind])
         push!(expvals, obs)
         push!(As, copy(A))
-        
         if time_alg.verbosity > 1
             @info "Time evolution step $(i) with β = $(times[end]), obs = $(obs)"
             @info "Bond dimension is now $(dim(domain(A)[1]))"
@@ -127,7 +141,7 @@ function time_evolve(
             end
         end
         if !isnothing(finalize!)
-            A = finalize!(A, obs, i)
+            A = finalize!(As, expvals, i)
         end
     end
     return times[length(time_alg.βs_helper)+1:end], expvals, As[length(time_alg.βs_helper)+1:end]
@@ -142,6 +156,69 @@ function get_time_array(time_alg::StaticTimeEvolution)
     return times[length(time_alg.βs_helper)+1:end]
 end
 
+function PEPSKit.fixedpoint(
+    ce_alg::ClusterExpansion,
+    time_alg::GroundStateTimeEvolution,
+    trunc_alg::Union{EnvTruncation,VOPEPO},
+    observable;
+    finalize! = nothing,
+    A0 = nothing,
+    canoc_alg::Union{Canonicalization,Nothing} = nothing
+)
+    As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
+    times = copy(time_alg.βs_helper)
+    if isnothing(A0)
+        A = evolution_operator(ce_alg, time_alg.β₀; canoc_alg)
+    else
+        A = canonicalize(A0, canoc_alg)
+    end
+
+    expvals = [observable(A)]
+    push!(As, copy(A))
+    push!(times, time_alg.β₀)
+    
+    if trunc_alg isa VOPEPO
+        env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[time_alg.update_list[1]])[1], trunc_alg)
+    end
+    for (i,ind) in enumerate(time_alg.update_list)
+        if trunc_alg isa VOPEPO
+            if domain(env_triple.edges[1,1,1])[1] ≠ domain(A)[1] ⊗ domain(As[ind])[1] ⊗ trunc_alg.truncspace'
+                env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[ind])[1], trunc_alg)
+            end
+            A, env_double, env_triple, _ = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i)
+        else
+            A, _ = approximate_state((A, As[ind]), trunc_alg)
+        end
+        A /= norm(A)
+        A = canonicalize(A, canoc_alg)
+        obs = observable(A)
+        push!(times, times[end] + times[ind])
+        push!(expvals, obs)
+        push!(As, copy(A))
+        if !isnothing(finalize!)
+            A = finalize!(As, expvals, i)
+        end
+
+        if time_alg.verbosity > 1
+            @info "Time evolution step $(i) with β = $(times[end]), obs = $(obs)"
+            @info "Bond dimension is now $(dim(domain(A)[1]))"
+            if time_alg.verbosity > 2
+                @info "Current norm is $(norm(A))"
+            end
+        end
+        if i > 2 && abs(expvals[end][1] - expvals[end-1][1]) < time_alg.tol_energy
+            if time_alg.verbosity > 1
+                @info "Ground state search converged after $(i) iterations. Energy is $(expvals[end][1])"
+                return As[end], expvals[end]
+            end
+        end
+    end
+    if time_alg.verbosity > 0
+        @warn "Ground state search did not converge after $(length(time_alg.update_list)) iterations. Energy is $(expvals[end][1])"
+    end
+    return As[end], expvals[end]
+end
+
 function time_scan(
     ce_alg::ClusterExpansion,
     times::Array,
@@ -152,20 +229,20 @@ function time_scan(
     expvals = []
     As = []
     for (i,t) = enumerate(times)
-        O = evolution_operator(ce_alg, t)
+        A = evolution_operator(ce_alg, t)
+        obs = observable(A)
 
-        obs = observable(O)
-        if verbosity > 0 && any([imag(ob) / real(ob) > 1e-5 for ob in obs])
-            @warn "Complex value for observable: $([imag(ob) / real(ob) for ob in obs])"
-        end
+        push!(expvals, obs)
+        push!(As, copy(A))
 
-        push!(expvals, real(obs))
-        push!(As, copy(O))
         if verbosity > 1
             @info "Time evolution step $(i) with β = $(t), obs = $(obs)"
+            if verbosity > 2
+                @info "Current norm is $(norm(A))"
+            end
         end
         if !isnothing(finalize!)
-            finalize!(O, obs, i)
+            finalize!(A, obs, i)
         end
     end
     return times, expvals, As

@@ -76,16 +76,48 @@ function approximate_state(
     return A_trunc, overlap
 end
 
+function approximate_state_testing(
+    A::Union{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4},Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}},
+    trunc_alg::EnvTruncation;
+    envspace_fidelity = trunc_alg.envspace,
+    ctm_alg_fidelity = trunc_alg.ctm_alg
+) where {E,S<:ElementarySpace}
+    # Ws = find_isometry(A, trunc_alg; hor = true)
+    # A_trunc_hor = apply_isometry_hor(A, Ws)
+    # Ws = find_isometry(A_trunc_hor, trunc_alg; hor = false)
+    # A_trunc = apply_isometry_ver(A, Ws)
+
+    Wss = find_isometry_testing(A, trunc_alg)
+    As_trunc = [apply_isometry(A, Ws) for Ws = Wss]
+
+    trunc_alg.check_fidelity || return As_trunc, nothing
+    overlap = fidelity(A, As_trunc[end], ctm_alg_fidelity, envspace_fidelity)
+    if trunc_alg.verbosity > 1
+        @info "Fidelity of approximation is $overlap"
+    end
+    return As_trunc, overlap
+end
+
 function approximate_state(
     A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}},
     trunc_alg::NoEnvTruncation
 ) where {E,S<:ElementarySpace}
     @tensor Otmp[-1 -2; -3 -4 -5 -6 -7 -8 -9 -10] := A[1][1 -2; -7 -8 -9 -10] * A[2][-1 1; -3 -4 -5 -6];
-    PN, PW = find_proj(Otmp, (3,7), (6,10), trunc_alg.trscheme);
+    # PS, PN = find_proj(Otmp, (5,9), (3,7), trunc_alg.trscheme);
+    PN, PS = find_proj(Otmp, (3,7), (5,9), trunc_alg.trscheme);
+    PE, PW = find_proj(Otmp, (4,8), (6,10), trunc_alg.trscheme);
+    # println(summary(Otmp))
+    # println("PN = $(summary(PN))")
+    # println("PE = $(summary(PE))")
+    # println("PS = $(summary(PS))")
+    # println("PW = $(summary(PW))")
     # PE,PS = find_proj(Otmp, (4,8), (5,9), trunc_alg.trscheme);
     # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * P610[6 10;-6] * P37[-3; 3 7] * P48[4 8; -4] * P59[-5; 5 9]
     # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * PN[3 7; -3] * PE[4 8; -4] * PS[-5; 5 9] * PW[-6; 6 10]
-    @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := twist(Otmp, (5,6,9,10))[-1 -2; 3 4 5 6 7 8 9 10] * PN[3 7; -3] * conj(PW[-4; 4 8]) * conj(PN[5 9; -5]) * PW[-6; 6 10]
+    # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := twist(Otmp, (5,6,9,10))[-1 -2; 3 4 5 6 7 8 9 10] * PN[-3; 3 7] * PE[4 8; -4] * PS[5 9; -5] * PW[-6; 6 10]
+
+    @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * PN[3 7; -3] * PE[4 8; -4] * PS[-5; 5 9] * PW[-6; 6 10]
+    # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * PN[-3; 3 7] * PE[4 8; -4] * PS[5 9; -5] * PW[-6; 6 10]
     return Onew, nothing
 end
 
@@ -94,20 +126,21 @@ function approximate_state(
     trunc_alg::NoEnvTruncation
 ) where {E,S<:ElementarySpace}
     @tensor Otmp[-1; -2 -3 -4 -5 -6 -7 -8 -9] := A[1][1; -6 -7 -8 -9] * A[2][-1 1; -2 -3 -4 -5];
-    PN, PW = find_proj(Otmp, (2,6), (5,9), trunc_alg.trscheme);
+    PS, PN = find_proj(Otmp, (4,8), (2,6), trunc_alg.trscheme);
+    PE, PW = find_proj(Otmp, (3,7), (5,9), trunc_alg.trscheme);
+
     # PE,PS = find_proj(Otmp, (4,8), (5,9), trunc_alg.trscheme);
     # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * P610[6 10;-6] * P37[-3; 3 7] * P48[4 8; -4] * P59[-5; 5 9]
     # @tensor opt=true contractcheck=true Onew[-1 -2; -3 -4 -5 -6] := Otmp[-1 -2; 3 4 5 6 7 8 9 10] * PN[3 7; -3] * PE[4 8; -4] * PS[-5; 5 9] * PW[-6; 6 10]
-    @tensor opt=true contractcheck=true Onew[-1; -2 -3 -4 -5] := Otmp[-1; 3 4 5 6 7 8 9 10] * PN[3 7; -2] * conj(PW[-3; 4 8]) * conj(PN[5 9; -4]) * PW[-5; 6 10]
+    @tensor opt=true contractcheck=true Onew[-1; -2 -3 -4 -5] := Otmp[-1; 3 4 5 6 7 8 9 10] * PN[3 7; -2] * PE[-3; 4 8] * PS[5 9; -4] * PW[-5; 6 10]
     return Onew, nothing
 end
 
 function find_isometry(
     A::Union{AbstractTensorMap{E,S,1,4}, AbstractTensorMap{E,S,2,4},Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}} where {E,S<:ElementarySpace},
     trunc_alg::ExactEnvTruncation;
-    hor = true
 )
-    t = truncation_environment(A, trunc_alg)#; hor = hor)
+    t = truncation_environment(A, trunc_alg)
     # truncspace = get_trunc_space(A)
     Ws = update_isometry(t, trunc_alg.trscheme)#, truncspace
     return Ws
@@ -115,8 +148,7 @@ end
 
 function find_isometry(
     A::Union{AbstractTensorMap{E,S,1,4}, AbstractTensorMap{E,S,2,4},Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}} where {E,S<:ElementarySpace},
-    trunc_alg::Union{ApproximateEnvTruncation, IntermediateEnvTruncation};
-    hor = true
+    trunc_alg::Union{ApproximateEnvTruncation, IntermediateEnvTruncation}
 ) 
     T = scalartype(A)
     space = get_top_space(A) #ℂ^(trunc_alg.trscheme.dim)
@@ -146,6 +178,42 @@ function find_isometry(
         end
     end
     return Ws
+end
+
+function find_isometry_testing(
+    A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}} where {E,S<:ElementarySpace},
+    trunc_alg::Union{ApproximateEnvTruncation, IntermediateEnvTruncation}
+) 
+    T = scalartype(A)
+    space = get_top_space(A) #ℂ^(trunc_alg.trscheme.dim)
+    Ws = get_initial_isometry(T, get_trunc_space(A), space, randn)
+    Wss = [Ws]
+    error = Inf
+    for i = 1:trunc_alg.maxiter
+        t = truncation_environment(A, Ws, trunc_alg)
+        Ws_new = update_isometry(t, trunc_alg.trscheme)
+        _, Σ_new, _ = tsvd(Ws_new[1])
+        _, Σ, _ = tsvd(Ws[1])
+        len = minimum([length(Σ_new.data), length(Σ.data)])
+        error = (norm(Σ_new.data[1:len]-Σ.data[1:len])/norm(Σ.data[1:len]))
+        Ws = copy(Ws_new)
+        push!(Wss, Ws)
+        if trunc_alg.verbosity > 1
+            @info "Step $i: error = $error"
+        end
+        if error < trunc_alg.tol
+            if trunc_alg.verbosity > 1
+                @info "Converged after $i iterations: error = $error"
+            end
+            break
+        end
+        if i == trunc_alg.maxiter && trunc_alg.verbosity > 0
+            if trunc_alg.verbosity > 0
+                @warn "Not converged after $i iterations: error = $error"
+            end
+        end
+    end
+    return Wss
 end
 
 function contract_23_patch(

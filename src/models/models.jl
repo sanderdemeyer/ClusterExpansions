@@ -11,7 +11,48 @@ struct ClusterExpansion
     envspace
 end
 
-function ClusterExpansion(twosite_op, onesite_op; nn_term = nothing, p = 3, verbosity = 0, T = Complex{BigFloat}, spaces = i -> (i >= 0) ? ℂ^(2^(i)) : ℂ^10, symmetry = nothing, solving_loops = true, envspace = χ -> ℂ^χ)
+# function _envspace(sector)
+#     if sector == Trivial
+#         return χ -> ℂ^χ
+#     elseif sector == Z2Irrep
+#         χ -> Z2Space(0 => χ-div(χ,2), 1 => div(χ,2))
+#     elseif sector == SU2Irrep
+#         χ -> Vect[SU2Irrep](0 => χ-2*div(χ,4), 1 // 2 => div(χ,4), 1 => div(χ,4))
+#     elseif sector == FermionParity
+#         χ -> Vect[fℤ₂](0 => χ-div(χ,2), 1 => div(χ,2))
+#     elseif sector == ProductSector{Tuple{FermionParity, U1Irrep}}
+#         0
+#     end
+# end
+
+# function envspace(::ComplexSpace)
+#     return χ -> ℂ^χ
+# end
+
+# function envspace(::GradedSpace{ZNIrrep{N}, NTuple{N,Int}}) where {N}
+#     return χ -> ZNSpace{N}(0 => χ-(N-1)*div(χ,N), [i => div(χ,N) for i = 1:N-1]...)
+# end
+
+# function envspace(::GradedSpace{SU2Irrep, TensorKit.SortedVectorDict{SU2Irrep, Int64}})
+#     return Vect[SU2Irrep](0 => χ-2*div(χ,4), 1 // 2 => div(χ,4), 1 => div(χ,4))
+# end
+
+# function envspace(::GradedSpace{FermionParity, Tuple{Int64, Int64}})
+#     return Vect[FermionParity](0 => χ-div(χ,2), 1 => div(χ,2))
+# end
+
+# function envspace(space::GradedSpace{ProductSector{T},T2}) where {T <: Tuple, T2}    
+#     return χ -> Vect[sectortype(space)](ntuple(_ -> 0, fieldcount(T)) => χ)
+# end
+
+_envspace(::ComplexSpace) = χ -> ℂ^χ
+_envspace(::GradedSpace{ZNIrrep{N}, NTuple{N,Int}}) where {N} = χ -> ZNSpace{N}(0 => χ-(N-1)*div(χ,N), [i => div(χ,N) for i = 1:N-1]...)
+_envspace(::GradedSpace{U1Irrep, TensorKit.SortedVectorDict{U1Irrep, Int64}}) = χ -> Vect[U1Irrep](0 => χ-2*div(χ,4), 1 => div(χ,4), -1 => div(χ,4))
+_envspace(::GradedSpace{SU2Irrep, TensorKit.SortedVectorDict{SU2Irrep, Int64}}) = χ -> Vect[SU2Irrep](0 => χ-2*div(χ,4), 1 // 2 => div(χ,4), 1 => div(χ,4))
+_envspace(::GradedSpace{FermionParity, Tuple{Int64, Int64}}) = χ -> Vect[FermionParity](0 => χ-div(χ,2), 1 => div(χ,2))
+_envspace(space::GradedSpace{ProductSector{T},T2}) where {T <: Tuple, T2} = χ -> Vect[sectortype(space)](ntuple(_ -> 0, fieldcount(T)) => χ)
+
+function ClusterExpansion(twosite_op, onesite_op; nn_term = nothing, p = 3, verbosity = 0, T = Complex{BigFloat}, spaces = i -> (i >= 0) ? ℂ^(2^(i)) : ℂ^10, symmetry = "C4", solving_loops = true, envspace = χ -> ℂ^χ)
     return ClusterExpansion(twosite_op, onesite_op, nn_term, p, verbosity, T, spaces, symmetry, solving_loops, envspace)
 end
 
@@ -92,7 +133,60 @@ function spinless_fermion_operators(; kwargs...)
     return spinless_fermion_operators(1.0, 0.0, 0.0; kwargs...)
 end
 
-function heisenberg_operators(Jx, Jy, Jz, h; spin = 1//2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = Vect[fℤ₂](0 => 5, 1 => 5), kwargs...)
+function spinless_fermion_model(t, V, μ; T = ComplexF64, Nr = 1, Nc = 1)
+    pspace = Vect[fℤ₂](0 => 1, 1 => 1)
+
+    kinetic_operator = FermionOperators.f_hop(T)
+    number_operator = FermionOperators.f_num(T)
+    number_operator_halffilling = number_operator - id(pspace)/2
+    @tensor number_twosite[-1 -2; -3 -4] := number_operator_halffilling[-1; -3] * number_operator_halffilling[-2; -4]
+    twosite_op = rmul!(kinetic_operator, -T(t)) + rmul!(number_twosite, T(V))
+    onesite_op = rmul!(number_operator, -T(μ))
+
+    pspaces = fill(pspace, Nr, Nc)
+    lattice = InfiniteSquare(Nr, Nc)
+
+    return PEPSKit.LocalOperator(
+        pspaces,
+        (neighbor => twosite_op for neighbor in PEPSKit.nearest_neighbours(lattice))...,
+        ((idx,) => onesite_op for idx in PEPSKit.vertices(lattice))...,
+    )
+end
+
+function spaces_heisenberg(spin_symmetry; loop_space = ℂ^4)
+    if spin_symmetry == Trivial
+        loop_space = ℂ^4
+        spaces = i -> if i == 0
+            ℂ^1
+        elseif i > 0
+            ℂ^(2^(i))
+        else
+            loop_space
+        end
+        envspace = χ -> ℂ^χ
+    elseif spin_symmetry == U1Irrep
+        loop_space = Vect[U1Irrep](1 => 2, -1 => 2)
+        spaces = i -> if i == 0
+            Vect[U1Irrep](0 => 1)
+        elseif i > 0
+            Vect[U1Irrep](1 => 2^(i-1), -1 => 2^(i-1))
+        else
+            loop_space
+        end
+        envspace = χ -> Vect[U1Irrep](0 => div(χ,2), 1 => div(χ,4), -1 => div(χ,4))
+    elseif spin_symmetry == SU2Irrep
+        loop_space = Vect[SU2Irrep](0 => 1)
+        spaces = i -> if i == 0
+        Vect[SU2Irrep](0 => 1)
+        elseif i > 0
+            Vect[SU2Irrep](0 => 1)
+        end
+        envspace = χ -> Vect[SU2Irrep](0 => div(χ,2), 1 // 2 => div(χ,4), 1 => div(χ,4))
+    end
+    return spaces, envspace
+end
+
+function heisenberg_operators(Jx, Jy, Jz, h; spin = 1//2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = ℂ^4, kwargs...)
     if spin_symmetry == Trivial
         twosite_op =  rmul!(SpinOperators.S_x_S_x(T, spin_symmetry; spin=spin), Jx) +
                 rmul!(SpinOperators.S_y_S_y(T, spin_symmetry; spin=spin), Jy) +
@@ -103,25 +197,7 @@ function heisenberg_operators(Jx, Jy, Jz, h; spin = 1//2, spin_symmetry = Trivia
         twosite_op =  rmul!(SpinOperators.S_exchange(T, spin_symmetry; spin=spin), Jx)
         onesite_op = rmul!(id(SpinOperators.spin_space(spin_symmetry; spin=spin)), T(0))
     end
-
-    if spin_symmetry == Trivial
-        if sum(iszero.([Jx Jy Jz])) >= 2
-            spaces = i -> (i >= 0) ? ℂ^(2^(i)) : loop_space
-        else
-            spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : loop_space
-        end
-        envspace = χ -> ℂ^χ
-    elseif spin_symmetry == U1Irrep
-        loop_space = Vect[U1Irrep](1 => 4, -1 => 4)
-        spaces = i -> if i == 0
-            Vect[U1Irrep](0 => 1)
-        elseif i > 0
-            Vect[U1Irrep](1 => 2^(2*i-2), -1 => 2^(2*i-2))
-        else
-            loop_space
-        end
-        envspace = χ -> Vect[U1Irrep](0 => div(χ,2), 1 => div(χ,4), -1 => div(χ,4))
-    end
+    spaces, envspace = spaces_heisenberg(spin_symmetry; loop_space)
     return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, kwargs...)
 end
 
@@ -129,25 +205,12 @@ function heisenberg_operators(; kwargs...)
     return heisenberg_operators(1.0, 1.0, 1.0, 0.0; kwargs...)
 end
 
-function J1J2_operators(J1, J2, h; spin = 1//2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = Vect[fℤ₂](0 => 5, 1 => 5), kwargs...)
+function J1J2_operators(J1, J2, h; spin = 1//2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = ℂ^4, kwargs...)
     twosite_op =  rmul!(SpinOperators.S_exchange(T, spin_symmetry; spin), J1)
     nn_term = rmul!(SpinOperators.S_exchange(T, spin_symmetry; spin), J2)
     onesite_op = rmul!(SpinOperators.S_z(T, spin_symmetry; spin), h)
 
-    if spin_symmetry == Trivial
-        spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : loop_space
-        envspace = χ -> ℂ^χ
-    elseif spin_symmetry == U1Irrep
-        loop_space = Vect[U1Irrep](1 => 4, -1 => 4)
-        spaces = i -> if i == 0
-            Vect[U1Irrep](0 => 1)
-        elseif i > 0
-            Vect[U1Irrep](1 => 2^(2*i-2), -1 => 2^(2*i-2))
-        else
-            loop_space
-        end
-        envspace = χ -> Vect[U1Irrep](0 => div(χ,2), 1 => div(χ,4), -1 => div(χ,4))
-    end
+    spaces, envspace = spaces_heisenberg(spin_symmetry; loop_space)
     return ClusterExpansion(twosite_op, onesite_op; nn_term, spaces, envspace, kwargs...)
 end
 

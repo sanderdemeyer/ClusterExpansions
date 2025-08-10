@@ -37,7 +37,7 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; nn_
         return spaces
     end
     if length(sites_to_update) == 4 && cluster.m > 0 # second condition to excluse the case where the previous solutions have not been found
-        solutions, _, _ = solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = verbosity, symmetry = symmetry)
+        solutions, _ = solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity, symmetry)
         # solutions, _, spaces = solve_4_loop_SVD(RHS, spaces(-1), levels_to_update; verbosity = verbosity, symmetry = symmetry)
     elseif length(sites_to_update) ∈ [1, 2]
         A = get_A(T, cluster, PEPO, sites_to_update)

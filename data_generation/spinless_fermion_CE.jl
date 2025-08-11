@@ -22,6 +22,6 @@ for Dcut in Dcuts
     trunc_alg = NoEnvTruncation(truncdim(Dcut))
     for χenv in χenvs
         name = "Spinless_Fermions_vumps_V_$(V)_Dcut_$(Dcut)_χ_$(χenv)_max_$(max_beta).jld2"
-        spinless_fermion_model_CE(time_alg, trunc_alg, χenv; V, name, saving = true)
+        data_generation_SF_CE(time_alg, trunc_alg, χenv; V, name, saving = true)
     end
 end

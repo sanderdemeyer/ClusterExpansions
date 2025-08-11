@@ -10,6 +10,52 @@ function Canonicalization(; decomposition_alg = TensorKit.QR(), maxiter = 100, t
     return Canonicalization(decomposition_alg, maxiter, tol_canonical, tol_reconstruction, verbosity)
 end
 
+function canonicalize_QR(A::TensorMap{T,E,1,4}, canoc_alg::Canonicalization) where {T,E}
+    Q = copy(A)
+    ϵs = []
+    A_errors = []
+    Rs = [id(scalartype(A), domain(A)[dir]) for dir = 1:4]
+    _, S, _ = tsvd(A)
+    for i = 1:canoc_alg.maxiter
+        for dir = 2:5
+            Q, R = leftorth(Q, (Tuple(setdiff(1:5, dir)),(dir,)); alg = canoc_alg.decomposition_alg)
+            Q = permute(Q, ((1,),Tuple(insert!([2,3,4], dir-1, 5))))
+
+            if dir > 3
+                @tensor Rs[dir-1][-1; -2] := twist(R, 1)[-1; 1] * Rs[dir-1][1; -2]
+            else
+                @tensor Rs[dir-1][-1; -2] := R[-1; 1] * Rs[dir-1][1; -2]
+            end
+            _, Snew, _ = tsvd(Q)
+            ϵ = norm(Snew - S)
+            S = copy(Snew)
+            push!(ϵs, ϵ)
+            @tensor A′[-1; -2 -3 -4 -5] := Q[-1; 1 2 3 4] * Rs[1][1; -2] * Rs[2][2; -3] * twist(Rs[3],1)[3; -4] * twist(Rs[4],1)[4; -5]
+            ϵ_A = norm(A - A′)/norm(A)
+            push!(A_errors, ϵ_A)
+            if ϵ < canoc_alg.tol_canonical
+                if canoc_alg.verbosity >= 2
+                    @info "Canonicalization converged after $i iterations. Error is $ϵ with reconstruction error $(ϵ_A)"
+                end            
+                return Q, Rs
+            end
+            if ϵ_A > canoc_alg.tol_reconstruction
+                if canoc_alg.verbosity >= 1
+                    @warn "Canonicalization aborted after $i iterations. Error is $ϵ with reconstruction error $(ϵ_A)"
+                end            
+                return Q, Rs
+            end
+            if canoc_alg.verbosity >= 3
+                @info "Iteration $i and dir = $dir. Error is $ϵ with reconstruction error $(ϵ_A)"
+            end
+        end
+    end
+    if canoc_alg.verbosity >= 1
+        @warn "Canonicalization not converged after $(canoc_alg.maxiter) iterations. Error is $(ϵs[end])"
+    end
+    return Q, Rs
+end
+
 function canonicalize_QR(A::TensorMap{T,E,2,4}, canoc_alg::Canonicalization) where {T,E}
     Q = copy(A)
     ϵs = []
@@ -54,7 +100,16 @@ function canonicalize_QR(A::TensorMap{T,E,2,4}, canoc_alg::Canonicalization) whe
         @warn "Canonicalization not converged after $(canoc_alg.maxiter) iterations. Error is $(ϵs[end])"
     end
     return Q, Rs
+end
 
+function reconstruct_A(Q::AbstractTensorMap{T,S,1,4}, MN, ME, MS, MW) where {T,S}
+    @tensor A′[-1; -2 -3 -4 -5] := Q[-1; 1 2 3 4] * MN[1; -2] * ME[2; -3] * MS[-4; 3] * MW[-5; 4]
+    return A′
+end
+
+function reconstruct_A(Q::AbstractTensorMap{T,S,2,4}, MN, ME, MS, MW) where {T,S}
+    @tensor A′[-1 -2; -3 -4 -5 -6] := Q[-1 -2; 1 2 3 4] * MN[1; -3] * ME[2; -4] * MS[-5; 3] * MW[-6; 4]
+    return A′
 end
 
 function canonicalize(A, canoc_alg::Canonicalization)
@@ -69,7 +124,7 @@ function canonicalize(A, canoc_alg::Canonicalization)
     MS = sqrt(Sv) * Vv
     ME = Uh * sqrt(Sh)
     MW = sqrt(Sh) * Vh
-    @tensor A′[-1 -2; -3 -4 -5 -6] := Q[-1 -2; 1 2 3 4] * MN[1; -3] * ME[2; -4] * MS[-5; 3] * MW[-6; 4]
+    A′ = reconstruct_A(Q, MN, ME, MS, MW)
     return A′
 end
 

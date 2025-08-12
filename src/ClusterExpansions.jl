@@ -48,7 +48,7 @@ export VOPEPO_CTMRG, VOPEPO_VUMPS
 export approximate_state, find_isometry, apply_PEPO_exact
 
 export ClusterExpansion, evolution_operator
-export ising_operators, ising_operators_Z2
+export ising_operators
 export spinless_fermion_operators, spinless_fermion_model
 export heisenberg_operators, J1J2_operators
 export tJ_operators, hubbard_operators

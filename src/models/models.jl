@@ -60,40 +60,44 @@ function bond_dimension(ce_alg::ClusterExpansion)
     return sum([dim(ce_alg.spaces(i)) for i = 0:div(ce_alg.p,2)]) + (ce_alg.p >= 4) * dim(ce_alg.spaces(-1)) + + (ce_alg.p >= 6) * dim(ce_alg.spaces(-2))
 end
 
-function ising_operators(J, g, z; T = Complex{BigFloat}, loop_space = ℂ^10, kwargs...)
-    twosite_op = rmul!(PEPSKit.σᶻᶻ(T), -J)
-    onesite_op = rmul!(PEPSKit.σˣ(T), g * -J) + rmul!(PEPSKit.σᶻ(T), z * -J)
-
-    if g == 0.0
-        spaces = i -> (i >= 0) ? ℂ^(2^(i)) : loop_space
-    else
-        spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : loop_space
+function spaces_ising(spin_symmetry, smaller_spaces; loop_space = nothing)
+    if spin_symmetry == Trivial
+        if isnothing(loop_space)
+            loop_space = ℂ^10
+        end
+        if smaller_spaces
+            spaces = i -> (i >= 0) ? ℂ^(2^(i)) : loop_space
+        else
+            spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : loop_space
+        end
+        envspace = χ -> ℂ^χ
+    elseif spin_symmetry == Z2Irrep
+        if isnothing(loop_space)
+            loop_space = Z2Space(0 => 5, 1 => 5)
+        end
+        spaces = i -> if i == 0
+            Z2Space(0 => 1)
+        elseif i > 0
+            Z2Space(0 => 2^(i-1), 1 => 2^(i-1))
+        else
+            loop_space
+        end
+        envspace = χ -> Z2Space(0 => χ - div(χ,2), 1 => div(χ,2))
     end
-    return ClusterExpansion(twosite_op, onesite_op; spaces, kwargs...)
+    return spaces, envspace
 end
 
-function ising_operators(; kwargs...)
-    return ising_operators(1.0, 0.0, 0.0; kwargs...)
-end
-
-function ising_operators_Z2(J; T = Complex{BigFloat}, loop_space = ℂ^10, kwargs...)
-    twosite_op = rmul!(PEPSKit.σᶻᶻ(T, Z2Irrep), -J)
-    pspace = Z2Space(0 => 1, 1 => 1)
-    onesite_op = rmul!(id(pspace), 0.0)
-
-    spaces = i -> if i == 0
-        Z2Space(0 => 1)
-    elseif i > 0
-        Z2Space(0 => 2^(i-1), 1 => 2^(i-1))
-    else
-        loop_space
+function ising_operators(J, g, z; spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = nothing, kwargs...)
+    twosite_op = rmul!(PEPSKit.σᶻᶻ(T, spin_symmetry), -J)
+    if spin_symmetry == Trivial
+        onesite_op = rmul!(PEPSKit.σˣ(T), g * -J) + rmul!(PEPSKit.σᶻ(T), z * -J)
+    elseif spin_symmetry == Z2Irrep
+        @assert (g == 0) && (z == 0) "Z2-symmetric Ising model can not have a magnetic field. g = $g and z = $z"
+        pspace = Z2Space(0 => 1, 1 => 1)
+        onesite_op = rmul!(id(pspace), 0.0)
     end
-    envspace = χ -> Z2Space(0 => div(χ,2), 1 => div(χ,2))
+    spaces, envspace = spaces_ising(spin_symmetry, g == 0; loop_space)
     return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, kwargs...)
-end
-
-function ising_operators_Z2(; kwargs...)
-    return ising_operators_Z2(1.0; kwargs...)
 end
 
 function spinless_fermion_operators(t, V, μ; b = 0.0, δ = 0.0, T = Complex{BigFloat}, loop_space = Vect[fℤ₂](0 => 5, 1 => 5), kwargs...)

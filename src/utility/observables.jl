@@ -70,6 +70,16 @@ function MPSKit.expectation_value(::InfinitePEPO, symb::Symbol, (mps,env)::Tuple
     end
 end
 
+function MPSKit.expectation_value(ψ::InfinitePEPS, symb::Symbol, env::CTMRGEnv)
+    if symb == :spectrum
+        ξ_h, ξ_v, λ_h, λ_v = correlation_length(ψ, env; num_vals = 3)
+        return ξ_h, log(abs(λ_h[2])/log(λ_h[3]))
+    else
+        @warn "Observable $(symb) not defined. This will be set to zero"
+        return 0
+    end
+end
+
 function _env_algs(observables::Vector{PEPOObservable})
     return [obs.env_alg isa VUMPS ? :VUMPS : (obs.env_alg isa PEPSKit.CTMRGAlgorithm ? :CTMRG : :nothing) for obs = observables]
 end
@@ -85,7 +95,7 @@ function get_env_alg(observables::Vector{PEPOObservable}, alg_type)
     return algs[1]
 end
 
-function calculate_observables(O, χ, observables)
+function calculate_observables(O::AbstractTensorMap{E,S,2,4}, χ::Int, observables) where {E,S}
     envspace = _envspace(codomain(O)[1])(χ)
     env_algs = _env_algs(observables)
 
@@ -110,4 +120,48 @@ function calculate_observables(O, χ, observables)
         ctmrg_env, = leading_boundary(CTMRGEnv(pf, envspace), pf, ctm_alg)
     end
     return [env_type == :VUMPS ? expectation_value(ρ, obs.obs, vumps_env) : (env_type == :CTMRG ? expectation_value(ρ, obs.obs, ctmrg_env) : obs.obs(ρ)) for (obs,env_type) = zip(observables, env_algs)]
+end
+
+# Utility functions for Simple Update
+
+function observable_SU(pspace, obs::AbstractTensorMap{T,S,1,1}; Nr = 1, Nc = 1) where {T,S}
+    pspace_fused = fuse(pspace,pspace')
+    pspaces_fused = fill(pspace_fused, Nr, Nc)
+    lattice = InfiniteSquare(Nr, Nc)
+    F = isometry(pspace_fused, pspace ⊗ pspace')
+    @tensor obs_final[-1; -2] := obs[1; 2] * twist(F,3)[-1; 1 3] * conj(F[-2; 2 3])
+
+    return PEPSKit.LocalOperator(
+        pspaces_fused,
+        ((idx,) => obs_final for idx in PEPSKit.vertices(lattice))...,
+    )
+end
+
+function observable_SU(pspace, obs::AbstractTensorMap{T,S,2,2}; Nr = 1, Nc = 1) where {T,S}
+    pspace_fused = fuse(pspace,pspace')
+    pspaces_fused = fill(pspace_fused, Nr, Nc)
+    lattice = InfiniteSquare(Nr, Nc)
+    F = isometry(pspace_fused, pspace ⊗ pspace')
+    @tensor obs_final[-1 -2; -3 -4] := obs[1 4; 2 5] * twist(F,3)[-1; 1 3] * twist(F,3)[-2; 4 6] * conj(F[-3; 2 3]) * conj(F[-4; 5 6])
+
+    return PEPSKit.LocalOperator(
+        pspaces_fused,
+        (neighbor => obs_final for neighbor in PEPSKit.nearest_neighbours(lattice))...,
+    )
+end
+
+function calculate_observables(ψ::InfinitePEPS, χ::Int, observables)
+    envspace = _envspace(codomain(ψ[1,1])[1])(χ)
+    env_algs = _env_algs(observables)
+
+    # vumps_alg = get_env_alg(observables, VUMPS)
+    ctm_alg = get_env_alg(observables, PEPSKit.CTMRGAlgorithm)
+
+    if :VUMPS ∈ env_algs
+        @error "TBA"
+    end
+    if :CTMRG ∈ env_algs
+        ctmrg_env, = leading_boundary(CTMRGEnv(ψ, envspace), ψ, ctm_alg)
+    end
+    return [env_type == :VUMPS ? expectation_value(ψ, obs.obs, vumps_env) : (env_type == :CTMRG ? expectation_value(ψ, obs.obs, ctmrg_env) : obs.obs(ψ)) for (obs,env_type) = zip(observables, env_algs)]
 end

@@ -1,16 +1,17 @@
 struct PEPOObservable
     obs::Union{LocalOperator, InfinitePEPO, TensorMap, Function, Symbol}
     env_alg::Union{PEPSKit.CTMRGAlgorithm,VUMPS,Nothing}
+    func::Function
 end
 
-PEPOObservable(obs::Function) = PEPOObservable(obs, nothing)
+PEPOObservable(obs::Function) = PEPOObservable(obs, nothing, x -> x)
 
-function PEPO_observables(obss::Vector, env_algs::Vector)
-    return [PEPOObservable(obs, env_alg) for (obs, env_alg) in zip(obss, env_algs)]
+function PEPO_observables(obss::Vector, env_algs::Vector; funcs::Vector = fill(x -> x, length(obss)))
+    return [PEPOObservable(obs, env_alg, func) for (obs, env_alg, func) in zip(obss, env_algs, funcs)]
 end
 
-function PEPO_observables(obss::Vector, env_alg::Union{PEPSKit.CTMRGAlgorithm,VUMPS,Nothing})
-    return [PEPOObservable(obs, env_alg) for obs in obss]
+function PEPO_observables(obss::Vector, env_alg::Union{PEPSKit.CTMRGAlgorithm,VUMPS,Nothing}; func::Function = x -> x)
+    return [PEPOObservable(obs, env_alg, func) for obs in obss]
 end
 
 function localoperator_model(pspace, op::TensorMap{T,S,1,1}; Nr = 1, Nc = 1) where {T,S}
@@ -119,7 +120,7 @@ function calculate_observables(O::AbstractTensorMap{E,S,2,4}, χ::Int, observabl
     if :CTMRG ∈ env_algs
         ctmrg_env, = leading_boundary(CTMRGEnv(pf, envspace), pf, ctm_alg)
     end
-    return [env_type == :VUMPS ? expectation_value(ρ, obs.obs, vumps_env) : (env_type == :CTMRG ? expectation_value(ρ, obs.obs, ctmrg_env) : obs.obs(ρ)) for (obs,env_type) = zip(observables, env_algs)]
+    return [env_type == :VUMPS ? expectation_value(obs.func(ρ), obs.obs, vumps_env) : (env_type == :CTMRG ? expectation_value(obs.func(ρ), obs.obs, ctmrg_env) : obs.obs(obs.func(ρ))) for (obs,env_type) = zip(observables, env_algs)]
 end
 
 # Utility functions for Simple Update

@@ -14,8 +14,9 @@ include("clusterexpansions/utility/symmetries.jl")
 include("utility/canonical_form.jl")
 include("utility/observables.jl")
 
-include("time_evolution/truncations_utility.jl")
-include("time_evolution/truncations.jl")
+include("time_evolution/utility.jl")
+include("time_evolution/global_truncation.jl")
+include("time_evolution/local_truncation.jl")
 include("time_evolution/vomps.jl")
 
 include("models/models.jl")
@@ -42,10 +43,10 @@ export symmetrize
 export Canonicalization, canonicalize
 export PEPOObservable, PEPO_observables, localoperator_model, calculate_observables
 
-export fidelity, apply_isometry
-export ExactEnvTruncation, ApproximateEnvTruncation, IntermediateEnvTruncation, NoEnvTruncation
+export fidelity, apply_PEPO_exact
+export ApproximateEnvTruncation, NoEnvTruncation
 export VOPEPO_CTMRG, VOPEPO_VUMPS
-export approximate_state, find_isometry, apply_PEPO_exact
+export approximate_state
 
 export ClusterExpansion, evolution_operator
 export ising_operators

@@ -70,6 +70,20 @@ function evolution_operator(ce_alg::ClusterExpansion, β::Number; T_conv = Compl
     return O
 end
 
+function evolution_operator(td_alg::TrotterDecomposition, β::Number; T = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+    if β == 0.0
+        pspace = domain(td_alg.onesite_op)[1]
+        vspace = td_alg.spaces(0)
+        t = id(T, pspace ⊗ vspace ⊗ vspace)
+        return permute(t, ((1,4),(5,6,2,3)))
+    end
+    U_onesite = get_Trotter_onesite(td_alg.onesite_op, td_alg.g, β)
+    U_twosite = get_Trotter_twosite(td_alg.twosite_op, td_alg.spaces(1), β)
+    @tensor O_Trotter[-1 -2; -3 -4 -5 -6] := U_onesite[-1; 1] * U_twosite[1 2; -3 -4 -5 -6] * U_onesite[2; -2]
+    O_canoc = canonicalize(O_Trotter, canoc_alg)
+    return O_canoc
+end
+
 function StaticTimeEvolution(β₀, βs_helper, update_list; verbosity = 0)
     return StaticTimeEvolution(β₀, βs_helper, update_list, verbosity)
 end
@@ -95,7 +109,7 @@ function TimeDependentTimeEvolution(β₀, Δβ, maxiter; verbosity = 0, f₁ = 
 end
 
 function MPSKit.time_evolve(
-    ce_alg::ClusterExpansion,
+    ce_alg::Union{ClusterExpansion,TrotterDecomposition},
     time_alg::StaticTimeEvolution,
     trunc_alg::Union{EnvTruncation,VOPEPO},
     observable;

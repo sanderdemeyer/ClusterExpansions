@@ -20,6 +20,7 @@ include("time_evolution/local_truncation.jl")
 include("time_evolution/vomps.jl")
 
 include("models/models.jl")
+include("models/models_Trotter.jl")
 
 include("time_evolution/time_evolve.jl")
 include("models/time_evolve_models.jl")
@@ -53,6 +54,8 @@ export ising_operators
 export spinless_fermion_operators, spinless_fermion_model
 export heisenberg_operators, J1J2_operators
 export tJ_operators, hubbard_operators
+
+export TrotterDecomposition, ising_operators_Trotter
 
 export evolution_operator
 export StaticTimeEvolution, TimeDependentTimeEvolution

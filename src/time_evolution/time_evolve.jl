@@ -146,7 +146,8 @@ function MPSKit.time_evolve(
     end
     for (i,ind) in enumerate(time_alg.update_list)
         if trunc_alg isa VOPEPO
-            if domain(env_triple.edges[1,1,1])[1] ≠ domain(A)[1] ⊗ domain(As[ind])[1] ⊗ trunc_alg.truncspace'
+            # if domain(env_triple.edges[1,1,1])[1] ≠ domain(A)[1] ⊗ domain(As[ind])[1] ⊗ trunc_alg.truncspace'
+            if codomain(env_triple.edges[1,1,1])[2] ≠ domain(A)[1] || codomain(env_triple.edges[1,1,1])[3] ≠ domain(As[ind])[1]
                 env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[ind])[1], trunc_alg)
             end
             A, env_double, env_triple, _ = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i)
@@ -208,7 +209,7 @@ function PEPSKit.fixedpoint(
     end
     for (i,ind) in enumerate(time_alg.update_list)
         if trunc_alg isa VOPEPO
-            if domain(env_triple.edges[1,1,1])[1] ≠ domain(A)[1] ⊗ domain(As[ind])[1] ⊗ trunc_alg.truncspace'
+            if domain(env_triple.edges[1,1,1])[1][1] ≠ domain(A)[1] || domain(env_triple.edges[1,1,1])[1][2] ≠ domain(As[ind])[1]
                 env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[ind])[1], trunc_alg)
             end
             A, env_double, env_triple, _ = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i)

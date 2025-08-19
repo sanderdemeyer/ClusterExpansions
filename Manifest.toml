@@ -2,7 +2,7 @@
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "e800e6db09d45a4aa5aab99ca2fbd1b9c9c962cc"
+project_hash = "04bf8b843857bbc803bd5398bcb6e601edaeea47"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1033,7 +1033,9 @@ version = "0.5.6+0"
 
 [[deps.OptimKit]]
 deps = ["LinearAlgebra", "Printf", "ScopedValues", "VectorInterface"]
-git-tree-sha1 = "b0163ac202bc03aeb15f0e55002e544e74965534"
+git-tree-sha1 = "d4fc0591f6a2a66bdf03837ed8a6a351abc284f3"
+repo-rev = "master"
+repo-url = "https://github.com/sanderdemeyer/OptimKit.jl.git"
 uuid = "77e91f04-9b3b-57a6-a776-40b61faaebe0"
 version = "0.4.0"
 

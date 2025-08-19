@@ -124,8 +124,12 @@ function apply_isometry(A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,
     return permute(A_trunc, ((1,2),Tuple(3:6+length(inds))))
 end
 
-function get_initial_isometry(T, orig_space::ProductSpace, trunc_space::ElementarySpace)
-    return [dir > 2 ? isometry(T, orig_space, trunc_space)' : isometry(T, orig_space, trunc_space) for dir = 1:4]
+# function get_initial_isometry(T, orig_space::ProductSpace, trunc_space::ElementarySpace)
+#     return [dir > 2 ? isometry(T, orig_space, trunc_space)' : isometry(T, orig_space, trunc_space) for dir = 1:4]
+# end
+
+function get_initial_isometry(T, orig_space_h::ProductSpace, orig_space_v::ProductSpace, trunc_space_h::ElementarySpace, trunc_space_v::ElementarySpace)
+    return [isometry(T, orig_space_v, trunc_space_v), isometry(T, orig_space_h, trunc_space_h), isometry(T, orig_space_v, trunc_space_v)', isometry(T, orig_space_h, trunc_space_h)']
 end
 
 # Calculate a PEPO-PEPS exactly.

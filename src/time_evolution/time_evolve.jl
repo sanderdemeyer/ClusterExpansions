@@ -70,7 +70,7 @@ function evolution_operator(ce_alg::ClusterExpansion, β::Number; T_conv = Compl
     return O
 end
 
-function evolution_operator(td_alg::TrotterDecomposition, β::Number; T = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+function evolution_operator(td_alg::GenericTrotterDecomposition, β::Number; T = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
     if β == 0.0
         pspace = domain(td_alg.onesite_op)[1]
         vspace = td_alg.spaces(0)
@@ -80,6 +80,18 @@ function evolution_operator(td_alg::TrotterDecomposition, β::Number; T = Comple
     U_onesite = get_Trotter_onesite(td_alg.onesite_op, td_alg.g, β)
     U_twosite = get_Trotter_twosite(td_alg.twosite_op, td_alg.spaces(1), β)
     @tensor O_Trotter[-1 -2; -3 -4 -5 -6] := U_onesite[-1; 1] * U_twosite[1 2; -3 -4 -5 -6] * U_onesite[2; -2]
+    O_canoc = canonicalize(O_Trotter, canoc_alg)
+    return O_canoc
+end
+
+function evolution_operator(td_alg::TwositeTrotterDecomposition, β::Number; T = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+    if β == 0.0
+        pspace = domain(td_alg.onesite_op)[1]
+        vspace = td_alg.spaces(0)
+        t = id(T, pspace ⊗ vspace ⊗ vspace)
+        return permute(t, ((1,4),(5,6,2,3)))
+    end
+    O_Trotter = get_Trotter_twosite(td_alg.twosite_op, td_alg.spaces(1), β)
     O_canoc = canonicalize(O_Trotter, canoc_alg)
     return O_canoc
 end

@@ -20,9 +20,11 @@ function find_isometry(
     trunc_alg::ApproximateEnvTruncation
 ) 
     T = scalartype(A)
-    trunc_space = domain(A[1])[1]
-    orig_space = domain(A[1])[1] ⊗ domain(A[2])[1]
-    Ws = get_initial_isometry(T, orig_space, trunc_space)
+    orig_space_v = domain(A[1])[1] ⊗ domain(A[2])[1]
+    trunc_space_v = domain(A[1])[1]
+    orig_space_h = domain(A[1])[2] ⊗ domain(A[2])[2]
+    trunc_space_h = domain(A[1])[2]
+    Ws = get_initial_isometry(T, orig_space_h, orig_space_v, trunc_space_h, trunc_space_v)
 
     pspace = codomain(A[1])[1]
     M = randn(T, pspace, pspace)

@@ -3,26 +3,28 @@ function data_generation_SF_CE(time_alg, trunc_alg, χenv; V = 0.0, name = "SF_m
 
     # Define observables
     vumps_alg = VUMPS(; maxiter = 100, verbosity = 0)
-    observables = PEPO_observables([FermionOperators.f_num(), :spectrum], vumps_alg)
+    observables = PEPO_observables([FermionOperators.f_num(), FermionOperators.f_hop(), :spectrum], vumps_alg)
     obs_function = O -> ClusterExpansions.calculate_observables(O, χenv, observables)
     
     βs, expvals, As = time_evolve(ce_alg, time_alg, trunc_alg, obs_function)
 
     # Extract the expectation values
     ns = [e[1] for e in expvals]
-    ξs = [e[2][1] for e in expvals]
-    δs = [e[2][2] for e in expvals]
+    hops = [e[2] for e in expvals]
+    ξs = [e[3][1] for e in expvals]
+    δs = [e[3][2] for e in expvals]
 
     if saving
         file = jldopen(name, "w")
         file["βs"] = βs
         file["ns"] = ns
+        file["hops"] = hops
         file["ξs"] = ξs
         file["δs"] = δs
         file["As"] = copy(As)
         close(file)
     end
-    return βs, ns, ξs, δs, As
+    return βs, ns, hops, ξs, δs, As
 end
 
 function data_generation_ising_CE(time_alg, trunc_alg, χenv; g = 0.0, name = "ising_model_g_$(g).jld2", saving = false)
@@ -83,7 +85,7 @@ end
 
 function ising_model_SU(J, g, z; T = Float64, Nr = 1, Nc = 1)
     pspace = ℂ^2
-    pspace_fused = fuse(pspace, pspace)
+    pspace_fused = fuse(pspace, pspace')
 
     ZZ = rmul!(PEPSKit.σᶻᶻ(T), -J)
     X = rmul!(PEPSKit.σˣ(T), g * -J) + rmul!(PEPSKit.σᶻ(T), z * -J)
@@ -93,7 +95,7 @@ function ising_model_SU(J, g, z; T = Float64, Nr = 1, Nc = 1)
     lattice = InfiniteSquare(Nr, Nc)
     pspaces_fused = fill(pspace_fused, Nr, Nc)
 
-    F = isometry(fuse(pspace,pspace), pspace ⊗ pspace')
+    F = isometry(fuse(pspace,pspace'), pspace ⊗ pspace')
 
     @tensor twosite_final[-1 -2; -3 -4] := twosite_op[1 4; 2 5] * twist(F,3)[-1; 1 3] * twist(F,3)[-2; 4 6] * conj(F[-3; 2 3]) * conj(F[-4; 5 6])
 
@@ -104,7 +106,7 @@ function ising_model_SU(J, g, z; T = Float64, Nr = 1, Nc = 1)
 end
 
 function initialize_state(pspace, trivspace)
-    state0 = permute(id(pspace ⊗ trivspace ⊗ trivspace), ((1,4),(5,6,2,3))) * (1 / sqrt(2))
+    state0 = permute(id(pspace ⊗ trivspace ⊗ trivspace), ((1,4),(5,6,2,3))) * (1 / sqrt(dim(pspace)))
     F = isometry(fuse(pspace,pspace), pspace ⊗ pspace')
     @tensor state[-1; -2 -3 -4 -5] := twist(state0,2)[1 2; -2 -3 -4 -5] * F[-1; 1 2]
     return state
@@ -140,15 +142,19 @@ function data_generation_SF_SU(time_alg, trunc_alg, χenv; V = 0.0, name = "SF_m
     wpeps = InfiniteWeightPEPS(InfinitePEPS(state; unitcell = (Nr, Nc)))
 
     # Define observables
-    vumps_alg = VUMPS(; maxiter = 100, verbosity = 0)
-    observables = PEPO_observables([FermionOperators.f_num(), :spectrum], vumps_alg)
-    obs_function = O -> ClusterExpansions.calculate_observables(O[1,1], χenv, observables)
+    # vumps_alg = VUMPS(; maxiter = 100, verbosity = 0)
+    # observables = PEPO_observables([FermionOperators.f_num(), :spectrum], vumps_alg)
+    # obs_function = O -> ClusterExpansions.calculate_observables(O[1,1], χenv, observables)
     
+    ctm_alg = SimultaneousCTMRG(; maxiter = 250, verbosity = 2)
+    observables_SU = PEPO_observables([observable_SU(pspace, FermionOperators.f_num(); Nr, Nc), observable_SU(pspace, FermionOperators.f_hop(); Nr, Nc)], ctm_alg)
+    obs_function = O -> ClusterExpansions.calculate_observables(O, χenv, observables_SU)
+
     tol = 0.0
     maxiter = floor(time_alg.Δt / time_alg.dt)
     βs = [time_alg.dt*maxiter*i for i = 1:time_alg.maxiter]
     convert_to_pepo = A -> convert_to_pepo_fuser(A, F)
-    alg = SimpleUpdate(time_alg.dt, tol, maxiter, trunc_alg)
+    alg = SimpleUpdate(time_alg.dt / 2, tol, maxiter, trunc_alg) # divide by two because we are using the purification here
 
     expvals = []
     As = []
@@ -158,24 +164,34 @@ function data_generation_SF_SU(time_alg, trunc_alg, χenv; V = 0.0, name = "SF_m
 
         peps = InfinitePEPS(wpeps)
         A = InfinitePEPO(reshape(convert_to_pepo.(PEPSKit.unitcell(peps)), Nr, Nc, 1))
-        push!(expvals, obs_function(A))
+        # push!(expvals, obs_function(A))
+        push!(expvals, obs_function(peps))
         push!(As, copy(A))
     end
 
     # Extract the expectation values
     ns = [e[1] for e in expvals]
-    ξs = [e[2][1] for e in expvals]
-    δs = [e[2][2] for e in expvals]
+    hops = [e[2] for e in expvals]
+    # ξs = [e[2][1] for e in expvals]
+    # δs = [e[2][2] for e in expvals]
     
     if saving
         file = jldopen(name, "w")
         file["βs"] = βs
         file["ns"] = ns
-        file["ξs"] = ξs
-        file["δs"] = δs
+        file["hops"] = hops
+        # file["ξs"] = ξs
+        # file["δs"] = δs
         file["As"] = copy(As)
     end
-    return βs, ns, ξs, δs, As
+    return βs, ns, hops #, ξs, δs, As
+end
+
+function calculate_observables_SU(ψ::InfinitePEPS, χenv, observables, ctm_alg)
+    envspace = _envspace(codomain(ψ[1,1])[1])(χenv)
+    env, = leading_boundary(CTMRGEnv(ψ, envspace), ψ, ctm_alg)
+
+    return [expectation_value(ψ, obs, env) for obs = observables]
 end
 
 function data_generation_ising_SU(time_alg, trunc_alg, χenv; g = 0.0, name = "ising_model_g_$(g)_SU.jld2", saving = false)
@@ -183,7 +199,7 @@ function data_generation_ising_SU(time_alg, trunc_alg, χenv; g = 0.0, name = "i
     z = 0.0
 
     pspace = ℂ^2
-    F = isometry(fuse(pspace,pspace), pspace ⊗ pspace')
+    F = isometry(fuse(pspace,pspace'), pspace ⊗ pspace')
 
     (Nr, Nc) = (2, 2)
     H = ising_model_SU(J, g, z; Nr, Nc)
@@ -193,15 +209,15 @@ function data_generation_ising_SU(time_alg, trunc_alg, χenv; g = 0.0, name = "i
 
     # Define observables
     vumps_alg = VUMPS(; maxiter = 100, verbosity = 0)
-    observables = PEPO_observables([SpinOperators.σᶻ(), SpinOperators.σˣ(), :spectrum], vumps_alg)
-    obs_function = O -> ClusterExpansions.calculate_observables(O[1,1], χenv, observables) #.+ ClusterExpansions.calculate_observables(O[1,2], χenv, observables) .+
-    # ClusterExpansions.calculate_observables(O[2,1], χenv, observables) .+ ClusterExpansions.calculate_observables(O[2,2], χenv, observables)) ./ 4
+    ctm_alg = SimultaneousCTMRG(; maxiter = 250, verbosity = 2)
+    observables_SU = PEPO_observables([observable_SU(pspace, SpinOperators.σᶻ(); Nr, Nc), observable_SU(pspace, SpinOperators.σˣ(); Nr, Nc), :spectrum], [ctm_alg, ctm_alg, vumps_alg])
+    obs_function = O -> ClusterExpansions.calculate_observables(O, χenv, observables_SU)
     
     tol = 0.0
     maxiter = floor(time_alg.Δt / time_alg.dt)
     βs = [time_alg.dt*maxiter*i for i = 1:time_alg.maxiter]
     convert_to_pepo = A -> convert_to_pepo_fuser(A, F)
-    alg = SimpleUpdate(time_alg.dt, tol, maxiter, trunc_alg)
+    alg = SimpleUpdate(time_alg.dt / 2, tol, maxiter, trunc_alg) # divide by two because we are using the purification here
 
     expvals = []
     As = []
@@ -211,7 +227,7 @@ function data_generation_ising_SU(time_alg, trunc_alg, χenv; g = 0.0, name = "i
 
         peps = InfinitePEPS(wpeps)
         A = InfinitePEPO(reshape(convert_to_pepo.(PEPSKit.unitcell(peps)), Nr, Nc, 1))
-        push!(expvals, obs_function(A))
+        push!(expvals, obs_function(peps))
         push!(As, copy(A))
     end
 

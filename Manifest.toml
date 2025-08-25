@@ -2,7 +2,7 @@
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "04bf8b843857bbc803bd5398bcb6e601edaeea47"
+project_hash = "c2927bab1d4b5bc2241ba53f42096afdc11b165f"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -97,6 +97,12 @@ version = "1.1.1"
     Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
     OpenCL = "08131aa3-fb12-5dee-8b74-c09406e224a2"
     oneAPI = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
+
+[[deps.BLISBLAS]]
+deps = ["LinearAlgebra", "blis_jll"]
+git-tree-sha1 = "8270c970cf00e1f7172c49ab1ee50aa840f94079"
+uuid = "6f275bd8-fec0-4d39-945b-7e95a765fa1e"
+version = "0.1.1"
 
 [[deps.BangBang]]
 deps = ["Accessors", "ConstructionBase", "InitialValues", "LinearAlgebra"]
@@ -1032,9 +1038,9 @@ uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 version = "0.5.6+0"
 
 [[deps.OptimKit]]
-deps = ["LinearAlgebra", "Printf", "ScopedValues", "VectorInterface"]
-git-tree-sha1 = "d4fc0591f6a2a66bdf03837ed8a6a351abc284f3"
-repo-rev = "master"
+deps = ["LinearAlgebra", "NaNMath", "Printf", "ScopedValues", "VectorInterface"]
+git-tree-sha1 = "af15f7c1a12aff212dec51a40c572a9a4a777215"
+repo-rev = "normgradhistory"
 repo-url = "https://github.com/sanderdemeyer/OptimKit.jl.git"
 uuid = "77e91f04-9b3b-57a6-a776-40b61faaebe0"
 version = "0.4.0"
@@ -1883,6 +1889,12 @@ deps = ["ChainRulesCore", "MacroTools"]
 git-tree-sha1 = "434b3de333c75fc446aa0d19fc394edafd07ab08"
 uuid = "700de1a5-db45-46bc-99cf-38207098b444"
 version = "0.2.7"
+
+[[deps.blis_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl"]
+git-tree-sha1 = "a5a6fad06bb0c17332cf4fa406eed0c822bda2e0"
+uuid = "6136c539-28a5-5bf0-87cc-b183200dce32"
+version = "1.0.0+0"
 
 [[deps.eudev_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "gperf_jll"]

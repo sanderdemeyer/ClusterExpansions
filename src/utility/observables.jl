@@ -71,14 +71,16 @@ function MPSKit.expectation_value(::InfinitePEPO, symb::Symbol, (mps,env)::Tuple
     end
 end
 
-function MPSKit.expectation_value(ψ::InfinitePEPS, symb::Symbol, env::CTMRGEnv)
+function MPSKit.expectation_value(::InfinitePEPS, symb::Symbol, (mps,env)::Tuple)
     if symb == :spectrum
-        ξ_h, ξ_v, λ_h, λ_v = correlation_length(ψ, env; num_vals = 3)
-        return ξ_h, log(abs(λ_h[2])/log(λ_h[3]))
+        ϵ, δ, = marek_gap(mps; num_vals = 20)
+        return 1 / ϵ, δ
     else
         @warn "Observable $(symb) not defined. This will be set to zero"
         return 0
     end
+    # ξ_h, ξ_v, λ_h, λ_v = correlation_length(ψ, env; num_vals = 3)
+    # return ξ_h, log(abs(λ_h[2])/log(λ_h[3]))
 end
 
 function _env_algs(observables::Vector{PEPOObservable})
@@ -123,6 +125,61 @@ function calculate_observables(O::AbstractTensorMap{E,S,2,4}, χ::Int, observabl
     return [env_type == :VUMPS ? expectation_value(obs.func(ρ), obs.obs, vumps_env) : (env_type == :CTMRG ? expectation_value(obs.func(ρ), obs.obs, ctmrg_env) : obs.obs(obs.func(ρ))) for (obs,env_type) = zip(observables, env_algs)]
 end
 
+function observable_purification(O::AbstractTensorMap{T,S,2,2}; Nr = 1, Nc = 1) where {T,S}
+    pspace = domain(O)[1]
+    pspaces = fill(fuse(pspace,pspace'), Nr, Nc)
+    lattice = InfiniteSquare(Nr, Nc)
+    F = isometry(fuse(pspace,pspace'), pspace ⊗ pspace')
+    @tensor Onew[-1 -2; -3 -4] := O[1 4; 2 5] * F[-1; 1 3] * conj(F[-3; 2 3]) * F[-2; 4 6] * conj(F[-4; 5 6])
+    H = PEPSKit.LocalOperator(pspaces, (neighbor => Onew for neighbor in PEPSKit.nearest_neighbours(lattice))...,)
+    return H
+end
+
+function observable_purification(O::AbstractTensorMap{T,S,1,1}; Nr = 1, Nc = 1) where {T,S}
+    pspace = domain(O)[1]
+    pspaces = fill(fuse(pspace,pspace'), Nr, Nc)
+    lattice = InfiniteSquare(Nr, Nc)
+    F = isometry(fuse(pspace,pspace'), pspace ⊗ pspace')
+    @tensor Onew[-1; -2] := O[1; 2] * F[-1; 1 3] * conj(F[-2; 2 3])
+    H = PEPSKit.LocalOperator(pspaces, ((idx,) => Onew for idx in vertices(lattice))...,)
+    return H
+end
+
+function observable_purification(O::Symbol; Nr = 1, Nc = 1)
+    return O
+end
+
+function calculate_observables_purification(O::AbstractTensorMap{E,S,2,4}, χ::Int, observables_base) where {E,S}
+    observables = observable_purification.(observables_base)
+    envspace = _envspace(codomain(O)[1])(χ)
+    env_algs = _env_algs(observables)
+    pspace = codomain(O)[1]
+
+    vumps_alg = get_env_alg(observables, VUMPS)
+    ctm_alg = get_env_alg(observables, PEPSKit.CTMRGAlgorithm)
+
+    F = isometry(fuse(pspace,pspace), pspace ⊗ pspace')
+    @tensor A[-1; -2 -3 -4 -5] := twist(O,2)[1 2; -2 -3 -4 -5] * F[-1; 1 2]
+    peps = InfinitePEPS(A)
+    if :VUMPS ∈ env_algs
+        T = InfiniteMPO([pf[1,1]])
+        pspace = domain(pf[1,1])[2]
+    
+        mps = InfiniteMPS([
+            randn(
+                ComplexF64,
+                envspace * pspace,
+                envspace,
+            )])
+        mps, env, _ = leading_boundary(mps, T, vumps_alg)
+        vumps_env = (mps, env)
+    end
+    if :CTMRG ∈ env_algs
+        ctmrg_env, = leading_boundary(CTMRGEnv(peps, envspace), peps, ctm_alg)
+    end
+    return [env_type == :VUMPS ? expectation_value(obs.func(peps), obs.obs, vumps_env) : (env_type == :CTMRG ? expectation_value(obs.func(peps), obs.obs, ctmrg_env) : obs.obs(obs.func(peps))) for (obs,env_type) = zip(observables, env_algs)]
+end
+
 # Utility functions for Simple Update
 
 function observable_SU(pspace, obs::AbstractTensorMap{T,S,1,1}; Nr = 1, Nc = 1) where {T,S}
@@ -155,11 +212,29 @@ function calculate_observables(ψ::InfinitePEPS, χ::Int, observables)
     envspace = _envspace(codomain(ψ[1,1])[1])(χ)
     env_algs = _env_algs(observables)
 
-    # vumps_alg = get_env_alg(observables, VUMPS)
+    vumps_alg = get_env_alg(observables, VUMPS)
     ctm_alg = get_env_alg(observables, PEPSKit.CTMRGAlgorithm)
 
     if :VUMPS ∈ env_algs
-        @error "TBA"
+        T = PEPSKit.InfiniteTransferPEPS(ψ, 1, 1)
+        mps = initialize_mps(T, [envspace])
+    
+        mps, env, ϵ = leading_boundary(mps, T, vumps_alg)
+    
+        # pf = InfiniteSquareNetwork(ψ)
+        # T = InfiniteMPO([pf[1,1]])
+        # pspace = domain(ψ[1,1])[1]
+    
+        # mps = InfiniteMPS([
+        #     randn(
+        #         ComplexF64,
+        #         envspace * pspace,
+        #         envspace,
+        #     )])
+        # mps, env, _ = leading_boundary(mps, T, vumps_alg)
+        # println(typeof(mps))
+        # println(typeof(env))
+        vumps_env = (mps, env)
     end
     if :CTMRG ∈ env_algs
         ctmrg_env, = leading_boundary(CTMRGEnv(ψ, envspace), ψ, ctm_alg)

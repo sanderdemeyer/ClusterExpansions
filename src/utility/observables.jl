@@ -63,9 +63,9 @@ end
 
 function MPSKit.expectation_value(::InfinitePEPO, symb::Symbol, (mps,env)::Tuple)
     if symb == :spectrum
-        ϵ, δ, = marek_gap(mps; num_vals = 20)
-        return 1 / ϵ, δ
-    else
+        ϵ, δ, θ = marek_gap(mps; num_vals = 20)
+        return 1 / ϵ, δ, θ
+    else        
         @warn "Observable $(symb) not defined. This will be set to zero"
         return 0
     end
@@ -73,8 +73,8 @@ end
 
 function MPSKit.expectation_value(::InfinitePEPS, symb::Symbol, (mps,env)::Tuple)
     if symb == :spectrum
-        ϵ, δ, = marek_gap(mps; num_vals = 20)
-        return 1 / ϵ, δ
+        ϵ, δ, θ = marek_gap(mps; num_vals = 20)
+        return 1 / ϵ, δ, θ
     else
         @warn "Observable $(symb) not defined. This will be set to zero"
         return 0

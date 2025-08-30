@@ -14,14 +14,6 @@ function get_graph(cluster)
     return graph
 end
 
-function symmetrize_cluster(x1, x2)
-    @error "Not yet implemented"
-    apply_A = (x, val) -> apply_A_N_2(x2, x, val)
-    x, info = lssolve(apply_A, x1, LSMR(verbosity = 1, maxiter = 1000))
-
-    return [x1 x2]
-end
-
 function apply_A_N_2(A, x, ::Val{false})
     @tensor Ax[-1 -2 -3 -4 -5; -6] := A[1; -1 -2 -4 -5 -3] * x[-6; 1]
     return Ax
@@ -131,19 +123,14 @@ function apply_A_onesite(A, Ax::TensorMap, sites_to_update, N, ::Val{true})
     return x
 end
 
-function apply_A_twosite(A, x::TensorMap, sites_to_update, N, dir, ::Val{false})
-    (i,j) = sites_to_update
-    included_sites = setdiff(1:N, sites_to_update)
-    contraction_indices = vcat(-included_sites, -included_sites .- N, [1, 2, 3, 4, 5, 6])
-
+function apply_A_twosite(A, x::TensorMap, N, dir, ::Val{false})
     Ax = ncon([A, x], [hcat(transpose(-1:-1:-2*N+4), [1 2 3 4 5 6]), [1 2 3 4 5 6 -2*N+3 -2*N+2 -2*N+1 -2*N]])
     len = length(domain(Ax)) + length(codomain(Ax))
     Ax = permute(Ax, (Tuple(1:len-4), Tuple(len-3:len)))
     return Ax
 end
 
-function apply_A_twosite(A, Ax::TensorMap, sites_to_update, N, dir, ::Val{true})
-    # y, back = Zygote.pullback(apply_A_twosite)
+function apply_A_twosite(A, Ax::TensorMap, N, dir, ::Val{true})
     
     Ax′ = twist(Ax, N-1:2*N-4)
 
@@ -171,7 +158,9 @@ function eig_with_truncation(x, space)
     T = scalartype(x)
     D = dim(space)
     eigval, eigvec = eig(x)
-
+    if space == domain(eigval)[1]
+        return eigval, eigvec
+    end
     eigval_trunc = zeros(T, space, space)
     eigvec_trunc = zeros(T, codomain(x), space)
     eigval_trunc[] = eigval[][1:D,1:D]
@@ -179,7 +168,7 @@ function eig_with_truncation(x, space)
     return eigval_trunc, eigvec_trunc
 end
 
-function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N, spaces; verbosity = 2)
+function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N, spaces; verbosity = 2, svd = true)
     # pspace = codomain(exp_H)[1]
     trivspace = spaces(0)
     if N == 2
@@ -200,7 +189,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
     elseif length(sites_to_update) == 2
         A = permute(A, (Tuple(1:2*N-4),Tuple(2*N-3:2*N+2)))
 
-        apply_A = (x, val) -> apply_A_twosite(A, x, sites_to_update, N, dir, val)
+        apply_A = (x, val) -> apply_A_twosite(A, x, N, dir, val)
 
         included_sites = setdiff(1:N, sites_to_update)
         exp_H_flipped = permute(exp_H, ((included_sites..., (included_sites .+ N)...), (sites_to_update..., (sites_to_update .+ N)...)))
@@ -248,13 +237,10 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         return nothing
     end
     if length(sites_to_update) == 2
-        svd = true
         if svd
-            U, Σ, V = tsvd(x)
             U, Σ, V = tsvd(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
             x1 = U * sqrt(Σ)
             x2 = sqrt(Σ) * V
-            # @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
             if norm(x - x1 * x2)/norm(x) > eps(real(T))*1e2 && verbosity > 0
                 @warn "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
             end

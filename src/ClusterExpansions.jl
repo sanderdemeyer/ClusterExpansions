@@ -17,6 +17,7 @@ include("utility/observables.jl")
 include("time_evolution/utility.jl")
 include("time_evolution/global_truncation.jl")
 include("time_evolution/local_truncation.jl")
+include("time_evolution/vomps_utility.jl")
 include("time_evolution/vomps.jl")
 
 include("models/models.jl")

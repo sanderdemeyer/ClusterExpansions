@@ -7,6 +7,7 @@ struct VOPEPO_CTMRG <: VOPEPO
     ftol::Number
     gradnormtol::Number
     maxiter::Union{Int,Function}
+    c₁::Number
     verbosity::Int
 end
 
@@ -17,27 +18,28 @@ struct VOPEPO_VUMPS <: VOPEPO
     ftol::Number
     gradnormtol::Number
     maxiter::Union{Int,Function}
+    c₁::Number
     verbosity::Int
 end
 
 function VOPEPO_CTMRG(ctm_alg, envspace::ElementarySpace, truncspace::ElementarySpace, ftol::Number, gradnormtol::Number, maxiter::T;
-    verbosity::Int = 0) where {T <: Function}
-    return VOPEPO_CTMRG(ctm_alg, envspace, truncspace, ftol, gradnormtol, maxiter, verbosity)
+    c₁::Number = 1e-5, verbosity::Int = 0) where {T <: Function}
+    return VOPEPO_CTMRG(ctm_alg, envspace, truncspace, ftol, gradnormtol, maxiter, c₁, verbosity)
 end
 
 function VOPEPO_CTMRG(ctm_alg, envspace::ElementarySpace, truncspace::ElementarySpace, ftol::Number, gradnormtol::Number, maxiter::Int = 2;
-    verbosity::Int = 0)
-    return VOPEPO_CTMRG(ctm_alg, envspace, truncspace, ftol, gradnormtol, i -> maxiter, verbosity)
+    c₁::Number = 1e-5, verbosity::Int = 0)
+    return VOPEPO_CTMRG(ctm_alg, envspace, truncspace, ftol, gradnormtol, i -> maxiter, c₁, verbosity)
 end
 
 function VOPEPO_VUMPS(ctm_alg, envspace::ElementarySpace, truncspace::ElementarySpace, ftol::Number, gradnormtol::Number, maxiter::T;
-    verbosity::Int = 0) where {T <: Function}
-    return VOPEPO_VUMPS(ctm_alg, envspace, truncspace, ftol, gradnormtol, maxiter, verbosity)
+    c₁::Number = 1e-5, verbosity::Int = 0) where {T <: Function}
+    return VOPEPO_VUMPS(ctm_alg, envspace, truncspace, ftol, gradnormtol, maxiter, c₁, verbosity)
 end
 
 function VOPEPO_VUMPS(ctm_alg, envspace::ElementarySpace, truncspace::ElementarySpace, ftol::Number, gradnormtol::Number, maxiter::Int = 2;
-    verbosity::Int = 0)
-    return VOPEPO_VUMPS(ctm_alg, envspace, truncspace, ftol, gradnormtol, i -> maxiter, verbosity)
+    c₁::Number = 1e-5, verbosity::Int = 0)
+    return VOPEPO_VUMPS(ctm_alg, envspace, truncspace, ftol, gradnormtol, i -> maxiter, c₁, verbosity)
 end
 
 function _stack_pepos(pepos)
@@ -153,9 +155,11 @@ end
 
 function initialize_vomps_environments(A₁::T, A₂::T, B::T, trunc_alg) where {T<:AbstractTensorMap}
     network = InfiniteSquareNetwork(_stack_pepos((B, PEPSKit._dag(B))))
-    env_double, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
+    # env_double, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
+    env_double = CTMRGEnv(network, trunc_alg.envspace)
     network = InfiniteSquareNetwork(_stack_pepos((A₁, A₂, PEPSKit._dag(B))))
-    env_triple, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
+    # env_triple, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
+    env_triple = CTMRGEnv(network, trunc_alg.envspace)
     return env_double, env_triple
 end
 
@@ -271,33 +275,173 @@ function vopepo_costfun_base((pepo, env_double_layer, env_triple_layer), A₁, A
             PEPSKit.update!(env_triple_layer, env_triple_layer′)
         end
 
-        LHS = PEPSKit.@autoopt @tensor B[Dp1 Dp2; DN1 DE1 DS1 DW1] * conj(B[Dp1 Dp2; DN2 DE2 DS2 DW2]) * 
+        PEPSKit.@autoopt @tensor LHS[Dpbot; Dptop] := B[Dp Dptop; DN1 DE1 DS1 DW1] * conj(B[Dp Dpbot; DN2 DE2 DS2 DW2]) * 
         env_double_layer.corners[1,1,1][χ8; χ1] * env_double_layer.edges[1,1,1][χ1 DN1 DN2; χ2] * 
         env_double_layer.corners[2,1,1][χ2; χ3] * env_double_layer.edges[2,1,1][χ3 DE1 DE2; χ4] * 
         env_double_layer.corners[3,1,1][χ4; χ5] * env_double_layer.edges[3,1,1][χ5 DS1 DS2; χ6] * 
         env_double_layer.corners[4,1,1][χ6; χ7] * env_double_layer.edges[4,1,1][χ7 DW1 DW2; χ8]
     
-        RHS = PEPSKit.@autoopt @tensor conj(B[Dp1 Dp3; DN3 DE3 DS3 DW3]) * 
-        A₁[Dp2 Dp3; DN1 DE1 DS1 DW1] * A₂[Dp1 Dp2; DN2 DE2 DS2 DW2] * 
+        PEPSKit.@autoopt @tensor RHS[Dpbot; Dptop] := conj(B[Dp1 Dpbot; DN3 DE3 DS3 DW3]) * 
+        A₁[Dp2 Dptop; DN1 DE1 DS1 DW1] * A₂[Dp1 Dp2; DN2 DE2 DS2 DW2] * 
         env_triple_layer.corners[1,1,1][χ8; χ1] * env_triple_layer.edges[1,1,1][χ1 DN1 DN2 DN3; χ2] * 
         env_triple_layer.corners[2,1,1][χ2; χ3] * env_triple_layer.edges[2,1,1][χ3 DE1 DE2 DE3; χ4] * 
         env_triple_layer.corners[3,1,1][χ4; χ5] * env_triple_layer.edges[3,1,1][χ5 DS1 DS2 DS3; χ6] * 
         env_triple_layer.corners[4,1,1][χ6; χ7] * env_triple_layer.edges[4,1,1][χ7 DW1 DW2 DW3; χ8]
-
-        return norm(LHS - RHS)
+        return norm(LHS - RHS - RHS')
     end
     g = only(gs)
     return E, g
 end
 
-function pepo_retract((peps, env_double_layer, env_triple_layer), η, α)
+function vopepo_costfun_traced_base((pepo, env_double_layer, env_triple_layer), A₁, A₂, boundary_alg)
+    rrule_alg = EigSolver(;
+    solver_alg=KrylovKit.Arnoldi(; maxiter=30, tol=1e-6, eager=true), iterscheme=:diffgauge
+    )
+    ## use Zygote to compute the gradient automatically
+    E, gs = withgradient(pepo) do B
+
+        ## construct the double and triple layer networks
+        n_double_layer = InfiniteSquareNetwork(_stack_pepos((B, PEPSKit._dag(B))))
+        n_triple_layer = InfiniteSquareNetwork(_stack_pepos((A₁, A₂, PEPSKit._dag(B))))
+
+        ## contract this network
+        env_double_layer′, info = PEPSKit.hook_pullback(
+            leading_boundary,
+            env_double_layer,
+            n_double_layer,
+            boundary_alg;
+            alg_rrule=rrule_alg,
+        )
+        ## contract this network
+        env_triple_layer′, info = PEPSKit.hook_pullback(
+            leading_boundary,
+            env_triple_layer,
+            n_triple_layer,
+            boundary_alg;
+            alg_rrule=rrule_alg,
+        )
+        ## update the environments for reuse
+        PEPSKit.ignore_derivatives() do
+            PEPSKit.update!(env_double_layer, env_double_layer′)
+            PEPSKit.update!(env_triple_layer, env_triple_layer′)
+        end
+
+        # LHS = PEPSKit.@autoopt @tensor twist(B, 2)[Dp1 Dp2; DN1 DE1 DS1 DW1] * conj(B[Dp1 Dp2; DN2 DE2 DS2 DW2]) * 
+        # env_double_layer.corners[1,1,1][χ8; χ1] * env_double_layer.edges[1,1,1][χ1 DN1 DN2; χ2] * 
+        # env_double_layer.corners[2,1,1][χ2; χ3] * env_double_layer.edges[2,1,1][χ3 DE1 DE2; χ4] * 
+        # env_double_layer.corners[3,1,1][χ4; χ5] * env_double_layer.edges[3,1,1][χ5 DS1 DS2; χ6] * 
+        # env_double_layer.corners[4,1,1][χ6; χ7] * env_double_layer.edges[4,1,1][χ7 DW1 DW2; χ8]
+    
+        # RHS = PEPSKit.@autoopt @tensor conj(B[Dp1 Dp3; DN3 DE3 DS3 DW3]) * 
+        # twist(A₁, 2)[Dp2 Dp3; DN1 DE1 DS1 DW1] * A₂[Dp1 Dp2; DN2 DE2 DS2 DW2] * 
+        # env_triple_layer.corners[1,1,1][χ8; χ1] * env_triple_layer.edges[1,1,1][χ1 DN1 DN2 DN3; χ2] * 
+        # env_triple_layer.corners[2,1,1][χ2; χ3] * env_triple_layer.edges[2,1,1][χ3 DE1 DE2 DE3; χ4] * 
+        # env_triple_layer.corners[3,1,1][χ4; χ5] * env_triple_layer.edges[3,1,1][χ5 DS1 DS2 DS3; χ6] * 
+        # env_triple_layer.corners[4,1,1][χ6; χ7] * env_triple_layer.edges[4,1,1][χ7 DW1 DW2 DW3; χ8]
+
+        LHS = network_value(n_double_layer, env_double_layer)
+        RHS = network_value(n_triple_layer, env_triple_layer)
+        # LHS = PEPSKit.@autoopt @tensor twist(B, 2)[Dp1 Dp2; DN1 DE1 DS1 DW1] * PEPSKit._dag(B)[Dp2 Dp1; DN2 DE2 DS2 DW2] * 
+        # env_double_layer.corners[1,1,1][χ8; χ1] * env_double_layer.edges[1,1,1][χ1 DN1 DN2; χ2] * 
+        # env_double_layer.corners[2,1,1][χ2; χ3] * env_double_layer.edges[2,1,1][χ3 DE1 DE2; χ4] * 
+        # env_double_layer.corners[3,1,1][χ4; χ5] * env_double_layer.edges[3,1,1][χ5 DS1 DS2; χ6] * 
+        # env_double_layer.corners[4,1,1][χ6; χ7] * env_double_layer.edges[4,1,1][χ7 DW1 DW2; χ8]
+    
+        # RHS = PEPSKit.@autoopt @tensor PEPSKit._dag(B)[Dp3 Dp1; DN3 DE3 DS3 DW3] * 
+        # twist(A₁, 2)[Dp2 Dp3; DN1 DE1 DS1 DW1] * A₂[Dp1 Dp2; DN2 DE2 DS2 DW2] * 
+        # env_triple_layer.corners[1,1,1][χ8; χ1] * env_triple_layer.edges[1,1,1][χ1 DN1 DN2 DN3; χ2] * 
+        # env_triple_layer.corners[2,1,1][χ2; χ3] * env_triple_layer.edges[2,1,1][χ3 DE1 DE2 DE3; χ4] * 
+        # env_triple_layer.corners[3,1,1][χ4; χ5] * env_triple_layer.edges[3,1,1][χ5 DS1 DS2 DS3; χ6] * 
+        # env_triple_layer.corners[4,1,1][χ6; χ7] * env_triple_layer.edges[4,1,1][χ7 DW1 DW2 DW3; χ8]
+
+        # println("norm of B = $(norm(B)), LHS = $LHS, RHS = $RHS")
+        return - real(RHS / sqrt(LHS))
+        return real(LHS - RHS - RHS')
+        return norm(LHS - RHS)# - RHS')
+    end
+    g = only(gs)
+    return E, g
+end
+
+function vomps_monolayer_base((pepo, env_LHS), RHS, obs_function, boundary_alg)
+    rrule_alg = EigSolver(;
+    solver_alg=KrylovKit.Arnoldi(; maxiter=30, tol=1e-6, eager=true), iterscheme=:diffgauge
+    )
+    ## use Zygote to compute the gradient automatically
+    E, gs = withgradient(pepo) do B
+        ## construct the monolayer networks
+        network_LHS = InfiniteSquareNetwork(InfinitePEPO(B))
+
+        ## contract this network
+        env_LHS′, info = PEPSKit.hook_pullback(
+            leading_boundary,
+            env_LHS,
+            network_LHS,
+            boundary_alg;
+            alg_rrule=rrule_alg,
+        )
+        ## update the environments for reuse
+        PEPSKit.ignore_derivatives() do
+            PEPSKit.update!(env_LHS, env_LHS′)
+        end
+    
+        # PEPSKit.@autoopt @tensor LHS[Dp1; Dp2] := B[Dp1 Dp2; DN DE DS DW] * 
+        # env_LHS.corners[1,1,1][χ8; χ1] * env_LHS.edges[1,1,1][χ1 DN; χ2] * 
+        # env_LHS.corners[2,1,1][χ2; χ3] * env_LHS.edges[2,1,1][χ3 DE; χ4] * 
+        # env_LHS.corners[3,1,1][χ4; χ5] * env_LHS.edges[3,1,1][χ5 DS; χ6] * 
+        # env_LHS.corners[4,1,1][χ6; χ7] * env_LHS.edges[4,1,1][χ7 DW; χ8]
+    
+        # PEPSKit.@autoopt @tensor LHS[DpL1 DpR1; DpL2 DpR2] := env_LHS.corners[1,1,1][χ10; χ1] * env_LHS.edges[1,1,1][χ1 DNL1; χ2] *
+        # env_LHS.edges[1,1,1][χ2 DNR1; χ3] * env_LHS.corners[2,1,1][χ3; χ4] * 
+        # env_LHS.edges[2,1,1][χ4 DE1; χ5] * env_LHS.corners[3,1,1][χ5; χ6] * 
+        # env_LHS.edges[3,1,1][χ6 DSR1; χ7] * env_LHS.edges[3,1,1][χ7 DSL1; χ8] * 
+        # env_LHS.corners[4,1,1][χ8; χ9] * env_LHS.edges[4,1,1][χ9 DW1; χ10] * 
+        # B[DpL1 DpL2; DNL1 DC1 DSL1 DW1] * B[DpR1 DpR2; DNR1 DE1 DSR1 DC1]
+    
+        # (r, c) = (1, 1)
+        # LHS = LHS * PEPSKit._contract_corners((r, c), env_LHS) /
+        # PEPSKit._contract_vertical_edges((r, c), env_LHS) / PEPSKit._contract_horizontal_edges((r, c), env_LHS)
+        # println("Norm of B is $(norm(B)), of RHS = $(norm(RHS)), LHS: $(norm(LHS))")
+        
+        LHS = obs_function(B)
+        # LHS = network_value_single(B, env_LHS)
+        # testing_num = PEPSKit.@autoopt @tensor twist(LHS, (3,4))[DpL1 DpR1; DpL2 DpR2] * M[DpL2 DpR2; DpL1 DpR1]
+        # testing_denom = PEPSKit.@autoopt @tensor twist(LHS, (3,4))[DpL1 DpR1; DpL1 DpR1]
+        # LHS_hop_operator = testing_num / testing_denom
+    
+        # return abs(LHS_hop_operator - RHS_hop_operator)
+        return norm(RHS - LHS) / norm(RHS)
+    end
+    g = only(gs)
+    return E, g
+end
+
+function pepo_retract((peps, env_monolayer), η, α)
+    peps´, ξ = PEPSKit.norm_preserving_retract(peps, η, α)
+
+    env_monolayer′ = deepcopy(env_monolayer)
+    return (peps´, env_monolayer′), ξ
+end
+function pepo_transport!(
+    ξ,
+    (peps, env_monolayer),
+    η,
+    α,
+    (peps´, env_monolayer′),
+)
+    return PEPSKit.norm_preserving_transport!(
+        ξ, peps, η, α, peps´
+    )
+end;
+
+function pepo_retract_triple((peps, env_double_layer, env_triple_layer), η, α)
     peps´, ξ = PEPSKit.norm_preserving_retract(peps, η, α)
 
     env_double_layer´ = deepcopy(env_double_layer)
     env_triple_layer´ = deepcopy(env_triple_layer)
     return (peps´, env_double_layer´, env_triple_layer´), ξ
 end
-function pepo_transport!(
+function pepo_transport_triple!(
     ξ,
     (peps, env_double_layer, env_triple_layer),
     η,
@@ -315,9 +459,13 @@ function approximate_state(
     env_double::CTMRGEnv,
     env_triple::CTMRGEnv,
     trunc_alg::T;
-    iter = 1
+    iter = 1,
+    B::Union{AbstractTensorMap{E,S,2,4},Nothing} = nothing,
 ) where {E,S,T<:VOPEPO}
-    B, _ = approximate_state(A, NoEnvTruncation(truncdim(dim(trunc_alg.truncspace))))
+    if isnothing(B)
+        B, _ = approximate_state(A, NoEnvTruncation(truncdim(dim(trunc_alg.truncspace))))
+        # B, _ = approximate_state(A, ApproximateEnvTruncation(trunc_alg.ctm_alg, trunc_alg.envspace, truncdim(dim(trunc_alg.truncspace)); maxiter = 4))
+    end
     if domain(B)[1] != codomain(env_double.edges[1,1,1])[2]
         if trunc_alg.verbosity > 0
             @warn "Other spaces, initializing with random environment"
@@ -325,17 +473,96 @@ function approximate_state(
         env_double, env_triple = initialize_vomps_environments(A[1], A[2], B, trunc_alg)
     end
 
-    optimizer_alg = LBFGS(4; maxiter=trunc_alg.maxiter(iter), gradtol=1e-5, verbosity=3)
-    vopepo_costfun = tup -> vopepo_costfun_base(tup, A[1], A[2], trunc_alg.ctm_alg)
+    # ls_alg = BackTrackingLineSearch(; c₁=trunc_alg.c₁, maxiter=5, maxfg=5);
+    ls_alg = HagerZhangLineSearch(; c₁ = trunc_alg.c₁, maxiter = 5, maxfg = 10)
+    optimizer_alg = LBFGS(4; maxiter=trunc_alg.maxiter(iter), gradtol=1e-5, verbosity=3, linesearch = ls_alg)#, scalestep = false)
+    vopepo_costfun = tup -> vopepo_costfun_traced_base(tup, A[1], A[2], trunc_alg.ctm_alg)
 
     (B_final, env_double_final, env_triple_final), f, = optimize(
     vopepo_costfun,
     (B, env_double, env_triple),
     optimizer_alg;
     inner=PEPSKit.real_inner,
-    retract=pepo_retract,
-    (transport!)=(pepo_transport!),
-    hasconverged = (x, f, g, gradnormhistory) -> (f < trunc_alg.ftol) || (length(gradnormhistory) > 1 && abs(gradnormhistory[end] - gradnormhistory[end-1]) < trunc_alg.gradnormtol)
+    retract=pepo_retract_triple,
+    (transport!)=(pepo_transport_triple!),
+    hasconverged = (x, fhistory, g, gradnormhistory) -> (length(fhistory) > 1 && abs(fhistory[end] - fhistory[end-1]) < trunc_alg.ftol) || (length(gradnormhistory) > 1 && abs(gradnormhistory[end] - gradnormhistory[end-1]) < trunc_alg.gradnormtol)
     );
     return B_final, env_double_final, env_triple_final, f
 end
+
+# AD version with observables
+function approximate_state_new(
+    A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}},
+    env_double::CTMRGEnv,
+    env_triple::CTMRGEnv,
+    trunc_alg::T;
+    iter = 1,
+    B::Union{AbstractTensorMap{E,S,2,4},Nothing} = nothing,
+) where {E,S,T<:VOPEPO}
+    if isnothing(B)
+        B, _ = approximate_state(A, NoEnvTruncation(truncdim(dim(trunc_alg.truncspace))))
+        # B, _ = approximate_state(A, ApproximateEnvTruncation(trunc_alg.ctm_alg, trunc_alg.envspace, truncdim(dim(trunc_alg.truncspace)); maxiter = 4))
+    end
+    if domain(B)[1] != codomain(env_double.edges[1,1,1])[2]
+        if trunc_alg.verbosity > 0
+            @warn "Other spaces, initializing with random environment"
+        end
+        env_double, env_triple = initialize_vomps_environments(A[1], A[2], B, trunc_alg)
+    end
+    network_RHS = InfiniteSquareNetwork(_stack_pepos((A[1], A[2])))
+    env_RHS, = leading_boundary(CTMRGEnv(network_RHS, trunc_alg.envspace), network_RHS, trunc_alg.ctm_alg)
+
+    network_LHS = InfiniteSquareNetwork(InfinitePEPO(B))
+    env_LHS, = leading_boundary(CTMRGEnv(network_LHS, trunc_alg.envspace), network_LHS, trunc_alg.ctm_alg)
+
+    # PEPSKit.@autoopt @tensor RHS[Dp1; Dp2] := A[1][Dp Dp2; DN1 DE1 DS1 DW1] * A[2][Dp1 Dp; DN2 DE2 DS2 DW2] * 
+    # env_RHS.corners[1,1,1][χ8; χ1] * env_RHS.edges[1,1,1][χ1 DN1 DN2; χ2] * 
+    # env_RHS.corners[2,1,1][χ2; χ3] * env_RHS.edges[2,1,1][χ3 DE1 DE2; χ4] * 
+    # env_RHS.corners[3,1,1][χ4; χ5] * env_RHS.edges[3,1,1][χ5 DS1 DS2; χ6] * 
+    # env_RHS.corners[4,1,1][χ6; χ7] * env_RHS.edges[4,1,1][χ7 DW1 DW2; χ8]
+
+    # PEPSKit.@autoopt @tensor RHS[DpL1 DpR1; DpL2 DpR2] := env_RHS.corners[1,1,1][χ10; χ1] * env_RHS.edges[1,1,1][χ1 DNL1 DNL2; χ2] *
+    # env_RHS.edges[1,1,1][χ2 DNR1 DNR2; χ3] * env_RHS.corners[2,1,1][χ3; χ4] * 
+    # env_RHS.edges[2,1,1][χ4 DE1 DE2; χ5] * env_RHS.corners[3,1,1][χ5; χ6] * 
+    # env_RHS.edges[3,1,1][χ6 DSR1 DSR2; χ7] * env_RHS.edges[3,1,1][χ7 DSL1 DSL2; χ8] * 
+    # env_RHS.corners[4,1,1][χ8; χ9] * env_RHS.edges[4,1,1][χ9 DW1 DW2; χ10] * 
+    # A[1][DpL DpL2; DNL1 DC1 DSL1 DW1] * A[2][DpL1 DpL; DNL2 DC2 DSL2 DW2] * 
+    # A[1][DpR DpR2; DNR1 DE1 DSR1 DC1] * A[2][DpR1 DpR; DNR2 DE2 DSR2 DC2]
+
+    # (r, c) = (1, 1)
+    # RHS = RHS * PEPSKit._contract_corners((r, c), env_RHS) /
+    # PEPSKit._contract_vertical_edges((r, c), env_RHS) / PEPSKit._contract_horizontal_edges((r, c), env_RHS)
+
+    # LHS_traced = @tensor twist(LHS, 1)[1; 1]
+    # println("LHS is either $(LHS_traced) or $(network_value(network_LHS, env_LHS))")
+    # println(done)
+    # println("A1 = $(summary(A[1])), A2 = $(summary(A[2])), B = $(summary(B))")
+    # RHS = network_value_double(A, env_RHS)
+
+    # M = FermionOperators.f_hop()
+    # testing_num = PEPSKit.@autoopt @tensor twist(RHS, (3,4))[DpL1 DpR1; DpL2 DpR2] * M[DpL2 DpR2; DpL1 DpR1]
+    # testing_denom = PEPSKit.@autoopt @tensor twist(RHS, (3,4))[DpL1 DpR1; DpL1 DpR1]
+    # RHS_hop_operator = testing_num / testing_denom
+    # println("Testing exact: $(testing_num) / $(testing_denom), $(testing_num/testing_denom)")
+
+    observables = PEPO_observables([FermionOperators.f_hop()], [trunc_alg.ctm_alg])
+    obs_function = O -> calculate_observables(O, dim(trunc_alg.envspace), observables)
+    RHS = obs_function(apply_PEPO_exact(A[1], A[2]))
+
+    # ls_alg = BackTrackingLineSearch(; c₁=trunc_alg.c₁, maxiter=50, maxfg=50);
+    ls_alg = HagerZhangLineSearch(; c₁ = trunc_alg.c₁, maxiter = 50, maxfg = 50)
+    optimizer_alg = LBFGS(64; maxiter=trunc_alg.maxiter(iter), gradtol=1e-5, verbosity=2, linesearch = ls_alg)#, scalestep = false)
+    vomps_monolayer = tup -> vomps_monolayer_base(tup, RHS, obs_function, trunc_alg.ctm_alg)
+    (B_final, env_LHS_final), f, = optimize(
+    vomps_monolayer,
+    (B, env_LHS),
+    optimizer_alg;
+    inner=PEPSKit.real_inner,
+    retract=pepo_retract,
+    (transport!)=(pepo_transport!),
+    hasconverged = (x, fhistory, g, gradnormhistory) -> (length(fhistory) > 11 && abs(fhistory[end] - fhistory[end-10]) < trunc_alg.ftol) || (length(gradnormhistory) > 1 && abs(gradnormhistory[end] - gradnormhistory[end-1]) < trunc_alg.gradnormtol)
+    );
+    return B_final, env_LHS_final, f
+end
+
+

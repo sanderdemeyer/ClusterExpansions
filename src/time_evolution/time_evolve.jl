@@ -144,7 +144,8 @@ function MPSKit.time_evolve(
     A0 = nothing,
     canoc_alg::Union{Canonicalization,Nothing} = nothing,
     skip_first::Bool = false,
-    initial_guesses = i -> nothing
+    initial_guesses = i -> nothing,
+    saving = true
 )
     As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
     times = copy(time_alg.βs_helper)
@@ -154,9 +155,11 @@ function MPSKit.time_evolve(
         A = canonicalize(A0, canoc_alg)
     end
     if skip_first
+        obs = nothing
         expvals = []
     else
-        expvals = [observable(A)]
+        obs = observable(A)
+        expvals = [obs]
     end
     push!(As, copy(A))
     push!(times, time_alg.β₀)
@@ -178,8 +181,10 @@ function MPSKit.time_evolve(
         A = canonicalize(A, canoc_alg)
         obs = observable(A)
         push!(times, times[end] + times[ind])
-        push!(expvals, obs)
-        push!(As, copy(A))
+        if saving
+            push!(expvals, obs)
+            push!(As, copy(A))
+        end
         if time_alg.verbosity > 1
             @info "Time evolution step $(i) with β = $(times[end]), obs = $(obs)"
             @info "Bond dimension is now $(dim(domain(A)[1]))"
@@ -191,7 +196,11 @@ function MPSKit.time_evolve(
             A = finalize!(As, expvals, i)
         end
     end
-    return times[length(time_alg.βs_helper)+1:end], expvals, As[length(time_alg.βs_helper)+1:end]
+    if saving
+        return times[length(time_alg.βs_helper)+1:end], expvals, As[length(time_alg.βs_helper)+1:end]
+    else
+        return times[end], obs, A
+    end
 end
 
 function time_evolve_filling(
@@ -272,7 +281,8 @@ function PEPSKit.fixedpoint(
     observable;
     finalize! = nothing,
     A0 = nothing,
-    canoc_alg::Union{Canonicalization,Nothing} = nothing
+    canoc_alg::Union{Canonicalization,Nothing} = nothing,
+    skip_first::Bool = false
 )
     As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
     times = copy(time_alg.βs_helper)
@@ -282,10 +292,15 @@ function PEPSKit.fixedpoint(
         A = canonicalize(A0, canoc_alg)
     end
 
-    expvals = [observable(A)]
     push!(As, copy(A))
     push!(times, time_alg.β₀)
     
+    if skip_first
+        expvals = []
+    else
+        expvals = [observable(A)]
+    end
+
     if trunc_alg isa VOPEPO
         env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[time_alg.update_list[1]])[1], trunc_alg)
     end

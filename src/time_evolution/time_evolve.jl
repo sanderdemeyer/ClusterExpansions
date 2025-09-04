@@ -173,9 +173,21 @@ function MPSKit.time_evolve(
             if codomain(env_triple.edges[1,1,1])[2] ≠ domain(A)[1] || codomain(env_triple.edges[1,1,1])[3] ≠ domain(As[ind])[1]
                 env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[ind])[1], trunc_alg)
             end
-            A, env_double, env_triple, = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i, B = initial_guesses(i))
+            if ind <= length(As)
+                A, env_double, env_triple, = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i, B = initial_guesses(i))
+            elseif ind == i
+                A, env_double, env_triple, = approximate_state((A, A), env_double, env_triple, trunc_alg; iter = i, B = initial_guesses(i))
+            else
+                @error "Cannot perform time evolution without saving intermediaire steps for this time algorithm"
+            end
         else
-            A, _ = approximate_state((A, As[ind]), trunc_alg)
+            if ind <= length(As)
+                A, _ = approximate_state((A, As[ind]), trunc_alg)
+            elseif ind == i
+                A, _ = approximate_state((A, A), trunc_alg)
+            else
+                @error "Cannot perform time evolution without saving intermediaire steps for this time algorithm"
+            end
         end
         A /= norm(A)
         A = canonicalize(A, canoc_alg)

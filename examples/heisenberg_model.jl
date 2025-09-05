@@ -2,11 +2,12 @@ using TensorKit
 using ClusterExpansions
 using PEPSKit
 using Plots
+using TensorKitTensors
 
 # Set up the Heisenberg model
-(Jx, Jy, Jz, z) = (1.0, 1.0, 1.0, 0.0)
-spin_symmetry = U1Irrep
-ce_alg = heisenberg_operators(Jx, Jy, Jz, z; spin_symmetry = spin_symmetry, p = 3)
+(Jx, Jy, Jz, z) = (1.0, -1.0, 1.0, 0.0)
+spin_symmetry = Trivial
+ce_alg = heisenberg_operators(Jx, Jy, Jz, z; spin_symmetry = spin_symmetry, p = 3, T = ComplexF64)
 Jx = 1.0
 Jy = 1.0
 Jz = 1.0
@@ -26,7 +27,7 @@ maxiter = 10
 time_alg = UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 2)
 
 # Define observables
-H = heisenberg_XYZ(ComplexF64, spin_symmetry, InfiniteSquare(); Jx, Jy, Jz)
+H = localoperator_model(SpinOperators.spin_space(spin_symmetry), SpinOperators.S_exchange(spin_symmetry))
 ctm_alg = SimultaneousCTMRG(; maxiter = 250, verbosity = 0)
 observables = PEPO_observables([H], ctm_alg)
 observable = O -> ClusterExpansions.calculate_observables(O, χenv, observables)

@@ -22,10 +22,8 @@ end
 
 function QR_two_pepo_right(O1,O2,ind)
     pb = (1,ind)
-    # p, q2 = ind_pair(O1, pb)
     Rb, _ = rightorth(O1, (pb, Tuple(setdiff(1:6,pb))))
     pt = (2,ind)
-    # p, q2 = ind_pair(O2, pt)
     Rt, _ = rightorth(O2, (pt, Tuple(setdiff(1:6,pt))))
     @tensor M[-1 -2; -3 -4] := Rt[1 -1;-3] * Rb[1 -2;-4]
     R, _ = rightorth(M, (1,2),(3,4))

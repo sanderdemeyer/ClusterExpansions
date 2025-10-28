@@ -10,24 +10,17 @@ end
 get_length_of_trivspace(sig::T) where {T<:Tuple} = length(sig[1].parameters)
 get_length_of_trivspace(sig::Int) = 1
 
-function init_PEPO(T, β, pspace::ElementarySpace, trivspace::ElementarySpace, onesite_op::AbstractTensorMap)
-    A = zeros(T, pspace ⊗ pspace', trivspace ⊗ trivspace ⊗ trivspace' ⊗ trivspace')
-    I = sectortype(A)
-    if I == Trivial
-        len_trivspace = 0
-    elseif length(typeof(pspace).parameters[1].parameters)[1] == 0
-        len_trivspace = 1
-    else
-        len_trivspace = get_length_of_trivspace(typeof(pspace).parameters[1].parameters[1])
-    end
-    trivsector = I(fill(0, len_trivspace)...)
-    block(A, trivsector) .= exp(-β*onesite_op).data
+function init_PEPO(T, β, trivspace::ElementarySpace, onesite_op::AbstractTensorMap)
+    exp_H = exp(-β*onesite_op)
+    exp_H_perm = permute(exp_H, ((1,2),()))
+    Isom = permute(isomorphism(T, trivspace' ⊗ trivspace', trivspace' ⊗ trivspace'), ((), (1,2,3,4)))
+    A = exp_H_perm * Isom
     return Dict((0,0,0,0) => A)
 end
 
 function init_PEPO(T, β, onesite_op::AbstractTensorMap, trivspace)
     I = sectortype(onesite_op)
-    return init_PEPO(T, β, domain(onesite_op)[1], trivspace, onesite_op)
+    return init_PEPO(T, β, trivspace, onesite_op)
 end
 
 function get_size_level(highest, highest_loop, spaces)

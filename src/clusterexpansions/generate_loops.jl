@@ -8,6 +8,15 @@ function bond_contained_in_cycle(bond, cycle)
     return (bond[1] ∈ cycle) && (bond[2] ∈ cycle)
 end
 
+function bond_contained_in_cycles(bond, cycles)
+    for cycle in cycles
+        if bond_contained_in_cycle(bond, cycle)
+            return true
+        end
+    end
+    return false
+end
+
 function update_levels_loops(levels, cycles, m, bonds_indices, levels_sites)
     N = length(unique(vcat(cycles...)))
     if m == 1

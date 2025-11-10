@@ -38,9 +38,10 @@ function TriangularCluster(lattice::Triangular, cluster; levels_convention = "tr
         #     m = length(cycles)
         #     @assert m >= 1
         # end
-        # coo = get_coordination_number(bonds_indices, N)
-        # levels = get_tree_depths(g, bonds_indices, vcat(cycles...))
-        # levels = update_levels_loops(levels, cycles, m, bonds_indices, cluster)
+        println("cycles = $(cycles)")
+        coo = get_coordination_number(bonds_indices, N)
+        levels = get_tree_depths(g, bonds_indices, vcat(cycles...))
+        levels = update_levels_loops(lattice, levels, cycles, m, bonds_indices, cluster)
         # middle_cycle = nothing
         # if m >= 3
         #     for (ic, cycle) = enumerate(cycles)
@@ -64,7 +65,7 @@ function TriangularCluster(lattice::Triangular, cluster; levels_convention = "tr
         #         levels[i] = -1
         #     end
         # end
-        # levels_sites = get_levels_sites(lattice, bonds_sites, bonds_indices, levels, N)
+        levels_sites = get_levels_sites(lattice, bonds_sites, bonds_indices, levels, N)
     else
         coo = get_coordination_number(bonds_indices, N)
         levels = get_tree_depths(g, bonds_indices)

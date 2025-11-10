@@ -8,6 +8,8 @@ using PEPSKit
 using Graphs
 using Zygote, OptimKit
 
+include("lattices.jl")
+
 include("clusterexpansions/utility/loop_filtering.jl")
 include("clusterexpansions/utility/symmetries.jl")
 
@@ -37,6 +39,18 @@ include("clusterexpansions/PEPOs.jl")
 include("clusterexpansions/solvers/linearsolvers.jl")
 include("clusterexpansions/solvers/nonlinearsolvers_optimkit.jl")
 include("clusterexpansions/solve_clusters.jl")
+
+# Triangular lattice specific
+include("clusterexpansions_triangular/utility/symmetries_triangular.jl")
+
+include("clusterexpansions_triangular/generate_loops_triangular.jl")
+include("clusterexpansions_triangular/clusters_triangular.jl")
+include("clusterexpansions_triangular/contractions_triangular.jl")
+include("clusterexpansions_triangular/PEPOs_triangular.jl")
+
+include("clusterexpansions_triangular/solvers/linearsolvers_triangular.jl")
+include("clusterexpansions_triangular/solvers/nonlinearsolvers_optimkit_triangular.jl")
+include("clusterexpansions_triangular/solve_clusters_triangular.jl")
 
 export EntanglementFiltering, filter_loop, truncate_loop
 export rotl90_fermionic, rotl180_fermionic

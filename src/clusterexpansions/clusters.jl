@@ -96,6 +96,7 @@ end
 
 function get_direction(site₁, site₂)
     dir = (site₂[1] - site₁[1], site₂[2] - site₁[2])
+    return get_direction(dir)
     if dir == (-1, 0)
         return (1, 3)
     elseif dir == (0, 1)

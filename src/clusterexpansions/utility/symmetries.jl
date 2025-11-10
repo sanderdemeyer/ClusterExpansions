@@ -53,7 +53,7 @@ function symmetrize(symmetry, levels_to_update, solutions; N = length(levels_to_
     elseif symmetry == "C4"
         return symmetrize_C4(levels_to_update, solutions, N)
     else
-        @error "Symmetry $(symmetry) is not implemented"
+        @warn "Symmetry $(symmetry) is not implemented"
         return levels_to_update, solutions
     end
 end

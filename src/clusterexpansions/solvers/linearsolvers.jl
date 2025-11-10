@@ -14,15 +14,15 @@ function get_graph(cluster)
     return graph
 end
 
-function apply_A_N_2(A, x, ::Val{false})
-    @tensor Ax[-1 -2 -3 -4 -5; -6] := A[1; -1 -2 -4 -5 -3] * x[-6; 1]
-    return Ax
-end
+# function apply_A_N_2(A, x, ::Val{false})
+#     @tensor Ax[-1 -2 -3 -4 -5; -6] := A[1; -1 -2 -4 -5 -3] * x[-6; 1]
+#     return Ax
+# end
 
-function apply_A_N_2(x1, y ::Val{true})
-    @tensor x2_new[-1 -2; -3 -4 -5 -6] := conj(y[1; -6]) * x1[-1 -2; -5 1 -3 -4] * conj(I[-4; 2])
-    return flip(x2_new, 4)
-end
+# function apply_A_N_2(x1, y ::Val{true})
+#     @tensor x2_new[-1 -2; -3 -4 -5 -6] := conj(y[1; -6]) * x1[-1 -2; -5 1 -3 -4] * conj(I[-4; 2])
+#     return flip(x2_new, 4)
+# end
 
 function get_twists(dir)
     if dir == (3,1) || dir == (4,2)

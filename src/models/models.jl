@@ -98,7 +98,7 @@ function ising_operators(J, g, z; spin_symmetry = Trivial, T = Complex{BigFloat}
         onesite_op = rmul!(id(pspace), 0.0)
     end
     spaces, envspace = spaces_ising(spin_symmetry, g == 0; loop_space)
-    return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, kwargs...)
+    return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, T, kwargs...)
 end
 
 function spinless_fermion_operators(t, V, μ; b = 0.0, δ = 0.0, T = Complex{BigFloat}, loop_space = Vect[fℤ₂](0 => 5, 1 => 5), kwargs...)

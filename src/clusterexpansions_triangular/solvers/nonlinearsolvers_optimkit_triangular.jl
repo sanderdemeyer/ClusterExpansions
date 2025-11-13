@@ -18,17 +18,29 @@ function check_3_loop(lattice::Triangular, Δ, As, RHS, spaces)
 end
 
 function construct_PEPO_3_loop(A_N) # A_NW
-    # project A on space that will eventually be hermitian
-    A_perm = permute(A_N, ((1,3,4,5),(2,8,7,6)))
-    A_sym = 0.5 * (A_perm + A_perm')
-    A_N_C6v = permute(A_sym, ((1,5),(2,3,4,8,7,6)))
+    println("scalartype = $(scalartype(A_N))")
+    # project A on space that is C6 symmetric
+    # A_N_unflipped = permute(flip(A_N, (1, 2, 3); inv = true), ((), (4, 5, 6, 3, 2, 1)))
+    # A_N_unflipped_C6 = (permute(A_N_unflipped, ((),(2,3,4,5,6,1))) + A_N_unflipped) / 2
+    # A_SW_unflipped_C6 = 
+    # A_N_flipped_C6 = permute(flip(A_N_unflipped_C6, (4, 5, 6); inv = false), ((6, 5, 4), (1, 2, 3)))
 
-    A_SW = rotl60_fermionic(rotl60_fermionic(A_N_C6v)) # A_S
+    # # project A on space that will eventually be hermitian
+    # A_perm = permute(A_N_flipped_C6, ((1,3,4,5),(2,8,7,6)))
+    # A_sym = 0.5 * (A_perm + A_perm')
+    # A_N_C6v = permute(A_sym, ((1,5),(2,3,4,8,7,6)))
+    # A_perm = permute(A_N, ((1,8,7,6),(2,3,4,5)))
+    # A_sym = (A_perm + permute(flip(A_perm, (2,3,4,6,7,8)), ((1,6,7,8),(5,2,3,4)))') / 2
+    # # A_sym = 0.5 * (A_perm + A_perm')
+    # A_N_C6v = permute(A_sym, ((1,5),(6,7,8,4,3,2)))
+
+    A_SW = rotl60_fermionic(rotl60_fermionic(A_N)) # A_S
     A_SE = rotl60_fermionic(rotl60_fermionic(A_SW)) # A_NE
     return [A_N, A_SE, A_SW] # [A_NW, A_NE, A_S]
 end 
 
 function solve_3_loop_optim(lattice, RHS, spaces, levels_to_update; verbosity = 1, symmetry = nothing, gradtol = 1e-9)
+    println("T of RHS = $(scalartype(RHS))")
     println("Solving 3-loop cluster with optimization..., levels to update = $(levels_to_update)")
     Δ = (-1, 0, 0, 0, 0, -1) ∈ levels_to_update # only alternative is ∇
     T = scalartype(RHS)
@@ -36,7 +48,7 @@ function solve_3_loop_optim(lattice, RHS, spaces, levels_to_update; verbosity = 
     trivspace = spaces(0)
     pspace = codomain(RHS)[1]
     
-    opt_alg = LBFGS(; maxiter=2000, gradtol=gradtol, verbosity)
+    opt_alg = LBFGS(; maxiter=1000, gradtol=gradtol, verbosity)
 
     if isnothing(symmetry)
         if Δ

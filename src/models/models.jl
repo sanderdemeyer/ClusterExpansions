@@ -173,7 +173,9 @@ function spaces_heisenberg(spin_symmetry; loop_space = ℂ^4)
         loop_space = Vect[U1Irrep](1 => 2, -1 => 2)
         spaces = i -> if i == 0
             Vect[U1Irrep](0 => 1)
-        elseif i > 0
+        elseif i == 1
+            Vect[U1Irrep](0 => 2, 1 => 1, -1 => 1)
+        elseif i == 2
             Vect[U1Irrep](1 => 2^(2*i-1), -1 => 2^(2*i-1))
         else
             loop_space
@@ -211,10 +213,18 @@ function heisenberg_operators(Jx, Jy, Jz, h; spin = 1//2, spin_symmetry = Trivia
                 rmul!(SpinOperators.S_y_S_y(T, spin_symmetry; spin=spin), Jy) +
                 rmul!(SpinOperators.S_z_S_z(T, spin_symmetry; spin=spin), Jz)
         onesite_op = rmul!(SpinOperators.S_z(T, spin_symmetry; spin=spin), h)
-    else
+    elseif spin_symmetry == U1Irrep
+        @assert (h == 0) && (Jx == Jy) "Invalid parameters for given symmetry"
+        twosite_op =  (rmul!(SpinOperators.S_plus_S_min(T, spin_symmetry; spin=spin), Jx) +
+                rmul!(SpinOperators.S_min_S_plus(T, spin_symmetry; spin=spin), Jy)) / 2 +
+                rmul!(SpinOperators.S_z_S_z(T, spin_symmetry; spin=spin), Jz)
+        onesite_op = rmul!(id(SpinOperators.spin_space(spin_symmetry; spin=spin)), T(0))
+    elseif spin_symmetry == SU2Irrep
         @assert (h == 0) && (Jx == Jy == Jz) "Invalid parameters for given symmetry"
         twosite_op =  rmul!(SpinOperators.S_exchange(T, spin_symmetry; spin=spin), Jx)
         onesite_op = rmul!(id(SpinOperators.spin_space(spin_symmetry; spin=spin)), T(0))
+    else
+        @error "Invalid symmetry"
     end
     spaces, envspace = spaces_heisenberg(spin_symmetry; loop_space)
     return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, kwargs...)

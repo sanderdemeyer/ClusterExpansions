@@ -20,7 +20,6 @@ function symmetrize(lattice::Triangular, symmetry, levels_to_update, solutions; 
 end
 
 function symmetrize_C6(levels_to_update, solutions, N)
-    println("For N = $(N), symmetrizing with C6 symmetry..., levels to update = $(levels_to_update)")
     if N == 1
         for i = 1:6
             new_levels = tuple(circshift(collect(levels_to_update[i]), -1)...)
@@ -47,7 +46,6 @@ function symmetrize_C6(levels_to_update, solutions, N)
             push!(solutions, new_solution)
         end
     end
-    println("after: levels to update = $(levels_to_update)")
     return levels_to_update, solutions
 end
 

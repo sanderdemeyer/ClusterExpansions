@@ -18,7 +18,9 @@ function check_3_loop(lattice::Triangular, Δ, As, RHS, spaces)
 end
 
 function construct_PEPO_3_loop(A_N) # A_NW
-    println("scalartype = $(scalartype(A_N))")
+    # A_N_conj = copy(A_N)
+    # A_N_conj.data .= conj.(A_N_conj.data)
+    A_N = (A_N + flip(permute(A_N, ((1,2),(3,4,6,5,7,8))), (5,6))) / 2
     # project A on space that is C6 symmetric
     # A_N_unflipped = permute(flip(A_N, (1, 2, 3); inv = true), ((), (4, 5, 6, 3, 2, 1)))
     # A_N_unflipped_C6 = (permute(A_N_unflipped, ((),(2,3,4,5,6,1))) + A_N_unflipped) / 2
@@ -40,15 +42,13 @@ function construct_PEPO_3_loop(A_N) # A_NW
 end 
 
 function solve_3_loop_optim(lattice, RHS, spaces, levels_to_update; verbosity = 1, symmetry = nothing, gradtol = 1e-9)
-    println("T of RHS = $(scalartype(RHS))")
-    println("Solving 3-loop cluster with optimization..., levels to update = $(levels_to_update)")
     Δ = (-1, 0, 0, 0, 0, -1) ∈ levels_to_update # only alternative is ∇
     T = scalartype(RHS)
     vspace = spaces(-1)
     trivspace = spaces(0)
     pspace = codomain(RHS)[1]
     
-    opt_alg = LBFGS(; maxiter=1000, gradtol=gradtol, verbosity)
+    opt_alg = LBFGS(; maxiter=300, gradtol=gradtol, verbosity)
 
     if isnothing(symmetry)
         if Δ

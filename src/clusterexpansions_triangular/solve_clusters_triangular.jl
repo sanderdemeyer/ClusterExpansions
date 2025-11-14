@@ -35,7 +35,6 @@ function solve_cluster(lattice, T, cluster, PEPO, β, twosite_op, onesite_op, sp
         end
         return spaces
     end
-    println("sites to update = $(sites_to_update)")
     if length(sites_to_update) == 3 && cluster.m > 0
         solutions, _ = solve_3_loop_optim(lattice, RHS, spaces, levels_to_update; verbosity, symmetry)
     elseif length(sites_to_update) ∈ [1, 2]

@@ -21,8 +21,6 @@ end
 function get_A(lattice::Triangular, T, cluster, PEPO, sites_to_update)
     updates = length(sites_to_update)
     fixed_tensors = cluster.N - updates
-    println("lattice = $(lattice), cluster.N = $(cluster.N), sites_to_update = $(sites_to_update), fixed_tensors = $(fixed_tensors)")
-    println("bonds_sites, bonds_indices = $(cluster.bonds_sites), $(cluster.bonds_indices)")
     graph = get_graph(lattice, cluster)
     contraction_indices = fill(0, fixed_tensors, 8)
     for i = 1:fixed_tensors
@@ -140,7 +138,6 @@ function solve_index(lattice::Triangular, T, A, exp_H, conjugated, sites_to_upda
     trivspace = spaces(0)
     if N == 2
         b = permute(exp_H, ((1,3), (2,4)))
-        println("dir = $(dir)")
         if dir == (4,1) || dir == (5,2)
             Isom_domain = isomorphism(domain(b), domain(b) ⊗ trivspace ⊗ trivspace ⊗ trivspace' ⊗ trivspace' ⊗ trivspace')
             Isom_codomain = isomorphism(codomain(b) ⊗ trivspace' ⊗ trivspace' ⊗ trivspace' ⊗ trivspace ⊗ trivspace, codomain(b))
@@ -151,7 +148,6 @@ function solve_index(lattice::Triangular, T, A, exp_H, conjugated, sites_to_upda
             @error "Unexpected value for dir"
         end
         x = Isom_codomain * b * Isom_domain
-        println("x = $(summary(x))")
         # x.data = b.data
         # x[][:,:,1,1,1,:,:,1,1,1] = b[]
     elseif length(sites_to_update) == 2
@@ -163,12 +159,12 @@ function solve_index(lattice::Triangular, T, A, exp_H, conjugated, sites_to_upda
         exp_H_flipped = permute(exp_H, ((included_sites..., (included_sites .+ N)...), (sites_to_update..., (sites_to_update .+ N)...)))
 
         if scalartype(exp_H) ∈ [Complex{BigFloat}, BigFloat]
-            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-70)))
+            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-70)), real(T(0.0)))
             # x = permute(x, ((1,6,3,4,8), (2,7,9,5,10)))
             # x = (x + x')/2
             # x = permute(x, ((1,6,3,4,9), (2,7,5,8,10)))
         else
-            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000))
+            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000), real(T(0.0)))
         end
         error = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
         if error > 1e-10 && verbosity > 0
@@ -186,9 +182,9 @@ function solve_index(lattice::Triangular, T, A, exp_H, conjugated, sites_to_upda
         exp_H_flipped = permute(exp_H, ((included_sites..., (included_sites .+ N)...), (sites_to_update[1], sites_to_update[1]+N)))
 
         if scalartype(exp_H) ∈ [Complex{BigFloat}, BigFloat]
-            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-70)))
+            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-70)), real(T(0.0)))
         else
-            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000))
+            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000), real(T(0.0)))
         end
         error = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
         if error > 1e-10 && verbosity > 0
@@ -213,7 +209,6 @@ function solve_index(lattice::Triangular, T, A, exp_H, conjugated, sites_to_upda
             if norm(x - x1 * x2)/norm(x) > eps(real(T))*1e2 && verbosity > 0
                 @warn "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
             end
-            println("here in svd: x = $(summary(x)), x1 = $(summary(x1)), x2 = $(summary(x2))")
         else
             if dir == (3,1)
                 x = flip(x, (2,3,4,6,9,10))
@@ -242,7 +237,6 @@ function solve_index(lattice::Triangular, T, A, exp_H, conjugated, sites_to_upda
             x1 = flip(x1, 2+dir[1])
             x2 = flip(x2, 2+dir[2]; inv = true)
         end
-        println("dir = $(dir), x1 = $(summary(x1)), x2 = $(summary(x2))")
         # x2_rot = rotl180_fermionic(x2)
         x = [x1, x2]
         # x = symmetrize_cluster!(x1, x2, dir)

@@ -141,7 +141,7 @@ function observable_purification(O::AbstractTensorMap{T,S,1,1}; Nr = 1, Nc = 1) 
     lattice = InfiniteSquare(Nr, Nc)
     F = isometry(fuse(pspace,pspace'), pspace ⊗ pspace')
     @tensor Onew[-1; -2] := O[1; 2] * F[-1; 1 3] * conj(F[-2; 2 3])
-    H = PEPSKit.LocalOperator(pspaces, ((idx,) => Onew for idx in vertices(lattice))...,)
+    H = PEPSKit.LocalOperator(pspaces, ((idx,) => Onew for idx in PEPSKit.vertices(lattice))...,)
     return H
 end
 
@@ -152,11 +152,11 @@ end
 function calculate_observables_purification(O::AbstractTensorMap{E,S,2,4}, χ::Int, observables_base) where {E,S}
     observables = observable_purification.(observables_base)
     envspace = _envspace(codomain(O)[1])(χ)
-    env_algs = _env_algs(observables)
+    env_algs = fill(:CTMRG, length(observables)) # For purification, we only use CTMRG
     pspace = codomain(O)[1]
 
-    vumps_alg = get_env_alg(observables, VUMPS)
-    ctm_alg = get_env_alg(observables, PEPSKit.CTMRGAlgorithm)
+    ctm_alg = SimultaneousCTMRG(; maxiter = 500)
+    vumps_alg = 
 
     F = isometry(fuse(pspace,pspace), pspace ⊗ pspace')
     @tensor A[-1; -2 -3 -4 -5] := twist(O,2)[1 2; -2 -3 -4 -5] * F[-1; 1 2]
@@ -177,7 +177,7 @@ function calculate_observables_purification(O::AbstractTensorMap{E,S,2,4}, χ::I
     if :CTMRG ∈ env_algs
         ctmrg_env, = leading_boundary(CTMRGEnv(peps, envspace), peps, ctm_alg)
     end
-    return [env_type == :VUMPS ? expectation_value(obs.func(peps), obs.obs, vumps_env) : (env_type == :CTMRG ? expectation_value(obs.func(peps), obs.obs, ctmrg_env) : obs.obs(obs.func(peps))) for (obs,env_type) = zip(observables, env_algs)]
+    return [expectation_value(peps, obs, ctmrg_env) for obs = observables]
 end
 
 # Utility functions for Simple Update

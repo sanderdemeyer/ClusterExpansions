@@ -124,6 +124,21 @@ function apply_isometry(A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,
     return permute(A_trunc, ((1,2),Tuple(3:6+length(inds))))
 end
 
+function apply_isometry(A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}, Ws::Vector{<:AbstractTensorMap{E,S}}, ind::Int) where {E,S}
+    if ind == 1
+        @tensor A_new[-1 -2; -3 -4 -5 -6 -7] := A[1][1 -2; -3 4 6 8] * A[2][-1 1; -7 5 7 9] * Ws[2][4 5; -4] * Ws[3][-5; 6 7] * Ws[4][-6; 8 9]
+    elseif ind == 2
+        @tensor A_new[-1 -2; -3 -4 -5 -6 -7] := A[1][1 -2; 2 -4 6 8] * A[2][-1 1; 3 -7 7 9] * Ws[1][2 3; -3] * Ws[3][-5; 6 7] * Ws[4][-6; 8 9]
+    elseif ind == 3
+        @tensor A_new[-1 -2; -3 -4 -5 -6 -7] := A[1][1 -2; 2 4 -5 8] * A[2][-1 1; 3 5 -7 9] * Ws[1][2 3; -3] * Ws[2][4 5; -4] * Ws[4][-6; 8 9]
+    elseif ind == 4
+        @tensor A_new[-1 -2; -3 -4 -5 -6 -7] := A[1][1 -2; 2 4 6 -6] * A[2][-1 1; 3 5 7 -7] * Ws[1][2 3; -3] * Ws[2][4 5; -4] * Ws[3][-5; 6 7]
+    else
+        error("Index must be between 1 and 4")
+    end
+    return A_new
+end
+
 # function get_initial_isometry(T, orig_space::ProductSpace, trunc_space::ElementarySpace)
 #     return [dir > 2 ? isometry(T, orig_space, trunc_space)' : isometry(T, orig_space, trunc_space) for dir = 1:4]
 # end
@@ -140,6 +155,6 @@ function apply_PEPO_exact(
     T = scalartype(ψ)
     orig_space = domain(ψ)[1] ⊗ domain(O)[1]
     trunc_space = fuse(domain(ψ)[1] ⊗ domain(O)[1])
-    Ws = get_initial_isometry(T, orig_space, trunc_space)
-    return apply_isometry(ψ, O, Ws)
+    Ws = get_initial_isometry(T, orig_space, orig_space, trunc_space, trunc_space)
+    return apply_isometry((ψ, O), Ws)
 end

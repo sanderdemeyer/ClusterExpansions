@@ -295,7 +295,7 @@ function tJ_operators(; kwargs...)
     return tJ_operators(2.5, 1.0, 0.0; kwargs...)
 end
 
-function hubbard_operators(t, U, μ; particle_symmetry = Trivial, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = Vect[fℤ₂](0 => 50, 1 => 50), kwargs...)
+function hubbard_operators(t, U, μ; particle_symmetry = Trivial, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = Vect[fℤ₂](0 => 4, 1 => 4), kwargs...)
     pspace = HubbardOperators.hubbard_space(particle_symmetry, spin_symmetry)
     hopping_operator = HubbardOperators.e_hop(T, particle_symmetry, spin_symmetry)
     U_operator = (HubbardOperators.nꜛ(T, particle_symmetry, spin_symmetry) - id(pspace) / 2) *
@@ -304,17 +304,25 @@ function hubbard_operators(t, U, μ; particle_symmetry = Trivial, spin_symmetry 
     twosite_op = rmul!(hopping_operator, -T(t))
     onesite_op = rmul!(number_operator, -T(μ)) + rmul!(U_operator, T(U))
 
-    if t == 0.0 && J == 0.0
-        @warn "Not known when we can use smaller spaces"
+    if particle_symmetry == Trivial && spin_symmetry == Trivial
+        spaces = i -> if i == 0
+            Vect[fℤ₂](0 => 1)
+        elseif i > 0
+            Vect[fℤ₂](0 => 2*4^(2*i-1), 1 => 2*4^(2*i-1))
+        else
+            loop_space
+        end
+        envspace = χ -> Vect[fℤ₂](0 => div(χ,2), 1 => div(χ,2))
+    elseif particle_symmetry == U1Irrep && spin_symmetry == U1Irrep
+        spaces = i -> if i == 0
+            Vect[fℤ₂ ⊠ U1Irrep ⊠ U1Irrep]((0,0,0) => 1)
+        elseif i == 1
+            Vect[fℤ₂ ⊠ U1Irrep ⊠ U1Irrep]((0, 0, 0)=>4, (0, 0, 1)=>1, (0, 0, -1)=>1, (1, 1, 1/2)=>2, (1, 1, -1/2)=>2, (1, -1, 1/2)=>2, (0, 2, 0)=>1, (1, -1, -1/2)=>2, (0, -2, 0)=>1)
+        else
+            loop_space
+        end
+        envspace = χ -> Vect[fℤ₂ ⊠ U1Irrep ⊠ U1Irrep]((0,0,0) => χ - 3*div(χ,4), (1,1,1//2) => div(χ,4), (1,1,-1//2) => div(χ,4), (0,2,0) => div(χ,4))
     end
-    spaces = i -> if i == 0
-        Vect[fℤ₂](0 => 1)
-    elseif i > 0
-        Vect[fℤ₂](0 => 2*4^(2*i-1), 1 => 2*4^(2*i-1))
-    else
-        loop_space
-    end
-    envspace = χ -> Vect[fℤ₂](0 => div(χ,2), 1 => div(χ,2))
     return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, kwargs...)
 end
 

@@ -106,7 +106,7 @@ function evolution_operator(ce_alg::ClusterExpansion, β::Number; T_conv = Compl
     for (f_full, f_conv) in zip(blocks(O_canoc), blocks(O))
         f_conv[2] .= f_full[2]
     end
-    return O
+    return O # Don't normalize, otherwise Atsushi will be mad.
 end
 
 function evolution_operator(td_alg::GenericTrotterDecomposition, β::Number; T = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
@@ -234,7 +234,7 @@ function time_evolve_filling(
     μ = time_alg.μ₀
 
     if trunc_alg isa VOPEPO
-        env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[time_alg.update_list[1]])[1], trunc_alg)
+        env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[time_alg.update_list[1]])[1], trunc_alg) # this will give errors due to time_alg.update_list
     end
     for i = 1:time_alg.maxiter
         μ -= real((expvals[end][1] - time_alg.f_target) * time_alg.α)
@@ -272,7 +272,7 @@ function time_evolve_filling(
         end
     end
     if time_alg.verbosity > 0
-        @warn "Ground state search did not converge after $(length(time_alg.update_list)) iterations. Energy is $(expvals[end][1])"
+        @warn "Ground state search did not converge after $(maxiter) iterations. Energy is $(expvals[end][1])"
     end
     return times, expvals, μs, As
 end

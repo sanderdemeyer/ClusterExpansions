@@ -2,11 +2,12 @@ struct NoEnvTruncation <: EnvTruncation
     trscheme::TruncationScheme
     check_fidelity::Bool
     verbosity::Int
+    projectors::Symbol
 end
 
 function NoEnvTruncation(trscheme::TruncationScheme;
-    check_fidelity::Bool = false, verbosity::Int = 0)
-    NoEnvTruncation(trscheme, check_fidelity, verbosity)
+    check_fidelity::Bool = false, verbosity::Int = 0, projectors = :svd)
+    NoEnvTruncation(trscheme, check_fidelity, verbosity, projectors)
 end
 
 # QR decomposition
@@ -60,18 +61,37 @@ end
    └──┘        └──┘   
 =#
 
-function find_P1P2(A1, A2, ind1, ind2, trunc; check_space=true)
+function find_P1P2(A1, A2, ind1, ind2, trunc; check_space=true, proj = :svd)
     R1, R2 = R1R2(A1, A2, ind1, ind2; check_space=check_space)
-    return oblique_projector(R1, R2, trunc)
+    return oblique_projector(R1, R2, trunc; proj)
 end
 
-function oblique_projector(R1, R2, trunc)
+function eig_with_truncation_triangular(x, space)
+    T = scalartype(x)
+    D = dim(space)
+    eigval, eigvec = eig(x)
+    if space == domain(eigval)[1]
+        return eigval, eigvec
+    end
+    eigval_trunc = zeros(T, space, space)
+    eigvec_trunc = zeros(T, codomain(x), space)
+    eigval_trunc[] = eigval[][1:D,1:D]
+    eigvec_trunc[] = eigvec[][:,1:D]
+    return eigval_trunc, eigvec_trunc
+end
+
+function oblique_projector(R1, R2, trunc; proj = :svd)
     mat = R1 * R2
-
-    U, S, Vt = tsvd(mat; trunc)
-    P1 = R2 * adjoint(Vt) * inv(sqrt(S))
-    P2 = inv(sqrt(S)) * adjoint(U) * R1
-
+    if proj == :svd
+        U, S, Vt = tsvd(mat; trunc)
+        P1 = R2 * adjoint(Vt) * inv(sqrt(S))
+        P2 = inv(sqrt(S)) * adjoint(U) * R1
+    elseif proj == :eig
+        dims = minimum([dim(domain(mat)) trunc.dim])
+        D, V = eig_with_truncation_triangular(mat, ℂ^(dims))
+        P1 = R2 * V * inv(sqrt(D))
+        P2 = inv(sqrt(D)) * adjoint(V) * R1
+    end    
     return P1, P2
 end
 
@@ -79,8 +99,8 @@ function approximate_state(
     A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}},
     trunc_alg::NoEnvTruncation
 ) where {E,S<:ElementarySpace}
-    PN,PS = find_P1P2(A[1],A[2],3,5,trunc_alg.trscheme);
-    PE,PW = find_P1P2(A[1],A[2],4,6,trunc_alg.trscheme);
+    PN,PS = find_P1P2(A[1],A[2],3,5,trunc_alg.trscheme; proj = trunc_alg.projectors);
+    PE,PW = find_P1P2(A[1],A[2],4,6,trunc_alg.trscheme; proj = trunc_alg.projectors);
     @tensor opt=true Onew[-1 -2; -3 -4 -5 -6] := A[1][1 -2; 7 8 9 10] * A[2][-1 1; 3 4 5 6] * PN[3 7; -3] * PE[4 8; -4] * PS[-5; 5 9] * PW[-6; 6 10]
     return Onew, nothing
 end

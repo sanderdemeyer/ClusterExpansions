@@ -20,7 +20,7 @@ end
 function construct_PEPO_3_loop(A_N) # A_NW
     # A_N_conj = copy(A_N)
     # A_N_conj.data .= conj.(A_N_conj.data)
-    A_N = (A_N + flip(permute(A_N, ((1,2),(3,4,6,5,7,8))), (5,6))) / 2
+    A_N = (A_N + twist(flip(permute(A_N, ((1,2),(3,4,6,5,7,8))), (5,6)), (5,6))) / 2
     # project A on space that is C6 symmetric
     # A_N_unflipped = permute(flip(A_N, (1, 2, 3); inv = true), ((), (4, 5, 6, 3, 2, 1)))
     # A_N_unflipped_C6 = (permute(A_N_unflipped, ((),(2,3,4,5,6,1))) + A_N_unflipped) / 2

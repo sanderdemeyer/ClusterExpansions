@@ -101,7 +101,7 @@ function ising_operators(J, g, z; spin_symmetry = Trivial, T = Complex{BigFloat}
     return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, T, kwargs...)
 end
 
-function spinless_fermion_operators(t, V, μ; b = 0.0, δ = 0.0, T = Complex{BigFloat}, loop_space = Vect[fℤ₂](0 => 5, 1 => 5), kwargs...)
+function spinless_fermion_operators(t, V, μ; b = 0.0, δ = 0.0, T = Complex{BigFloat}, loop_space = Vect[fℤ₂](0 => 2, 1 => 2), kwargs...)
     pspace = Vect[fℤ₂](0 => 1, 1 => 1)
 
     kinetic_operator = FermionOperators.f_hop(T)

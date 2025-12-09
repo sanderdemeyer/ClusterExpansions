@@ -14,7 +14,7 @@ function symmetrize(lattice::Triangular, symmetry, levels_to_update, solutions; 
     elseif symmetry == "C6"
         return symmetrize_C6(levels_to_update, solutions, N)
     else
-        @error "Symmetry $(symmetry) is not implemented for $(lattice)"
+        @warn "Symmetry $(symmetry) is not implemented for $(lattice)"
         return levels_to_update, solutions
     end
 end

@@ -1,6 +1,7 @@
 module ClusterExpansions
 
 using TensorKit, TensorKitTensors
+using MatrixAlgebraKit
 using KrylovKit
 using BlockTensorKit: ⊕, SumSpace
 using MPSKit
@@ -21,6 +22,8 @@ include("time_evolution/global_truncation.jl")
 include("time_evolution/local_truncation.jl")
 include("time_evolution/vomps_utility.jl")
 include("time_evolution/vomps.jl")
+include("time_evolution/local_truncation_triangular.jl")
+include("time_evolution/variational_truncation_triangular.jl")
 
 include("models/models.jl")
 include("models/models_Trotter.jl")
@@ -52,6 +55,8 @@ include("clusterexpansions_triangular/PEPOs_triangular.jl")
 include("clusterexpansions_triangular/solvers/linearsolvers_triangular.jl")
 include("clusterexpansions_triangular/solvers/nonlinearsolvers_optimkit_triangular.jl")
 include("clusterexpansions_triangular/solve_clusters_triangular.jl")
+
+include("CTM_triangular.jl")
 
 export EntanglementFiltering, filter_loop, truncate_loop
 export rotl90_fermionic, rotl180_fermionic

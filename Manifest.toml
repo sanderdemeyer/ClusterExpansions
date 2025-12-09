@@ -2,7 +2,7 @@
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "c2927bab1d4b5bc2241ba53f42096afdc11b165f"
+project_hash = "74357d2a9bb67f35416f526a7b868e056cb7d03d"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -953,6 +953,22 @@ deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 version = "1.11.0"
 
+[[deps.MatrixAlgebraKit]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "1f335c4a5c94df358ff62907d820a2abf09273c5"
+uuid = "6c742aac-3347-4629-af66-fc926824e5e4"
+version = "0.5.0"
+
+    [deps.MatrixAlgebraKit.extensions]
+    MatrixAlgebraKitAMDGPUExt = "AMDGPU"
+    MatrixAlgebraKitCUDAExt = "CUDA"
+    MatrixAlgebraKitChainRulesCoreExt = "ChainRulesCore"
+
+    [deps.MatrixAlgebraKit.weakdeps]
+    AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+
 [[deps.MbedTLS]]
 deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "NetworkOptions", "Random", "Sockets"]
 git-tree-sha1 = "c067a280ddc25f196b5e7df3877c6b226d390aaf"
@@ -1526,12 +1542,12 @@ uuid = "62fd8b95-f654-4bbd-a8a5-9c27f68ccd50"
 version = "0.1.1"
 
 [[deps.TensorKit]]
-deps = ["GenericLinearAlgebra", "LRUCache", "LinearAlgebra", "PackageExtensionCompat", "Random", "SparseArrays", "Strided", "TensorKitSectors", "TensorOperations", "TupleTools", "VectorInterface"]
-git-tree-sha1 = "6df309314471b07b1006297527641d8c4c94232a"
+deps = ["GenericLinearAlgebra", "LRUCache", "LinearAlgebra", "PackageExtensionCompat", "Random", "Strided", "TensorKitSectors", "TensorOperations", "TupleTools", "VectorInterface"]
+git-tree-sha1 = "87ce301c816c6891db45e13a04a2a629a024c00e"
 repo-rev = "bigfloats"
 repo-url = "https://github.com/sanderdemeyer/TensorKit.jl.git"
 uuid = "07d1fe3e-3e46-537d-9eac-e9e13d0d4cec"
-version = "0.14.5"
+version = "0.14.8"
 weakdeps = ["ChainRulesCore", "FiniteDifferences"]
 
     [deps.TensorKit.extensions]

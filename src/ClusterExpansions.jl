@@ -84,6 +84,10 @@ export UniformTimeEvolution, SquaringTimeEvolution
 export UniformGroundStateTimeEvolution, SquaringGroundStateTimeEvolution
 export time_evolve, get_time_array, time_scan
 export time_evolve_model, time_scan_model
+export time_evolve_triangular
+
+export CTM_triangular, run!, _contract_onesite
+export _contract_twosite_0, _contract_twosite_60, _contract_twosite_120
 
 export data_generation_SF_CE, data_generation_ising_CE
 export data_generation_SF_SU, data_generation_ising_SU

@@ -95,39 +95,13 @@ function vopepo_costfun_exact_base((B₀, env_double_layer, env_triple_layer), A
         end
             
         ## update the environments for reuse
-        LHS = network_value(n_double_layer, env_double_layer)
-        RHS = network_value(n_triple_layer, env_triple_layer)
-        # E = - real(RHS / sqrt(LHS))
-
-        # PEPSKit.@autoopt @tensor ∂LHS[Dp1 Dp2; DN2 DE2 DS2 DW2] := twist(B,2)[Dp1 Dp2; DN1 DE1 DS1 DW1] * 
-        # env_double_layer.corners[1,1,1][χ8; χ1] * env_double_layer.edges[1,1,1][χ1 DN1 DN2; χ2] * 
-        # env_double_layer.corners[2,1,1][χ2; χ3] * env_double_layer.edges[2,1,1][χ3 DE1 DE2; χ4] * 
-        # env_double_layer.corners[3,1,1][χ4; χ5] * env_double_layer.edges[3,1,1][χ5 DS1 DS2; χ6] * 
-        # env_double_layer.corners[4,1,1][χ6; χ7] * env_double_layer.edges[4,1,1][χ7 DW1 DW2; χ8]
-
-        # PEPSKit.@autoopt @tensor ∂RHS[Dp1 Dp2; DN3 DE3 DS3 DW3] := twist(A₁,2)[Dp Dp2; DN1 DE1 DS1 DW1] * 
-        # A₂[Dp1 Dp; DN2 DE2 DS2 DW2] * 
-        # env_triple_layer.corners[1,1,1][χ8; χ1] * env_triple_layer.edges[1,1,1][χ1 DN1 DN2 DN3; χ2] * 
-        # env_triple_layer.corners[2,1,1][χ2; χ3] * env_triple_layer.edges[2,1,1][χ3 DE1 DE2 DE3; χ4] * 
-        # env_triple_layer.corners[3,1,1][χ4; χ5] * env_triple_layer.edges[3,1,1][χ5 DS1 DS2 DS3; χ6] * 
-        # env_triple_layer.corners[4,1,1][χ6; χ7] * env_triple_layer.edges[4,1,1][χ7 DW1 DW2 DW3; χ8]
-
-        # (r, c) = (1, 1)
-        # ∂LHS *= PEPSKit._contract_corners((r, c), env_double_layer) /
-        # PEPSKit._contract_vertical_edges((r, c), env_double_layer) / PEPSKit._contract_horizontal_edges((r, c), env_double_layer)
-        # ∂RHS *= PEPSKit._contract_corners((r, c), env_triple_layer) /
-        # PEPSKit._contract_vertical_edges((r, c), env_triple_layer) / PEPSKit._contract_horizontal_edges((r, c), env_triple_layer)
-
-        # LHS_new = PEPSKit.@autoopt @tensor ∂LHS[Dp1 Dp2; DN DE DS DW] * conj(B[Dp1 Dp2; DN DE DS DW])
-        # RHS_new = PEPSKit.@autoopt @tensor ∂RHS[Dp1 Dp2; DN DE DS DW] * conj(B[Dp1 Dp2; DN DE DS DW])
-
-        # g = -∂RHS / sqrt(LHS) + 0.5 * (RHS / sqrt(LHS)^3) * ∂LHS
-        return - real(RHS / sqrt(LHS))
+        LHS = network_value(n_double_layer, env_double_layer′)
+        RHS = network_value(n_triple_layer, env_triple_layer′)
+        return - abs(RHS / sqrt(LHS))
     end
     g = only(gs)
     return E, g
 end
-
 
 function pepo_retract((peps, env_monolayer), η, α)
     peps´, ξ = PEPSKit.norm_preserving_retract(peps, η, α)
@@ -188,7 +162,7 @@ function approximate_state(
         env_double, env_triple = initialize_vomps_environments(A[1], A[2], B, trunc_alg; trunc_alg.ctm_alg)
     end
     ls_alg = HagerZhangLineSearch(; c₁ = trunc_alg.c₁, maxiter = 5, maxfg = 10)
-    optimizer_alg = LBFGS(4; maxiter=trunc_alg.maxiter(iter), gradtol=1e-5, verbosity=3, linesearch = ls_alg)#, scalestep = false)
+    optimizer_alg = LBFGS(4; maxiter=trunc_alg.maxiter(iter), gradtol=1e-5, verbosity=3)#, linesearch = ls_alg)#, scalestep = false)
 
     vopepo_costfun = tup -> vopepo_costfun_exact_base(tup, A[1], A[2], trunc_alg.ctm_alg)
 

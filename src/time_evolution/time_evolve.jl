@@ -222,7 +222,8 @@ function time_evolve_filling(
     observable;
     finalize! = nothing,
     canoc_alg::Union{Canonicalization,Nothing} = nothing,
-    initial_guesses = i -> nothing
+    initial_guesses = i -> nothing,
+    check_energy::Bool = false
 ) where {F <: Function}
     @assert !(trunc_alg isa VOPEPO) "VOPEPO not implemented for filling control"
     A = evolution_operator(ce_alg(time_alg.μ₀), time_alg.β₀; canoc_alg)
@@ -264,7 +265,7 @@ function time_evolve_filling(
         if !isnothing(finalize!)
             A = finalize!(As, expvals, i)
         end
-        if i > 2 && abs(expvals[end][2] - expvals[end-1][2]) < time_alg.tol_energy
+        if check_energy && i > 2 && abs(expvals[end][2] - expvals[end-1][2]) < time_alg.tol_energy
             if time_alg.verbosity > 1
                 @info "Ground state search converged after $(i) iterations. Energy is $(expvals[end][1])"
                 return times, expvals, μs, As

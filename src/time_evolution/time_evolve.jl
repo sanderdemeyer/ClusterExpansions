@@ -145,7 +145,8 @@ function MPSKit.time_evolve(
     canoc_alg::Union{Canonicalization,Nothing} = nothing,
     skip_first::Bool = false,
     initial_guesses = i -> nothing,
-    saving = true
+    saving::Bool = true,
+    normalizing::Bool = true
 )
     As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
     times = copy(time_alg.βs_helper)
@@ -189,7 +190,9 @@ function MPSKit.time_evolve(
                 @error "Cannot perform time evolution without saving intermediaire steps for this time algorithm"
             end
         end
-        A /= norm(A)
+        if normalizing
+            A /= norm(A)
+        end
         A = canonicalize(A, canoc_alg)
         obs = observable(A)
         push!(times, times[end] + times[ind])
@@ -205,7 +208,7 @@ function MPSKit.time_evolve(
             end
         end
         if !isnothing(finalize!)
-            A = finalize!(As, expvals, i)
+            finalize!(As, expvals, i)
         end
     end
     if saving

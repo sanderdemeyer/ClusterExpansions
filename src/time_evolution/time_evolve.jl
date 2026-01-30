@@ -159,7 +159,7 @@ function MPSKit.time_evolve(
         obs = nothing
         expvals = []
     else
-        obs = observable(A)
+        obs = observable(A, 0)
         expvals = [obs]
     end
     push!(As, copy(A))
@@ -194,7 +194,7 @@ function MPSKit.time_evolve(
             A /= norm(A)
         end
         A = canonicalize(A, canoc_alg)
-        obs = observable(A)
+        obs = observable(A, i)
         push!(times, times[end] + times[ind])
         if saving
             push!(expvals, obs)

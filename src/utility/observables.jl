@@ -86,7 +86,8 @@ end
 function MPSKit.expectation_value(ρ::InfinitePEPO, symb::Symbol, env::CTMRGEnv) where {T,S}
     if symb == :spectrum
         above = InfiniteMPS([env.edges[1,1,1]])
-        below = InfiniteMPS([env.edges[3,1,1]])
+        tensor_below = permute(env.edges[3,1,1]', ((1,3), (2,)))
+        below = InfiniteMPS([tensor_below])
         ϵ, δ, θ = marek_gap(above; below, num_vals = 20)
         return 1 / ϵ, δ, θ
     else        

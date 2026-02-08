@@ -83,6 +83,18 @@ function MPSKit.expectation_value(::InfinitePEPS, symb::Symbol, (mps,env)::Tuple
     # return ξ_h, log(abs(λ_h[2])/log(λ_h[3]))
 end
 
+function MPSKit.expectation_value(ρ::InfinitePEPO, symb::Symbol, env::CTMRGEnv) where {T,S}
+    if symb == :spectrum
+        above = InfiniteMPS([env.edges[1,1,1]])
+        below = InfiniteMPS([env.edges[3,1,1]])
+        ϵ, δ, θ = marek_gap(above; below, num_vals = 20)
+        return 1 / ϵ, δ, θ
+    else        
+        @warn "Observable $(symb) not defined. This will be set to zero"
+        return 0
+    end
+end
+
 function _env_algs(observables::Vector{PEPOObservable})
     return [obs.env_alg isa VUMPS ? :VUMPS : (obs.env_alg isa PEPSKit.CTMRGAlgorithm ? :CTMRG : :nothing) for obs = observables]
 end
@@ -220,20 +232,6 @@ function calculate_observables(ψ::InfinitePEPS, χ::Int, observables)
         mps = initialize_mps(T, [envspace])
     
         mps, env, ϵ = leading_boundary(mps, T, vumps_alg)
-    
-        # pf = InfiniteSquareNetwork(ψ)
-        # T = InfiniteMPO([pf[1,1]])
-        # pspace = domain(ψ[1,1])[1]
-    
-        # mps = InfiniteMPS([
-        #     randn(
-        #         ComplexF64,
-        #         envspace * pspace,
-        #         envspace,
-        #     )])
-        # mps, env, _ = leading_boundary(mps, T, vumps_alg)
-        # println(typeof(mps))
-        # println(typeof(env))
         vumps_env = (mps, env)
     end
     if :CTMRG ∈ env_algs

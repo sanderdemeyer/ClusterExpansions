@@ -83,7 +83,7 @@ function MPSKit.expectation_value(::InfinitePEPS, symb::Symbol, (mps,env)::Tuple
     # return ξ_h, log(abs(λ_h[2])/log(λ_h[3]))
 end
 
-function MPSKit.expectation_value(ρ::InfinitePEPO, symb::Symbol, env::CTMRGEnv) where {T,S}
+function MPSKit.expectation_value(ρ::InfinitePEPO, symb::Symbol, env::CTMRGEnv)
     if symb == :spectrum
         above = InfiniteMPS([env.edges[1,1,1]])
         tensor_below = permute(env.edges[3,1,1]', ((1,3), (2,)))

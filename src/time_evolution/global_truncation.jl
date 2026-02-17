@@ -26,10 +26,25 @@ function find_isometry(
     trunc_space_h = domain(A[1])[2]
     Ws = get_initial_isometry(T, orig_space_h, orig_space_v, trunc_space_h, trunc_space_v)
 
+    PN,PS = find_P1P2(A[1],A[2],3,5,trunc_alg.trscheme);
+    PE,PW = find_P1P2(A[1],A[2],4,6,trunc_alg.trscheme);
+
+    PN = permute(PN, ((2,1),(3,)))
+    PE = permute(PE, ((2,1),(3,)))
+    PS = permute(PS, ((1,),(3,2)))
+    PW = permute(PW, ((1,),(3,2)))
+    
+    for W = Ws
+        println("Ws[] : $(W)")
+    end
+    println("$(PN.space), $(PS.space), $(PE.space), $(PW.space)")
+    Ws = [PN, PE, PS, PW]
+
     pspace = codomain(A[1])[1]
     M = randn(T, pspace, pspace)
 
     error = Inf
+    ϵs = []
     expvals = ComplexF64[Inf]
     for i = 1:trunc_alg.maxiter
         t_hor, t_ver, expval = truncation_environment(A, Ws, trunc_alg, M)
@@ -37,6 +52,7 @@ function find_isometry(
         push!(expvals, expval)
 
         error = abs(expvals[end] - expvals[end-1])
+        push!(ϵs, error)
         if trunc_alg.verbosity > 1
             @info "Step $i: error = $error"
         end
@@ -52,7 +68,7 @@ function find_isometry(
             end
         end
     end
-    return Ws
+    return Ws, ϵs
 end
 
 function truncation_environment(
@@ -67,31 +83,58 @@ function truncation_environment(
     AAdag = InfinitePEPO(A_stack)
 
     network = InfiniteSquareNetwork(AAdag)
-    env, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
-    num = PEPSKit.@autoopt @tensor env.corners[1,1,1][χ8; χ1] * env.edges[1,1,1][χ1 DN1 DN2; χ2] * env.corners[2,1,1][χ2; χ3] * 
-                                    env.edges[2,1,1][χ3 DE1 DE2; χ4] * env.corners[3,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DS1 DS2; χ6] * 
-                                    env.corners[4,1,1][χ6; χ7] * env.edges[4,1,1][χ7 DW1 DW2; χ8] * 
-                                    twist(A_trunc,2)[Dp1 Dp2; DN1 DE1 DS1 DW1] * conj(A_trunc[Dp3 Dp2; DN2 DE2 DS2 DW2]) * M[Dp3; Dp1]
-    denom = PEPSKit.@autoopt @tensor env.corners[1,1,1][χ8; χ1] * env.edges[1,1,1][χ1 DN1 DN2; χ2] * env.corners[2,1,1][χ2; χ3] * 
-                                    env.edges[2,1,1][χ3 DE1 DE2; χ4] * env.corners[3,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DS1 DS2; χ6] * 
-                                    env.corners[4,1,1][χ6; χ7] * env.edges[4,1,1][χ7 DW1 DW2; χ8] * 
-                                    twist(A_trunc,2)[Dp1 Dp2; DN1 DE1 DS1 DW1] * conj(A_trunc[Dp1 Dp2; DN2 DE2 DS2 DW2])
 
-    # Horizontal truncation environment
-    AL_below = copy(A_trunc)
-    AR_below = copy(A_trunc)
-    AL_above = apply_isometry(A, Ws, [2])
-    AR_above = apply_isometry(A, Ws, [4])
-    t_hor = contract_34_patch(AL_above, AR_above, AL_below, AR_below, env)
 
-    # Vertical truncation environment
-    AB_below = copy(A_trunc)
-    AT_below = copy(A_trunc)
-    AB_above = apply_isometry(A, Ws, [1])
-    AT_above = apply_isometry(A, Ws, [3])
-    t_ver = contract_43_patch(AB_above, AT_above, AB_below, AT_below, env)
-    
-    return t_hor, t_ver, num / denom
+
+
+    try    
+        env, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
+        # num = PEPSKit.@autoopt @tensor env.corners[1,1,1][χ8; χ1] * env.edges[1,1,1][χ1 DN1 DN2; χ2] * env.corners[2,1,1][χ2; χ3] * 
+        #                                 env.edges[2,1,1][χ3 DE1 DE2; χ4] * env.corners[3,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DS1 DS2; χ6] * 
+        #                                 env.corners[4,1,1][χ6; χ7] * env.edges[4,1,1][χ7 DW1 DW2; χ8] * 
+        #                                 twist(A_trunc,2)[Dp1 Dp2; DN1 DE1 DS1 DW1] * conj(A_trunc[Dp3 Dp2; DN2 DE2 DS2 DW2]) * M[Dp3; Dp1]
+        # denom = PEPSKit.@autoopt @tensor env.corners[1,1,1][χ8; χ1] * env.edges[1,1,1][χ1 DN1 DN2; χ2] * env.corners[2,1,1][χ2; χ3] * 
+        #                                 env.edges[2,1,1][χ3 DE1 DE2; χ4] * env.corners[3,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DS1 DS2; χ6] * 
+        #                                 env.corners[4,1,1][χ6; χ7] * env.edges[4,1,1][χ7 DW1 DW2; χ8] * 
+        #                                 twist(A_trunc,2)[Dp1 Dp2; DN1 DE1 DS1 DW1] * conj(A_trunc[Dp1 Dp2; DN2 DE2 DS2 DW2])
+        num = PEPSKit.@autoopt @tensor env.corners[1,1,1][χ8; χ1] * env.edges[1,1,1][χ1 DN1 DN2; χ2] * env.corners[2,1,1][χ2; χ3] * 
+                                        env.edges[2,1,1][χ3 DE1 DE2; χ4] * env.corners[3,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DS1 DS2; χ6] * 
+                                        env.corners[4,1,1][χ6; χ7] * env.edges[4,1,1][χ7 DW1 DW2; χ8] * 
+                                        twist(A_trunc,2)[Dp1 Dp2; DN1 DE1 DS1 DW1] * PEPSKit._dag(A_trunc)[Dp2 Dp3; DN2 DE2 DS2 DW2] * M[Dp3; Dp1]
+        denom = PEPSKit.@autoopt @tensor env.corners[1,1,1][χ8; χ1] * env.edges[1,1,1][χ1 DN1 DN2; χ2] * env.corners[2,1,1][χ2; χ3] * 
+                                        env.edges[2,1,1][χ3 DE1 DE2; χ4] * env.corners[3,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DS1 DS2; χ6] * 
+                                        env.corners[4,1,1][χ6; χ7] * env.edges[4,1,1][χ7 DW1 DW2; χ8] * 
+                                        twist(A_trunc,2)[Dp1 Dp2; DN1 DE1 DS1 DW1] * PEPSKit._dag(A_trunc)[Dp2 Dp1; DN2 DE2 DS2 DW2]
+
+        # Horizontal truncation environment
+        AL_below = copy(A_trunc)
+        AR_below = copy(A_trunc)
+        AL_above = apply_isometry(A, Ws, [2])
+        AR_above = apply_isometry(A, Ws, [4])
+        AL_above2 = apply_isometry(A, Ws, 2)
+        AR_above2 = apply_isometry(A, Ws, 4)
+        println("Differences:")
+        println(norm(AL_above-AL_above2))
+        println(norm(AR_above-AR_above2))
+        t_hor = contract_34_patch(AL_above, AR_above, AL_below, AR_below, env)
+
+        # Vertical truncation environment
+        AB_below = copy(A_trunc)
+        AT_below = copy(A_trunc)
+        AB_above = apply_isometry(A, Ws, [1])
+        AT_above = apply_isometry(A, Ws, [3])
+        AB_above2 = apply_isometry(A, Ws, 1)
+        AT_above2 = apply_isometry(A, Ws, 3)
+        println("Differences:")
+        println(norm(AB_above-AB_above2))
+        println(norm(AT_above-AT_above2))
+        t_ver = contract_43_patch(AB_above, AT_above, AB_below, AT_below, env)
+        
+        return t_hor, t_ver, num / denom
+    catch
+        @warn "LAPACK error: trying again"
+        return truncation_environment(A, Ws, trunc_alg, M)
+    end
 end
 
 function contract_34_patch(
@@ -137,14 +180,14 @@ function approximate_state(
     ctm_alg_fidelity = trunc_alg.ctm_alg
 ) where {E,S<:ElementarySpace}
 
-    Ws = find_isometry(A, trunc_alg)
+    Ws, ϵs = find_isometry(A, trunc_alg)
     A_trunc = apply_isometry(A, Ws)
 
-    trunc_alg.check_fidelity || return A_trunc, nothing
+    trunc_alg.check_fidelity || return A_trunc, ϵs, nothing
     overlap = fidelity(A, A_trunc, ctm_alg_fidelity, envspace_fidelity)
     if trunc_alg.verbosity > 1
         @info "Fidelity of approximation is $overlap"
     end
-    return A_trunc, overlap
+    return A_trunc, ϵs, overlap
 end
 

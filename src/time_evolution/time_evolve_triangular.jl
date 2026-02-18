@@ -39,7 +39,7 @@ function time_evolve_triangular(
         obs = nothing
         expvals = []
     else
-        obs = observable(A)
+        obs = observable(A, 0)
         expvals = [obs]
     end
     push!(As, copy(A))
@@ -71,7 +71,7 @@ function time_evolve_triangular(
             end
         end
         A = canonicalize(A, canoc_alg)
-        obs = observable(A)
+        obs = observable(A, i)
         push!(times, times[end] + times[ind])
         if saving
             push!(expvals, obs)

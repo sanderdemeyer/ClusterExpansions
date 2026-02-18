@@ -56,7 +56,9 @@ include("clusterexpansions_triangular/solvers/linearsolvers_triangular.jl")
 include("clusterexpansions_triangular/solvers/nonlinearsolvers_optimkit_triangular.jl")
 include("clusterexpansions_triangular/solve_clusters_triangular.jl")
 
+include("triangular.jl")
 include("CTM_triangular.jl")
+include("C6vCTM_triangular.jl")
 
 export EntanglementFiltering, filter_loop, truncate_loop
 export rotl90_fermionic, rotl180_fermionic
@@ -86,7 +88,7 @@ export time_evolve, get_time_array, time_scan
 export time_evolve_model, time_scan_model
 export time_evolve_triangular
 
-export CTM_triangular, run!, _contract_onesite
+export CTM_triangular, c6vCTM_triangular, run!, _contract_onesite
 export _contract_twosite_0, _contract_twosite_60, _contract_twosite_120
 
 export data_generation_SF_CE, data_generation_ising_CE

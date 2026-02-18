@@ -17,28 +17,26 @@ end
 
 function find_isometry(
     A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}} where {E,S<:ElementarySpace},
-    trunc_alg::ApproximateEnvTruncation
+    trunc_alg::ApproximateEnvTruncation;
+    initial_guess::Bool = true
 ) 
     T = scalartype(A)
     orig_space_v = domain(A[1])[1] ⊗ domain(A[2])[1]
     trunc_space_v = domain(A[1])[1]
     orig_space_h = domain(A[1])[2] ⊗ domain(A[2])[2]
     trunc_space_h = domain(A[1])[2]
-    Ws = get_initial_isometry(T, orig_space_h, orig_space_v, trunc_space_h, trunc_space_v)
+    if initial_guess
+        PN,PS = find_P1P2(A[1],A[2],3,5,trunc_alg.trscheme);
+        PE,PW = find_P1P2(A[1],A[2],4,6,trunc_alg.trscheme);
 
-    PN,PS = find_P1P2(A[1],A[2],3,5,trunc_alg.trscheme);
-    PE,PW = find_P1P2(A[1],A[2],4,6,trunc_alg.trscheme);
-
-    PN = permute(PN, ((2,1),(3,)))
-    PE = permute(PE, ((2,1),(3,)))
-    PS = permute(PS, ((1,),(3,2)))
-    PW = permute(PW, ((1,),(3,2)))
-    
-    for W = Ws
-        println("Ws[] : $(W)")
-    end
-    println("$(PN.space), $(PS.space), $(PE.space), $(PW.space)")
+        PN = permute(PN, ((2,1),(3,)))
+        PE = permute(PE, ((2,1),(3,)))
+        PS = permute(PS, ((1,),(3,2)))
+        PW = permute(PW, ((1,),(3,2)))
     Ws = [PN, PE, PS, PW]
+    else
+        Ws = get_initial_isometry(T, orig_space_h, orig_space_v, trunc_space_h, trunc_space_v)
+    end
 
     pspace = codomain(A[1])[1]
     M = randn(T, pspace, pspace)
@@ -177,10 +175,11 @@ function approximate_state(
     A::Union{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4},Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}},Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}},
     trunc_alg::ApproximateEnvTruncation;
     envspace_fidelity = trunc_alg.envspace,
-    ctm_alg_fidelity = trunc_alg.ctm_alg
+    ctm_alg_fidelity = trunc_alg.ctm_alg,
+    initial_guess::Bool = true
 ) where {E,S<:ElementarySpace}
 
-    Ws, ϵs = find_isometry(A, trunc_alg)
+    Ws, ϵs = find_isometry(A, trunc_alg; initial_guess)
     A_trunc = apply_isometry(A, Ws)
 
     trunc_alg.check_fidelity || return A_trunc, ϵs, nothing

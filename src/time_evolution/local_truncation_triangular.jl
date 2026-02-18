@@ -54,15 +54,45 @@ function find_P1P2(lattice::Triangular, A1, A2, ind1, ind2, trunc; check_space=t
     return oblique_projector(R1, R2, trunc; proj)
 end
 
+# Functions to permute (flipped and unflipped) tensors under 60 degree rotation
+function rotl60_pf(T::TensorMap{A, S, 3, 3}) where {A, S}
+    return permute(T, ((4, 1, 2), (5, 6, 3)))
+end
+
+function rotl60_pf(T::TensorMap{A, S, 0, 6}) where {A, S}
+    return permute(T, ((), (2, 3, 4, 5, 6, 1)))
+end
+
 function approximate_state(
     A::Tuple{AbstractTensorMap{E,S,2,6},AbstractTensorMap{E,S,2,6}},
     trunc_alg::NoEnvTruncation
 ) where {E,S<:ElementarySpace}
     lattice = Triangular()
     P120,P300 = find_P1P2(lattice,A[1],A[2],3,6,trunc_alg.trscheme; proj = trunc_alg.projectors);
-    P60,P240 = find_P1P2(lattice,A[1],A[2],4,7,trunc_alg.trscheme; proj = trunc_alg.projectors);
-    P0,P180 = find_P1P2(lattice,A[1],A[2],5,8,trunc_alg.trscheme; proj = trunc_alg.projectors);
+    # P300 = convert(TensorMap, P120')
+    # P300 = flip(permute(P120, ((3,),(1,2))), [1 2 3])
+    P120_float = zeros(Float64, codomain(P120), domain(P120))
+    for (f_full, f_conv) in zip(blocks(P120), blocks(P120_float))
+        f_conv[2] .= real.(f_full[2])
+    end
+    P120 = copy(P120_float)
+    P300 = flip(P120, [1 2 3])
+    # P300 = permute(P120', ((2,3),(1,)))
+    # P60,P240 = find_P1P2(lattice,A[1],A[2],4,7,trunc_alg.trscheme; proj = trunc_alg.projectors);
+    # P0,P180 = find_P1P2(lattice,A[1],A[2],5,8,trunc_alg.trscheme; proj = trunc_alg.projectors);
+    P60 = P0 = P120
+    P240 = P180 = P300
+    # @tensor T1[-6 -5 -4; -1 -2 -3] := A[1][1 1; -1 -2 -3 -4 -5 -6]
+    # @tensor T2[-6 -5 -4; -1 -2 -3] := A[2][1 1; -1 -2 -3 -4 -5 -6]
+    # T1_unflipped = permute(flip(T1, (1, 2, 3); inv = true), ((), (4, 5, 6, 3, 2, 1)))
+    # T2_unflipped = permute(flip(T2, (1, 2, 3); inv = true), ((), (4, 5, 6, 3, 2, 1)))
 
-    @tensor opt=true Onew[-1 -2; -3 -4 -5 -6 -7 -8] := A[1][1 -2; 8 9 10 11 12 13] * A[2][-1 1; 2 3 4 5 6 7] * P120[2 8; -3] * P60[3 9; -4] * P0[4 10; -5] * P300[-6; 5 11] * P240[-7; 6 12] * P180[-8; 7 13]
+    # @tensor opt=true Onew[-1 -2; -3 -4 -5 -6 -7 -8] := A[1][1 -2; 8 9 10 11 12 13] * A[2][-1 1; 2 3 4 5 6 7] * P120[2 8; -3] * P60[3 9; -4] * P0[4 10; -5] * P300[-6; 5 11] * P240[-7; 6 12] * P180[-8; 7 13]
+    @tensor opt=true Onew[-1 -2; -3 -4 -5 -6 -7 -8] := A[1][1 -2; 8 9 10 11 12 13] * A[2][-1 1; 2 3 4 5 6 7] * P120[2 8; -3] * P60[3 9; -4] * P0[4 10; -5] * P300[5 11; -6] * P240[6 12; -7] * P180[7 13; -8]
+    # Onew = (Onew + flip(permute(Onew, ((1,2),(4,5,6,7,8,3))), [5 8])) / 2
+
+    @assert norm(flip(permute(Onew, ((1,2),(4,5,6,7,8,3))), [5 8]) - Onew) < 1e-10 "$(norm(flip(permute(Onew, ((1,2),(4,5,6,7,8,3))), [5 8]) - Onew))"
+    @tensor Tnew[-6 -5 -4; -1 -2 -3] := Onew[1 1; -1 -2 -3 -4 -5 -6] 
+    @assert norm(Tnew - Tnew') < 1e-10 "$(norm(Tnew - Tnew'))"
     return Onew, nothing
 end

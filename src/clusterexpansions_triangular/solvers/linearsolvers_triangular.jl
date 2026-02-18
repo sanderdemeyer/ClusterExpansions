@@ -210,9 +210,9 @@ function solve_index(lattice::Triangular, T, A, exp_H, conjugated, sites_to_upda
                 @warn "Error made on the SVD is of the order $(norm(x - x1 * x2)/norm(x))"
             end
         else
-            if dir == (3,1)
-                x = flip(x, (2,3,4,6,9,10))
-                x = permute(x, ((1,2,3,4,5), (6,7,9,10,8)))
+            if dir == (4,1)
+                x = flip(x, (2,3,4,5,8,12,13,14))
+                x = permute(x, ((1,2,3,4,5,6,7), (8,9,12,13,14,10,11)))
             else
                 @error "TBA"
             end
@@ -226,10 +226,10 @@ function solve_index(lattice::Triangular, T, A, exp_H, conjugated, sites_to_upda
             x1 = eigvec * sqrt(eigval)
             x2 = sqrt(eigval) * eigvec'
             @assert norm(x - x1 * x2) < eps(real(T))*1e2 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2))"
-            # @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2)/norm(x))"
-            x1 = flip(x1, (2,3,4))
-            x2 = permute(x2, ((1,), (2,3,6,4,5)))
-            x2 = flip(x2, (2,5,6))
+            
+            x1 = flip(x1, (2,3,4,5))
+            x2 = permute(x2, ((1,), (2,3,7,8,4,5,6)))
+            x2 = flip(x2, (2,6,7,8))
         end
         x1 = permute_dir(lattice, x1, dir[1], 0)
         x2 = permute_dir(lattice, x2, dir[2], 1)

@@ -246,7 +246,7 @@ function solve_index(lattice::Triangular, T, A, exp_H, conjugated, sites_to_upda
                     @warn "Hermiticicing: Change is of order $(norm(x-x')/(2*norm(x)))"
                 end
             end
-            eigval, eigvec = eig_with_truncation(x, spaces(levels_to_update[1][dir[1]]))
+            eigval, eigvec = eig_with_truncation(lattice, x, spaces(levels_to_update[1][dir[1]]))
             x1 = eigvec * sqrt(eigval)
             x2 = sqrt(eigval) * eigvec'
             @assert norm(x - x1 * x2) < eps(real(T))*1e2 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2))"

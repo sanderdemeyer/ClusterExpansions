@@ -134,6 +134,30 @@ function permute_dir(lattice::Triangular, x, dir, second)
     return permute(x, ((1,2).+second, (Tuple(tup))))
 end
 
+function eig_with_truncation(lattice::Triangular, x, space)
+    T = scalartype(x)
+    D = dim(space)
+    eigval, eigvec = eig(x)
+    if space == domain(eigval)[1]
+        return eigval, eigvec
+    end
+    eigval_trunc = zeros(T, space, space)
+    eigvec_trunc = zeros(T, codomain(x), space)
+    eigval_trunc[] = eigval[][1:D,1:D]
+    eigvec_trunc[] = eigvec[][:,:,:,:,:,:,:,1:D]
+
+    T_new = real(scalartype(eigvec))
+    eigval_trunc_float = zeros(T_new, codomain(eigval_trunc), domain(eigval_trunc))
+    for (f_full, f_conv) in zip(blocks(eigval_trunc), blocks(eigval_trunc_float))
+        f_conv[2] .= f_full[2]
+    end
+    eigvec_trunc_float = zeros(T_new, codomain(eigvec_trunc), domain(eigvec_trunc))
+    for (f_full, f_conv) in zip(blocks(eigvec_trunc), blocks(eigvec_trunc_float))
+        f_conv[2] .= f_full[2]
+    end
+    return eigval_trunc_float, eigvec_trunc_float
+end
+
 function solve_index(lattice::Triangular, T, A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N, spaces; verbosity = 2, svd = true)
     trivspace = spaces(0)
     if N == 2

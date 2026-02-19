@@ -88,7 +88,7 @@ function oblique_projector(R1, R2, trunc; proj = :svd)
         P2 = inv(sqrt(S)) * adjoint(U) * R1
     elseif proj == :eig
         dims = minimum([dim(domain(mat)) trunc.dim])
-        D, V = eig_with_truncation_triangular(mat, ℂ^(dims))
+        D, V = eig_with_truncation(mat, ℂ^(dims))
         P1 = R2 * V * inv(sqrt(D))
         P2 = inv(sqrt(D)) * adjoint(V) * R1
     end    

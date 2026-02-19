@@ -49,9 +49,24 @@ end
    └──┘        └──┘   
 =#
 
+function oblique_projector(lattice::Triangular, R1, R2, trunc; proj = :svd)
+    mat = R1 * R2
+    if proj == :svd
+        U, S, Vt = tsvd(mat; trunc)
+        P1 = R2 * adjoint(Vt) * inv(sqrt(S))
+        P2 = inv(sqrt(S)) * adjoint(U) * R1
+    elseif proj == :eig
+        dims = minimum([dim(domain(mat)) trunc.dim])
+        D, V = eig_with_truncation_triangular(mat, ℂ^(dims))
+        P1 = R2 * V * inv(sqrt(D))
+        P2 = inv(sqrt(D)) * adjoint(V) * R1
+    end    
+    return P1, P2
+end
+
 function find_P1P2(lattice::Triangular, A1, A2, ind1, ind2, trunc; check_space=true, proj = :svd)
     R1, R2 = R1R2(lattice, A1, A2, ind1, ind2; check_space=check_space)
-    return oblique_projector(R1, R2, trunc; proj)
+    return oblique_projector(lattice, R1, R2, trunc; proj)
 end
 
 # Functions to permute (flipped and unflipped) tensors under 60 degree rotation

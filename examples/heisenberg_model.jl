@@ -30,7 +30,7 @@ time_alg = UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 2)
 H = localoperator_model(SpinOperators.spin_space(spin_symmetry), SpinOperators.S_exchange(spin_symmetry))
 ctm_alg = SimultaneousCTMRG(; maxiter = 250, verbosity = 0)
 observables = PEPO_observables([H], ctm_alg)
-observable = O -> ClusterExpansions.calculate_observables(O, χenv, observables)
+observable = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
 
 # Perform the actual time evolution.
 # `βs` is a list of times/βs at which the expectation values are computed
@@ -44,6 +44,6 @@ energies = [e[1] for e in expvals]
 # Plot them
 plt = scatter(Float64.(βs), real.(energies), label = "Energies CE")
 xlabel!("T")
-ylabel!("Exchange")
+ylabel!("Energy")
 title!("Heisenberg model")
 display(plt)

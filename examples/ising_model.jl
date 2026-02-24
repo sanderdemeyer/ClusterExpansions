@@ -5,46 +5,55 @@ using ClusterExpansions
 using PEPSKit
 using Plots
 
-# Set up the Ising model
-J = 1.0 # nearest-neighbour ZZ interaction
-g = 0.0 # transverse field along the x-axis
-z = 0.0 # explicit symmetry-breaking fielda along the z-axis
-ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4")
+g = 2.5
+Dcut = 6
+χenv = 12
 
-χenv = 8 # Environment bond dimension used in the calculation of expectation values
+trunc_alg_CE = NoEnvTruncation(truncdim(Dcut))
 
-# Parameters in the truncation scheme
-Dcut = 4
-trunc_alg = NoEnvTruncation(truncdim(Dcut); verbosity = 0)
+β₀ = 0.05
+Δβ = 0.05
+max_beta = 1.0
+maxiter = ceil(Int, (max_beta - β₀) / Δβ)
+time_alg_CE = UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 2)
 
-# Set up time evolution algorithm
-β₀ = 0.1
-Δβ = 0.1
-maxiter = 8
-time_alg = UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 2)
+ce_alg = ising_operators(1.0, g, 0.0; T = Float64, symmetry = "C4")
+t_alg = ising_operators_Trotter(1.0, g, 0.0; T = Float64)
 
 # Define observables
 vumps_alg = VUMPS(; maxiter = 100, verbosity = 0)
-observables = PEPO_observables([SpinOperators.σᶻ(), SpinOperators.σˣ()], vumps_alg)
-observable = O -> ClusterExpansions.calculate_observables(O, χenv, observables)
+ctm_alg = SequentialCTMRG(; maxiter = 300)
+observables = PEPO_observables([SpinOperators.σᶻ(), SpinOperators.σˣ(), :spectrum], vumps_alg)
+observable = (O, i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
 
-# Perform the actual time evolution.
-# `βs` is a list of times/βs at which the expectation values are computed
-# 'expvals' are the expectation values. Every element of `expvals` is a list of the expectation values at the corresponding time
-# `Os` is a list of PEPO density operators
-βs, expvals, Os = time_evolve(ce_alg, time_alg, trunc_alg, observable);
+βs, expvals_CE, As_CE = time_evolve(ce_alg, time_alg_CE, trunc_alg_CE, observable; normalizing = true);
+βs, expvals_T, As_T = time_evolve(t_alg, time_alg_CE, trunc_alg_CE, observable; normalizing = true);
 
 # Extract the expectation values
-mz = [e[1] for e in expvals]
-mx = [e[2] for e in expvals]
+mzs_CE = [e[1] for e in expvals_CE]
+mxs_CE = [e[2] for e in expvals_CE]
+ξs_CE = [e[3][1] for e in expvals_CE]
+δs_CE = [e[3][2] for e in expvals_CE]
 
-# Plot them
-Tc = 2/(log(1+sqrt(2))) # Critical temperature for the Ising model without transverse field
-Ts = 1 ./ βs
-plt = scatter(Float64.(Ts), abs.(mx), label = "<X>")
-scatter!(Float64.(Ts), abs.(mz), label = "<Z>")
-vline!([Tc], label = "Tc")
-xlabel!("T")
-ylabel!("Magnetization")
-title!("Ising model with g = $(real(g))")
+mzs_T = [e[1] for e in expvals_T]
+mxs_T = [e[2] for e in expvals_T]
+ξs_T = [e[3][1] for e in expvals_T]
+δs_T = [e[3][2] for e in expvals_T]
+
+plt = scatter()
+scatter!(βs, abs.(mzs_CE), label = "CE - D = $(Dcut)")
+scatter!(βs, abs.(mzs_T), label = "Trotter - D = $(Dcut)")
+vline!([1 /  1.2736], label = "QMC")
+xlabel!("β")
+ylabel!("magnetization")
+title!("Ising model for g = $g")
+display(plt)
+
+plt = scatter()
+scatter!(βs, ξs_CE, label = "CE - D = $(Dcut)")
+scatter!(βs, ξs_T, label = "Trotter - D = $(Dcut)")
+vline!([1 /  1.2736], label = "QMC")
+xlabel!("β")
+ylabel!("correlation length ξ")
+title!("Ising model for g = $g")
 display(plt)

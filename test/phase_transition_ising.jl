@@ -23,29 +23,29 @@ trunc_alg = NoEnvTruncation(truncdim(Dcut); verbosity = 0)
 # Define observables
 vumps_alg = VUMPS(; maxiter = 100, verbosity = 0)
 obss = PEPO_observables([:spectrum, SpinOperators.σᶻ(), SpinOperators.σˣ()], vumps_alg)
-obs_function = O -> ClusterExpansions.calculate_observables(O, χenv, obss)
+obs_function = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, obss)
 
-# @testset "Classical Ising model" begin
-#     # Set up the classical Ising model
-#     (J, g, z) = (1.0, 0.0, 0.0)
-#     ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4")
+@testset "Classical Ising model" begin
+    # Set up the classical Ising model
+    (J, g, z) = (1.0, 0.0, 0.0)
+    ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4")
 
-#     # Perform the time evolution.
-#     βs, expvals, Os = time_evolve(ce_alg, time_alg, trunc_alg, obs_function)
+    # Perform the time evolution.
+    βs, expvals, Os = time_evolve(ce_alg, time_alg, trunc_alg, obs_function)
 
-#     # Extract the expectation values
-#     ξs = [e[1][1] for e in expvals]
-#     mzs = [e[2] for e in expvals]
-#     mxs = [e[3] for e in expvals]
+    # Extract the expectation values
+    ξs = [e[1][1] for e in expvals]
+    mzs = [e[2] for e in expvals]
+    mxs = [e[3] for e in expvals]
 
-#     # Critical temperature for the classical Ising model
-#     Tc = 2/(log(1+sqrt(2)))
-#     βc = 1 / Tc
+    # Critical temperature for the classical Ising model
+    Tc = 2/(log(1+sqrt(2)))
+    βc = 1 / Tc
 
-#     # Tests on the phase transition of the classical Ising model
-#     @test norm(mxs) < 1e-14
-#     @test all([((β < βc) && (abs(mz) < 0.5)) || ((β > βc) && (abs(mz) > 0.5)) for (β,mz) in zip(βs,mzs)])
-# end
+    # Tests on the phase transition of the classical Ising model
+    @test norm(mxs) < 1e-14
+    @test all([((β < βc) && (abs(mz) < 0.5)) || ((β > βc) && (abs(mz) > 0.5)) for (β,mz) in zip(βs,mzs)])
+end
 
 @testset "Quantum Ising model" begin
     # Set up the classical Ising model

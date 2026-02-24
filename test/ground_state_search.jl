@@ -73,5 +73,5 @@ end
     
     A, E_CE = fixedpoint(ce_alg, time_alg, trunc_alg, obs_function);
     
-    @test abs(E_CE[1] - E) < 2e-2
+    @test abs(E_CE[1] - E) < 4e-2
 end

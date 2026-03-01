@@ -1,9 +1,9 @@
-function evolution_operator_triangular(ce_alg::ClusterExpansion, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+function evolution_operator_triangular(ce_alg::ClusterExpansion, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing, Canonicalization} = nothing)
     if β == 0.0
         pspace = domain(ce_alg.onesite_op)[1]
         vspace = ce_alg.spaces(0)
         t = id(T_conv, pspace ⊗ vspace ⊗ vspace ⊗ vspace)
-        return permute(t, ((1,5),(6,7,8,2,3,4)))
+        return permute(t, ((1, 5), (6, 7, 8, 2, 3, 4)))
     end
     lattice = ClusterExpansions.Triangular()
     _, O_clust_full = clusterexpansion(lattice, ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; nn_term = ce_alg.nn_term, spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops, svd = ce_alg.svd)
@@ -17,18 +17,18 @@ function evolution_operator_triangular(ce_alg::ClusterExpansion, β::Number; T_c
 end
 
 function time_evolve_triangular(
-    ce_alg::Union{ClusterExpansion,TrotterDecomposition},
-    time_alg::StaticTimeEvolution,
-    trunc_alg::Union{EnvTruncation,VOPEPO},
-    observable;
-    finalize! = nothing,
-    A0 = nothing,
-    canoc_alg::Union{Canonicalization,Nothing} = nothing,
-    skip_first::Bool = false,
-    initial_guesses = i -> nothing,
-    saving = true
-)
-    As = AbstractTensorMap[evolution_operator_triangular(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
+        ce_alg::Union{ClusterExpansion, TrotterDecomposition},
+        time_alg::StaticTimeEvolution,
+        trunc_alg::Union{EnvTruncation, VOPEPO},
+        observable;
+        finalize! = nothing,
+        A0 = nothing,
+        canoc_alg::Union{Canonicalization, Nothing} = nothing,
+        skip_first::Bool = false,
+        initial_guesses = i -> nothing,
+        saving = true
+    )
+    As = AbstractTensorMap[evolution_operator_triangular(ce_alg, β; canoc_alg) for β in time_alg.βs_helper]
     times = copy(time_alg.βs_helper)
     if isnothing(A0)
         A = evolution_operator_triangular(ce_alg, time_alg.β₀; canoc_alg)
@@ -44,14 +44,14 @@ function time_evolve_triangular(
     end
     push!(As, copy(A))
     push!(times, time_alg.β₀)
-    
+
     if trunc_alg isa VOPEPO
         env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[time_alg.update_list[1]])[1], trunc_alg)
     end
-    for (i,ind) in enumerate(time_alg.update_list)
+    for (i, ind) in enumerate(time_alg.update_list)
         if trunc_alg isa VOPEPO
             # if domain(env_triple.edges[1,1,1])[1] ≠ domain(A)[1] ⊗ domain(As[ind])[1] ⊗ trunc_alg.truncspace'
-            if codomain(env_triple.edges[1,1,1])[2] ≠ domain(A)[1] || codomain(env_triple.edges[1,1,1])[3] ≠ domain(As[ind])[1]
+            if codomain(env_triple.edges[1, 1, 1])[2] ≠ domain(A)[1] || codomain(env_triple.edges[1, 1, 1])[3] ≠ domain(As[ind])[1]
                 env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[ind])[1], trunc_alg)
             end
             if ind <= length(As)
@@ -89,7 +89,7 @@ function time_evolve_triangular(
         end
     end
     if saving
-        return times[length(time_alg.βs_helper)+1:end], expvals, As[length(time_alg.βs_helper)+1:end]
+        return times[(length(time_alg.βs_helper) + 1):end], expvals, As[(length(time_alg.βs_helper) + 1):end]
     else
         return times[end], obs, A
     end

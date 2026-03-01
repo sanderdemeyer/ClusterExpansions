@@ -48,11 +48,11 @@ function StaticTimeEvolution(β₀, βs_helper, update_list; verbosity = 0)
 end
 
 function UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 0)
-    return StaticTimeEvolution(β₀, [Δβ], [1 for i = 1:maxiter], verbosity)
+    return StaticTimeEvolution(β₀, [Δβ], [1 for i in 1:maxiter], verbosity)
 end
 
 function UniformGroundStateTimeEvolution(β₀, Δβ, maxiter, tol_energy; verbosity = 0)
-    return GroundStateTimeEvolution(β₀, [Δβ], [1 for i = 1:maxiter], tol_energy, verbosity)
+    return GroundStateTimeEvolution(β₀, [Δβ], [1 for i in 1:maxiter], tol_energy, verbosity)
 end
 
 function SquaringTimeEvolution(β₀, maxiter; verbosity = 0)
@@ -67,7 +67,7 @@ function TimeDependentTimeEvolution(β₀, Δβ, maxiter; verbosity = 0, f₁ = 
     return TimeDependentTimeEvolution(β₀, Δβ, maxiter, verbosity, f₁, f₂)
 end
 
-function UniformGroundStateFillingTimeEvolution(β₀, Δβ, maxiter, f_target; μ₀ = 0.0, α = 1e-3, tol_energy = 1e-5, verbosity = 0)
+function UniformGroundStateFillingTimeEvolution(β₀, Δβ, maxiter, f_target; μ₀ = 0.0, α = 1.0e-3, tol_energy = 1.0e-5, verbosity = 0)
     return GroundStateFillingTimeEvolution(β₀, Δβ, maxiter, f_target, μ₀, α, tol_energy, verbosity)
 end
 
@@ -81,7 +81,7 @@ end
 #     return O
 # end
 
-function evolution_operator(ce_alg::ClusterExpansion, time_alg::TimeDependentTimeEvolution, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+function evolution_operator(ce_alg::ClusterExpansion, time_alg::TimeDependentTimeEvolution, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing, Canonicalization} = nothing)
     _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, time_alg.Δβ, time_alg.f₂(β) * ce_alg.twosite_op, time_alg.f₁(β) * ce_alg.onesite_op; nn_term = ce_alg.nn_term, spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops, svd = ce_alg.svd)
     O_clust_full = convert(TensorMap, O_clust_full)
     O_canoc = canonicalize(O_clust_full, canoc_alg)
@@ -92,12 +92,12 @@ function evolution_operator(ce_alg::ClusterExpansion, time_alg::TimeDependentTim
     return O
 end
 
-function evolution_operator(ce_alg::ClusterExpansion, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+function evolution_operator(ce_alg::ClusterExpansion, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing, Canonicalization} = nothing)
     if β == 0.0
         pspace = domain(ce_alg.onesite_op)[1]
         vspace = ce_alg.spaces(0)
         t = id(T_conv, pspace ⊗ vspace ⊗ vspace)
-        return permute(t, ((1,4),(5,6,2,3)))
+        return permute(t, ((1, 4), (5, 6, 2, 3)))
     end
     _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; nn_term = ce_alg.nn_term, spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops, svd = ce_alg.svd)
     O_clust_full = convert(TensorMap, O_clust_full)
@@ -109,12 +109,12 @@ function evolution_operator(ce_alg::ClusterExpansion, β::Number; T_conv = Compl
     return O
 end
 
-function evolution_operator(td_alg::GenericTrotterDecomposition, β::Number; T = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+function evolution_operator(td_alg::GenericTrotterDecomposition, β::Number; T = ComplexF64, canoc_alg::Union{Nothing, Canonicalization} = nothing)
     if β == 0.0
         pspace = domain(td_alg.onesite_op)[1]
         vspace = td_alg.spaces(0)
         t = id(T, pspace ⊗ vspace ⊗ vspace)
-        return permute(t, ((1,4),(5,6,2,3)))
+        return permute(t, ((1, 4), (5, 6, 2, 3)))
     end
     U_onesite = get_Trotter_onesite(td_alg.onesite_op, td_alg.g, β)
     U_twosite = get_Trotter_twosite(td_alg.twosite_op, td_alg.spaces(1), β)
@@ -123,12 +123,12 @@ function evolution_operator(td_alg::GenericTrotterDecomposition, β::Number; T =
     return O_canoc
 end
 
-function evolution_operator(td_alg::TwositeTrotterDecomposition, β::Number; T = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+function evolution_operator(td_alg::TwositeTrotterDecomposition, β::Number; T = ComplexF64, canoc_alg::Union{Nothing, Canonicalization} = nothing)
     if β == 0.0
         pspace = domain(td_alg.onesite_op)[1]
         vspace = td_alg.spaces(0)
         t = id(T, pspace ⊗ vspace ⊗ vspace)
-        return permute(t, ((1,4),(5,6,2,3)))
+        return permute(t, ((1, 4), (5, 6, 2, 3)))
     end
     O_Trotter = get_Trotter_twosite(td_alg.twosite_op, td_alg.spaces(1), β)
     O_canoc = canonicalize(O_Trotter, canoc_alg)
@@ -136,18 +136,18 @@ function evolution_operator(td_alg::TwositeTrotterDecomposition, β::Number; T =
 end
 
 function MPSKit.time_evolve(
-    ce_alg::Union{ClusterExpansion,TrotterDecomposition},
-    time_alg::StaticTimeEvolution,
-    trunc_alg::Union{EnvTruncation,VOPEPO},
-    observable;
-    finalize! = nothing,
-    A0 = nothing,
-    canoc_alg::Union{Canonicalization,Nothing} = nothing,
-    skip_first::Bool = false,
-    initial_guesses = i -> nothing,
-    saving = true
-)
-    As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
+        ce_alg::Union{ClusterExpansion, TrotterDecomposition},
+        time_alg::StaticTimeEvolution,
+        trunc_alg::Union{EnvTruncation, VOPEPO},
+        observable;
+        finalize! = nothing,
+        A0 = nothing,
+        canoc_alg::Union{Canonicalization, Nothing} = nothing,
+        skip_first::Bool = false,
+        initial_guesses = i -> nothing,
+        saving = true
+    )
+    As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β in time_alg.βs_helper]
     times = copy(time_alg.βs_helper)
     if isnothing(A0)
         A = evolution_operator(ce_alg, time_alg.β₀; canoc_alg)
@@ -163,14 +163,14 @@ function MPSKit.time_evolve(
     end
     push!(As, copy(A))
     push!(times, time_alg.β₀)
-    
+
     if trunc_alg isa VOPEPO
         env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[time_alg.update_list[1]])[1], trunc_alg)
     end
-    for (i,ind) in enumerate(time_alg.update_list)
+    for (i, ind) in enumerate(time_alg.update_list)
         if trunc_alg isa VOPEPO
             # if domain(env_triple.edges[1,1,1])[1] ≠ domain(A)[1] ⊗ domain(As[ind])[1] ⊗ trunc_alg.truncspace'
-            if codomain(env_triple.edges[1,1,1])[2] ≠ domain(A)[1] || codomain(env_triple.edges[1,1,1])[3] ≠ domain(As[ind])[1]
+            if codomain(env_triple.edges[1, 1, 1])[2] ≠ domain(A)[1] || codomain(env_triple.edges[1, 1, 1])[3] ≠ domain(As[ind])[1]
                 env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[ind])[1], trunc_alg)
             end
             if ind <= length(As)
@@ -209,21 +209,21 @@ function MPSKit.time_evolve(
         end
     end
     if saving
-        return times[length(time_alg.βs_helper)+1:end], expvals, As[length(time_alg.βs_helper)+1:end]
+        return times[(length(time_alg.βs_helper) + 1):end], expvals, As[(length(time_alg.βs_helper) + 1):end]
     else
         return times[end], obs, A
     end
 end
 
 function time_evolve_filling(
-    ce_alg::F,
-    time_alg::GroundStateFillingTimeEvolution,
-    trunc_alg::Union{EnvTruncation,VOPEPO},
-    observable;
-    finalize! = nothing,
-    canoc_alg::Union{Canonicalization,Nothing} = nothing,
-    initial_guesses = i -> nothing
-) where {F <: Function}
+        ce_alg::F,
+        time_alg::GroundStateFillingTimeEvolution,
+        trunc_alg::Union{EnvTruncation, VOPEPO},
+        observable;
+        finalize! = nothing,
+        canoc_alg::Union{Canonicalization, Nothing} = nothing,
+        initial_guesses = i -> nothing
+    ) where {F <: Function}
     @assert !(trunc_alg isa VOPEPO) "VOPEPO not implemented for filling control"
     A = evolution_operator(ce_alg(time_alg.μ₀), time_alg.β₀; canoc_alg)
     As = AbstractTensorMap[A]
@@ -236,11 +236,11 @@ function time_evolve_filling(
     if trunc_alg isa VOPEPO
         env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[time_alg.update_list[1]])[1], trunc_alg)
     end
-    for i = 1:time_alg.maxiter
+    for i in 1:time_alg.maxiter
         μ -= real((expvals[end][1] - time_alg.f_target) * time_alg.α)
         println("μ = $(μ), n = $(expvals[end][1])")
         if trunc_alg isa VOPEPO
-            if codomain(env_triple.edges[1,1,1])[2] ≠ domain(A)[1] || codomain(env_triple.edges[1,1,1])[3] ≠ domain(As[ind])[1]
+            if codomain(env_triple.edges[1, 1, 1])[2] ≠ domain(A)[1] || codomain(env_triple.edges[1, 1, 1])[3] ≠ domain(As[ind])[1]
                 env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[ind])[1], trunc_alg)
             end
             A, env_double, _ = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i, B = initial_guesses(i))
@@ -264,7 +264,7 @@ function time_evolve_filling(
         if !isnothing(finalize!)
             A = finalize!(As, expvals, i)
         end
-        if i > 2 && abs(expvals[end][2] - expvals[end-1][2]) < time_alg.tol_energy
+        if i > 2 && abs(expvals[end][2] - expvals[end - 1][2]) < time_alg.tol_energy
             if time_alg.verbosity > 1
                 @info "Ground state search converged after $(i) iterations. Energy is $(expvals[end][1])"
                 return times, expvals, μs, As
@@ -283,20 +283,20 @@ function get_time_array(time_alg::StaticTimeEvolution)
     for ind in time_alg.update_list
         push!(times, times[end] + times[ind])
     end
-    return times[length(time_alg.βs_helper)+1:end]
+    return times[(length(time_alg.βs_helper) + 1):end]
 end
 
 function PEPSKit.fixedpoint(
-    ce_alg::ClusterExpansion,
-    time_alg::GroundStateTimeEvolution,
-    trunc_alg::Union{EnvTruncation,VOPEPO},
-    observable;
-    finalize! = nothing,
-    A0 = nothing,
-    canoc_alg::Union{Canonicalization,Nothing} = nothing,
-    skip_first::Bool = false
-)
-    As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
+        ce_alg::ClusterExpansion,
+        time_alg::GroundStateTimeEvolution,
+        trunc_alg::Union{EnvTruncation, VOPEPO},
+        observable;
+        finalize! = nothing,
+        A0 = nothing,
+        canoc_alg::Union{Canonicalization, Nothing} = nothing,
+        skip_first::Bool = false
+    )
+    As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β in time_alg.βs_helper]
     times = copy(time_alg.βs_helper)
     if isnothing(A0)
         A = evolution_operator(ce_alg, time_alg.β₀; canoc_alg)
@@ -306,7 +306,7 @@ function PEPSKit.fixedpoint(
 
     push!(As, copy(A))
     push!(times, time_alg.β₀)
-    
+
     if skip_first
         expvals = []
     else
@@ -316,9 +316,9 @@ function PEPSKit.fixedpoint(
     if trunc_alg isa VOPEPO
         env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[time_alg.update_list[1]])[1], trunc_alg)
     end
-    for (i,ind) in enumerate(time_alg.update_list)
+    for (i, ind) in enumerate(time_alg.update_list)
         if trunc_alg isa VOPEPO
-            if domain(env_triple.edges[1,1,1])[1][1] ≠ domain(A)[1] || domain(env_triple.edges[1,1,1])[1][2] ≠ domain(As[ind])[1]
+            if domain(env_triple.edges[1, 1, 1])[1][1] ≠ domain(A)[1] || domain(env_triple.edges[1, 1, 1])[1][2] ≠ domain(As[ind])[1]
                 env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[ind])[1], trunc_alg)
             end
             A, env_double, env_triple, _ = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i)
@@ -342,7 +342,7 @@ function PEPSKit.fixedpoint(
                 @info "Current norm is $(norm(A))"
             end
         end
-        if i > 2 && abs(expvals[end][1] - expvals[end-1][1]) < time_alg.tol_energy
+        if i > 2 && abs(expvals[end][1] - expvals[end - 1][1]) < time_alg.tol_energy
             if time_alg.verbosity > 1
                 @info "Ground state search converged after $(i) iterations. Energy is $(expvals[end][1])"
                 return As[end], expvals[end]
@@ -356,15 +356,15 @@ function PEPSKit.fixedpoint(
 end
 
 function time_scan(
-    ce_alg::ClusterExpansion,
-    times::Array,
-    observable;
-    verbosity::Int=0,
-    finalize! = nothing
-)
+        ce_alg::ClusterExpansion,
+        times::Array,
+        observable;
+        verbosity::Int = 0,
+        finalize! = nothing
+    )
     expvals = []
     As = []
-    for (i,t) = enumerate(times)
+    for (i, t) in enumerate(times)
         A = evolution_operator(ce_alg, t)
         obs = observable(A)
 

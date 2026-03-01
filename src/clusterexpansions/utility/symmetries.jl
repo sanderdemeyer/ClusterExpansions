@@ -1,6 +1,6 @@
 # This is not valid in the fermionic case. For fermions, flippers have to be used, which are defined in TensorKit v0.14
 
-function rotl90_fermionic(A::AbstractTensorMap{E,S,1,4}) where {E,S<:ElementarySpace}
+function rotl90_fermionic(A::AbstractTensorMap{E, S, 1, 4}) where {E, S <: ElementarySpace}
     return twist(flip(rotl90(A), [3 5]), [3 5])
     A = rotl90(A)
 
@@ -11,7 +11,7 @@ function rotl90_fermionic(A::AbstractTensorMap{E,S,1,4}) where {E,S<:ElementaryS
     return A_rot
 end
 
-function rotl90_fermionic(A::AbstractTensorMap{E,S,2,4}) where {E,S<:ElementarySpace}
+function rotl90_fermionic(A::AbstractTensorMap{E, S, 2, 4}) where {E, S <: ElementarySpace}
     return twist(flip(rotl90(A), [4 6]), [4 6])
     A = rotl90(A)
 
@@ -22,7 +22,7 @@ function rotl90_fermionic(A::AbstractTensorMap{E,S,2,4}) where {E,S<:ElementaryS
     return A_rot
 end
 
-function rotl180_fermionic(A::AbstractTensorMap{E,S,1,4}) where {E,S<:ElementarySpace}
+function rotl180_fermionic(A::AbstractTensorMap{E, S, 1, 4}) where {E, S <: ElementarySpace}
     return twist(flip(rotl90(rotl90(A)), [2 3 4 5]), [2 3 4 5])
     A = rotl90(rotl90(A))
 
@@ -34,7 +34,7 @@ function rotl180_fermionic(A::AbstractTensorMap{E,S,1,4}) where {E,S<:Elementary
     return A_rot
 end
 
-function rotl180_fermionic(A::AbstractTensorMap{E,S,2,4}) where {E,S<:ElementarySpace}
+function rotl180_fermionic(A::AbstractTensorMap{E, S, 2, 4}) where {E, S <: ElementarySpace}
     return twist(flip(rotl90(rotl90(A)), [3 4 5 6]), [3 4 5 6])
     A = rotl90(rotl90(A))
 
@@ -71,7 +71,7 @@ function symmetrize_C4(levels_to_update, solutions, N)
         push!(levels_to_update, new_levels)
         push!(solutions, new_solution)
     elseif N == 2
-        for i = 1:2
+        for i in 1:2
             new_levels = tuple(circshift(collect(levels_to_update[i]), -1)...)
             new_solution = rotl90_fermionic(solutions[i])
             push!(levels_to_update, new_levels)

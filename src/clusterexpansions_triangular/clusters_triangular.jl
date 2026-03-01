@@ -29,10 +29,10 @@ function TriangularCluster(lattice::Triangular, cluster; levels_convention = "tr
         # if !isnothing(symmetry)
         #     permutation = vcat(cycles[1], setdiff(1:N, cycles[1]))
         #     permute!(cluster, permutation)
-        #     bonds_sites, bonds_indices = get_bonds(lattice, cluster)        
+        #     bonds_sites, bonds_indices = get_bonds(lattice, cluster)
         #     g = SimpleGraph(Graphs.SimpleEdge.(bonds_indices))
         #     g_dir = get_directed_graph(bonds_indices)
-        
+
         #     longest_path, n = get_longest_path(g_dir, N)
         #     cycles = cycle_basis(g_dir)
         #     m = length(cycles)
@@ -69,7 +69,7 @@ function TriangularCluster(lattice::Triangular, cluster; levels_convention = "tr
         coo = get_coordination_number(bonds_indices, N)
         levels = get_tree_depths(g, bonds_indices)
         levels_sites = get_levels_sites(lattice, bonds_sites, bonds_indices, levels, N)
-    
+
     end
     c = TriangularCluster(N, cluster, bonds_sites, bonds_indices, diag_bonds_sites, diag_bonds_indices, levels_sites, m, n)
     return c
@@ -82,7 +82,7 @@ end
 function distance(::Triangular, ind₁, ind₂)
     c1 = ind₁[1] - ind₂[1]
     c2 = ind₁[2] - ind₂[2]
-    return c1^2 + c1*c2 + c2^2
+    return c1^2 + c1 * c2 + c2^2
 end
 
 function get_direction(lattice::Triangular, site₁, site₂) # should not have to be restricted to Triangular lattices
@@ -94,7 +94,7 @@ function get_direction(lattice::Triangular, dir::Int64) # should not have to be 
     return 0
 end
 
-function get_direction(lattice::Triangular, dir::Tuple{Int64,Int64})
+function get_direction(lattice::Triangular, dir::Tuple{Int64, Int64})
     if dir == (0, 1)
         return (3, 6)
     elseif dir == (0, -1)
@@ -111,10 +111,10 @@ function get_direction(lattice::Triangular, dir::Tuple{Int64,Int64})
 end
 
 function get_bonds(lattice::Lattice, cluster)
-    bonds_sites = Vector{Tuple{Tuple{Int,Int},Tuple{Int,Int}}}()
-    bonds_indices = Vector{Tuple{Int,Int}}()
-    for (i,ind₁) = enumerate(cluster)
-        for (j,ind₂) = enumerate(cluster)
+    bonds_sites = Vector{Tuple{Tuple{Int, Int}, Tuple{Int, Int}}}()
+    bonds_indices = Vector{Tuple{Int, Int}}()
+    for (i, ind₁) in enumerate(cluster)
+        for (j, ind₂) in enumerate(cluster)
             if (j > i) && (distance(lattice, ind₁, ind₂) == 1)
                 push!(bonds_sites, (ind₁, ind₂))
                 push!(bonds_indices, (i, j))
@@ -125,10 +125,10 @@ function get_bonds(lattice::Lattice, cluster)
 end
 
 function get_diag_bonds(lattice::Lattice, cluster)
-    diag_bonds_sites = Vector{Tuple{Tuple{Int,Int},Tuple{Int,Int}}}()
-    diag_bonds_indices = Vector{Tuple{Int,Int}}()
-    for (i,ind₁) = enumerate(cluster)
-        for (j,ind₂) = enumerate(cluster)
+    diag_bonds_sites = Vector{Tuple{Tuple{Int, Int}, Tuple{Int, Int}}}()
+    diag_bonds_indices = Vector{Tuple{Int, Int}}()
+    for (i, ind₁) in enumerate(cluster)
+        for (j, ind₂) in enumerate(cluster)
             if (j > i) && isdiagonal(lattice, ind₁, ind₂)
                 push!(diag_bonds_sites, (ind₁, ind₂))
                 push!(diag_bonds_indices, (i, j))
@@ -141,20 +141,20 @@ end
 function get_levels_sites(lattice::Triangular, bonds_sites, bonds_indices, levels, N)
     levels_sites = fill(0, N, 6)
 
-    for (i,(bond_s, bond_i)) = enumerate(zip(bonds_sites,bonds_indices))
+    for (i, (bond_s, bond_i)) in enumerate(zip(bonds_sites, bonds_indices))
         dir = get_direction(lattice, bond_s[1], bond_s[2])
         levels_sites[bond_i[1], dir[1]] = levels[i]
         levels_sites[bond_i[2], dir[2]] = levels[i]
     end
 
-    levels_sites = [Tuple(levels_sites[i,:]) for i = 1:N]
+    levels_sites = [Tuple(levels_sites[i, :]) for i in 1:N]
     return levels_sites
 end
 
 # Pretty printing of a cluster
 function Base.show(io::IO, z::TriangularCluster)
     print(io, "Cluster =   ")
-    coords = [(2*y + x, -2*x) for (x,y) in z.cluster]
+    coords = [(2 * y + x, -2 * x) for (x, y) in z.cluster]
     # Determine the size of the graph
     min_x, max_x = minimum(x for (x, _) in coords), maximum(x for (x, _) in coords)
     min_y, max_y = minimum(y for (_, y) in coords), maximum(y for (_, y) in coords)
@@ -180,5 +180,5 @@ function Base.show(io::IO, z::TriangularCluster)
     end
     # Print the graph in one call to avoid newline issues
     print(io, join([join(row) for row in eachrow(grid)], "\n"))
-    print(io, "\n")  # Keep the text on the same line but move to next before graph
+    return print(io, "\n")  # Keep the text on the same line but move to next before graph
 end

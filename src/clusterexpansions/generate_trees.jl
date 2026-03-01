@@ -57,7 +57,7 @@ end
 function get_tree_depths(graph::Graph, bonds_indices::Vector{Tuple{Int64, Int64}})
     levels = Vector{Int}()
     max_depth = Inf
-    for site = 1:nv(graph)
+    for site in 1:nv(graph)
         new_levels, depth = get_tree_depths(graph, bonds_indices, site)
         if depth < max_depth
             levels = new_levels
@@ -70,5 +70,5 @@ function get_tree_depths(graph::Graph, bonds_indices::Vector{Tuple{Int64, Int64}
 end
 
 function get_tree_depths(graph::Graph, bonds_indices::Vector{Tuple{Int64, Int64}}, roots::Vector{Int})
-    return min.([get_tree_depths(graph, bonds_indices, root)[1] for root = roots]...)
+    return min.([get_tree_depths(graph, bonds_indices, root)[1] for root in roots]...)
 end

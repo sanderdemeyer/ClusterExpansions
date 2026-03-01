@@ -17,7 +17,7 @@ end
 (crit::maxiter_TNR)(steps::Int, data) = steps < crit.n
 (crit::convcrit_TNR)(steps::Int, data) = crit.Δ < crit.f(steps, data)
 
-function pseudopow(t, a::Real; tol=eps(scalartype(t))^(3 / 4))
+function pseudopow(t, a::Real; tol = eps(scalartype(t))^(3 / 4))
     t′ = copy(t)
     for (c, b) in blocks(t′)
         @inbounds for I in LinearAlgebra.diagind(b)
@@ -34,7 +34,7 @@ struct EntanglementFiltering
     end
     function EntanglementFiltering()
         f = (steps, data) -> data
-        crit = maxiter_TNR(10) & convcrit_TNR(1e-10, f)
+        crit = maxiter_TNR(10) & convcrit_TNR(1.0e-10, f)
         return new(crit)
     end
 end
@@ -47,7 +47,7 @@ struct LoopOptimization
     end
     function LoopOptimization()
         f = (steps, data) -> data
-        crit = maxiter_TNR(50) & convcrit_TNR(1e-12, f)
+        crit = maxiter_TNR(50) & convcrit_TNR(1.0e-12, f)
         return new(crit)
     end
 end
@@ -60,44 +60,46 @@ mutable struct LoopTNR
     loop_alg::LoopOptimization
 
     finalize!::Function
-    function LoopTNR(T; entanglement_alg=EntanglementFiltering(),
-                     loop_alg=LoopOptimization(), finalize=finalize_TNR!)
+    function LoopTNR(
+            T; entanglement_alg = EntanglementFiltering(),
+            loop_alg = LoopOptimization(), finalize = finalize_TNR!
+        )
         return new(copy(T), copy(T), entanglement_alg, loop_alg, finalize)
     end
 end
 
-# Entanglement filtering step 
-function QR_L(L::TensorMap, T::AbstractTensorMap{E,S,2,2}) where {E,S}
+# Entanglement filtering step
+function QR_L(L::TensorMap, T::AbstractTensorMap{E, S, 2, 2}) where {E, S}
     @tensor temp[-1 -2; -3 -4] := L[-2; 1] * T[-1 1; -3 -4]
     _, Rt = leftorth(temp, (1, 2, 4), (3,))
     return Rt
 end
 
-function QR_R(R::TensorMap, T::AbstractTensorMap{E,S,2,2}) where {E,S}
+function QR_R(R::TensorMap, T::AbstractTensorMap{E, S, 2, 2}) where {E, S}
     @tensor temp[-1 -2; -3 -4] := T[-1 -2; 1 -4] * R[1; -3]
     Lt, _ = rightorth(temp, (2,), (1, 3, 4))
     return Lt
 end
 
-function QR_L(L::TensorMap, T::AbstractTensorMap{E,S,1,3}) where {E,S}
+function QR_L(L::TensorMap, T::AbstractTensorMap{E, S, 1, 3}) where {E, S}
     @tensor temp[-1; -2 -3 -4] := L[-1; 1] * T[1; -2 -3 -4]
     _, Rt = leftorth(temp, (1, 3, 4), (2,))
     return Rt
 end
 
-function QR_R(R::TensorMap, T::AbstractTensorMap{E,S,1,3}) where {E,S}
+function QR_R(R::TensorMap, T::AbstractTensorMap{E, S, 1, 3}) where {E, S}
     @tensor temp[-1; -2 -3 -4] := T[-1; 1 -3 -4] * R[1; -2]
     Lt, _ = rightorth(temp, (1,), (2, 3, 4))
     return Lt
 end
 
-function QR_L(L::TensorMap, T::AbstractTensorMap{E,S,1,2}) where {E,S}
+function QR_L(L::TensorMap, T::AbstractTensorMap{E, S, 1, 2}) where {E, S}
     @tensor temp[-1; -2 -3] := L[-1; 1] * T[1; -2 -3]
     _, Rt = leftorth(temp, (1, 3), (2,))
     return Rt
 end
 
-function QR_R(R::TensorMap, T::AbstractTensorMap{E,S,1,2}) where {E,S}
+function QR_R(R::TensorMap, T::AbstractTensorMap{E, S, 1, 2}) where {E, S}
     @tensor temp[-1; -2 -3] := T[-1; 1 -3] * R[1; -2]
     Lt, _ = rightorth(temp, (1,), (2, 3))
     return Lt
@@ -185,8 +187,10 @@ function find_projectors(ψ::Array, scheme::LoopTNR)
 end
 
 function finalize_TNR!(scheme::LoopTNR)
-    n = norm(@tensor opt = true scheme.TA[1 2; 3 4] * scheme.TB[3 5; 1 6] *
-                                scheme.TB[7 4; 8 2] * scheme.TA[8 6; 7 5])
+    n = norm(
+        @tensor opt = true scheme.TA[1 2; 3 4] * scheme.TB[3 5; 1 6] *
+            scheme.TB[7 4; 8 2] * scheme.TA[8 6; 7 5]
+    )
 
     scheme.TA /= n^(1 / 4)
     scheme.TB /= n^(1 / 4)
@@ -197,13 +201,13 @@ function filter_loop(A; maxiter = 10)
     entanglement_alg = EntanglementFiltering(maxiter_TNR(maxiter))
     loop_alg = LoopOptimization(maxiter_TNR(maxiter))
     loop_tnr = LoopTNR(A; entanglement_alg = entanglement_alg, loop_alg = loop_alg)
-    
 
-    A = permute(A, (3,),(4,1,2))
-    psi_A = AbstractTensorMap[A,A,A,A]
-    PR_list, PL_list = find_projectors(psi_A, loop_tnr);
-    @tensor A[-1; -2 -3 -4] := A[1; 2 -3 -4] * PR_list[1][2; -2] * PL_list[1][-1; 1];
-    A = permute(A, (3,4), (2,1));
+
+    A = permute(A, (3,), (4, 1, 2))
+    psi_A = AbstractTensorMap[A, A, A, A]
+    PR_list, PL_list = find_projectors(psi_A, loop_tnr)
+    @tensor A[-1; -2 -3 -4] := A[1; 2 -3 -4] * PR_list[1][2; -2] * PL_list[1][-1; 1]
+    A = permute(A, (3, 4), (2, 1))
 
     @tensor A_joined[-2; -1] := A[2 2; -1 1] * A[3 3; 1 -2]
     return A
@@ -217,6 +221,6 @@ function truncate_loop(A, space)
 
     @tensor A_truncated[-1 -2; -3 -4] := conj(V[-3; 1]) * A[-1 -2; 1 2] * (V[-4; 2])
     loop_truncated = contract_tensors_symmetric(A_truncated)
-    error = norm(loop_truncated - loop_unfiltered)/norm(loop_unfiltered)
+    error = norm(loop_truncated - loop_unfiltered) / norm(loop_unfiltered)
     return A_truncated, error
 end

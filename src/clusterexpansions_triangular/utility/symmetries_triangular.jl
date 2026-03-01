@@ -2,8 +2,8 @@
 #     return twist(flip(rotl90(A), [3 5]), [3 5])
 # end
 
-function rotl60_fermionic(A::AbstractTensorMap{E,S,2,6}) where {E,S<:ElementarySpace}
-    A_rot = permute(A, ((1,2),(4,5,6,7,8,3)))
+function rotl60_fermionic(A::AbstractTensorMap{E, S, 2, 6}) where {E, S <: ElementarySpace}
+    A_rot = permute(A, ((1, 2), (4, 5, 6, 7, 8, 3)))
     return twist(flip(A_rot, [5 8]), [5 8])
 end
 
@@ -21,25 +21,25 @@ end
 
 function symmetrize_C6(levels_to_update, solutions, N)
     if N == 1
-        for i = 1:6
+        for i in 1:6
             new_levels = tuple(circshift(collect(levels_to_update[i]), -1)...)
             new_solution = rotl60_fermionic(solutions[i])
             push!(levels_to_update, new_levels)
             push!(solutions, new_solution)
         end
     elseif N == 2
-        for i = 0:2
-            new_levels1 = tuple(circshift(collect(levels_to_update[2*i+1]), -1)...)
-            new_levels2 = tuple(circshift(collect(levels_to_update[2*i+2]), -1)...)
-            new_solution1 = rotl60_fermionic(solutions[2*i+1])
-            new_solution2 = rotl60_fermionic(solutions[2*i+2])
+        for i in 0:2
+            new_levels1 = tuple(circshift(collect(levels_to_update[2 * i + 1]), -1)...)
+            new_levels2 = tuple(circshift(collect(levels_to_update[2 * i + 2]), -1)...)
+            new_solution1 = rotl60_fermionic(solutions[2 * i + 1])
+            new_solution2 = rotl60_fermionic(solutions[2 * i + 2])
             push!(levels_to_update, new_levels1)
             push!(solutions, new_solution1)
             push!(levels_to_update, new_levels2)
             push!(solutions, new_solution2)
         end
     elseif N == 3
-        for i = 1:3
+        for i in 1:3
             new_levels = tuple(circshift(collect(levels_to_update[i]), -3)...)
             new_solution = rotl60_fermionic(rotl60_fermionic(rotl60_fermionic(solutions[i])))
             push!(levels_to_update, new_levels)

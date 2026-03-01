@@ -6,7 +6,7 @@
 
 #     if codomain(env0.edges[1,1,1])[2] != domain(Z)[1]
 #         env0 = CTMRGEnv(partfunc, codomain(env0.edges[1,1,1])[1])
-#     end        
+#     end
 #     env, = leading_boundary(env0, partfunc, ctm_alg)
 
 #     Z = network_value(partfunc, env);
@@ -81,12 +81,12 @@ function time_evolve_model(model, param, time_alg, χenv, trscheme, trscheme_par
     # envspace = ce_alg.envspace(χenv)
 
     ctm_alg = SimultaneousCTMRG(;
-        tol=1e-10,
-        miniter=4,
-        maxiter=400,
-        verbosity=verbosity_ctm,
-        svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10)),
-        trscheme = (; alg = :truncdim, η = χenv,)
+        tol = 1.0e-10,
+        miniter = 4,
+        maxiter = 400,
+        verbosity = verbosity_ctm,
+        svd_alg = SVDAdjoint(; fwd_alg = TensorKit.SVD(), rrule_alg = GMRES(; tol = 1.0e-10)),
+        trscheme = (; alg = :truncdim, η = χenv)
     )
 
     trunc_alg = trscheme(trscheme_parameters...; verbosity = verbosity_trunc, trscheme_kwargs...)
@@ -101,13 +101,13 @@ function time_scan_model(model, param, times, χenv; ce_kwargs = (), observables
     envspace = ce_alg.envspace(χenv)
 
     ctm_alg = SimultaneousCTMRG(;
-        tol=1e-10,
-        miniter=4,
-        maxiter=500,
-        verbosity=verbosity_ctm,
-        svd_alg=SVDAdjoint(; fwd_alg=TensorKit.SVD(), rrule_alg=GMRES(; tol=1e-10))
-        )
+        tol = 1.0e-10,
+        miniter = 4,
+        maxiter = 500,
+        verbosity = verbosity_ctm,
+        svd_alg = SVDAdjoint(; fwd_alg = TensorKit.SVD(), rrule_alg = GMRES(; tol = 1.0e-10))
+    )
     obs_function = O -> [observable_time_evolve(O, obs, envspace, ctm_alg; convert_symm) for obs in observables]
 
-    return time_scan(ce_alg, times,  obs_function; verbosity_time)
+    return time_scan(ce_alg, times, obs_function; verbosity_time)
 end

@@ -13,18 +13,18 @@ struct GenericTrotterDecomposition <: TrotterDecomposition
     spaces
 end
 
-function get_Trotter_onesite(op::AbstractTensorMap{E,S,1,1}, g::Number, β::Number) where {E,S}
+function get_Trotter_onesite(op::AbstractTensorMap{E, S, 1, 1}, g::Number, β::Number) where {E, S}
     pspace = domain(op)[1]
-    return cosh(g*β/2) * id(pspace)  + sinh(g*β/2) * op
+    return cosh(g * β / 2) * id(pspace) + sinh(g * β / 2) * op
 end
 
-function get_Trotter_twosite(op::AbstractTensorMap{E,S,1,1}, vspace, β::Number) where {E,S}
+function get_Trotter_twosite(op::AbstractTensorMap{E, S, 1, 1}, vspace, β::Number) where {E, S}
     T = scalartype(op)
     pspace = domain(op)[1]
     tensor_base = cosh(β)^2 * sqrt(tanh(β)) * op
     UZZ = zeros(T, pspace ⊗ pspace', vspace ⊗ vspace ⊗ vspace' ⊗ vspace')
-    for i = 1:2, j = 1:2, k = 1:2, l = 1:2
-        UZZ[][:,:,i,j,k,l] = tensor_base[]^(i+j+k+l)
+    for i in 1:2, j in 1:2, k in 1:2, l in 1:2
+        UZZ[][:, :, i, j, k, l] = tensor_base[]^(i + j + k + l)
     end
     return UZZ
 end

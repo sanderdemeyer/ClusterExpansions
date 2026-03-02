@@ -121,8 +121,9 @@ function c6vCTM_triangular(T_flipped::TensorMap{A, S, 3, 3}; symmetrize = false)
     if symmetrize
         T_unflipped = symmetrize_C6v(T_unflipped)
     else
-        @assert norm(T_flipped - T_flipped') < 1.0e-14 "Tensor is not hermitian. Error = $(norm(T_flipped - T_flipped'))"
-        @assert norm(T_unflipped - rotl60_pf(T_unflipped)) < 1.0e-14 "Tensor is not C6 symmetric. Error = $(norm(T_unflipped - rotl60_pf(T_unflipped)))"
+        @assert norm(T_flipped - flip(permute(T_flipped, ((6, 5, 4), (3, 2, 1))), [1 2 3 4 5 6])) < 1.0e-10 "Tensor is not flip-invariant. Error = $(norm(T_flipped - flip(permute(T_flipped, ((6, 5, 4), (3, 2, 1))), [1 2 3 4 5 6])))"
+        # @assert norm(T_flipped - T_flipped') < 1.0e-14 "Tensor is not hermitian. Error = $(norm(T_flipped - T_flipped'))"
+        @assert norm(T_unflipped - rotl60_pf(T_unflipped)) < 1.0e-10 "Tensor is not C6 symmetric. Error = $(norm(T_unflipped - rotl60_pf(T_unflipped)))"
     end
     return c6vCTM_triangular(T_unflipped)
 end

@@ -146,9 +146,15 @@ function MPSKit.time_evolve(
     skip_first::Bool = false,
     initial_guesses = i -> nothing,
     saving::Bool = true,
-    normalizing::Bool = true
+    normalizing::Bool = true,
+    trunc_alg_start = nothing
 )
-    As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
+    if isnothing(trunc_alg_start)
+        As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
+    else
+        As = AbstractTensorMap[approximate_state(evolution_operator(ce_alg, β; canoc_alg), trunc_alg_start)[1] for β = time_alg.βs_helper]
+
+    end
     times = copy(time_alg.βs_helper)
     if isnothing(A0)
         A = evolution_operator(ce_alg, time_alg.β₀; canoc_alg)
@@ -164,7 +170,7 @@ function MPSKit.time_evolve(
     end
     push!(As, copy(A))
     push!(times, time_alg.β₀)
-    
+    errors = []
     if trunc_alg isa VOPEPO
         env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[time_alg.update_list[1]])[1], trunc_alg)
     end
@@ -175,17 +181,17 @@ function MPSKit.time_evolve(
                 env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[ind])[1], trunc_alg)
             end
             if ind <= length(As)
-                A, env_double, env_triple, = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i, B = initial_guesses(i))
+                A, env_double, env_triple, ϵ = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i, B = initial_guesses(i))
             elseif ind == i
-                A, env_double, env_triple, = approximate_state((A, A), env_double, env_triple, trunc_alg; iter = i, B = initial_guesses(i))
+                A, env_double, env_triple, ϵ = approximate_state((A, A), env_double, env_triple, trunc_alg; iter = i, B = initial_guesses(i))
             else
                 @error "Cannot perform time evolution without saving intermediaire steps for this time algorithm"
             end
         else
             if ind <= length(As)
-                A, _ = approximate_state((A, As[ind]), trunc_alg)
+                A, ϵ = approximate_state((A, As[ind]), trunc_alg)
             elseif ind == i
-                A, _ = approximate_state((A, A), trunc_alg)
+                A, ϵ = approximate_state((A, A), trunc_alg)
             else
                 @error "Cannot perform time evolution without saving intermediaire steps for this time algorithm"
             end
@@ -195,6 +201,7 @@ function MPSKit.time_evolve(
         end
         A = canonicalize(A, canoc_alg)
         obs = observable(A, i)
+        push!(errors, ϵ)
         push!(times, times[end] + times[ind])
         if saving
             push!(expvals, obs)
@@ -212,9 +219,9 @@ function MPSKit.time_evolve(
         end
     end
     if saving
-        return times[length(time_alg.βs_helper)+1:end], expvals, As[length(time_alg.βs_helper)+1:end]
+        return times[length(time_alg.βs_helper)+1:end], expvals, As[length(time_alg.βs_helper)+1:end], errors
     else
-        return times[end], obs, A
+        return times[end], obs, A, errors
     end
 end
 

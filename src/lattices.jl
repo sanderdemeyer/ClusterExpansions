@@ -5,3 +5,6 @@ end
 
 struct Triangular <: Lattice
 end
+
+struct Honeycomb <: Lattice
+end

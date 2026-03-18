@@ -23,6 +23,7 @@ include("time_evolution/local_truncation.jl")
 include("time_evolution/vomps_utility.jl")
 include("time_evolution/vomps.jl")
 include("time_evolution/local_truncation_triangular.jl")
+include("time_evolution/local_truncation_honeycomb.jl")
 include("time_evolution/variational_truncation_triangular.jl")
 
 include("models/models.jl")
@@ -30,6 +31,7 @@ include("models/models_Trotter.jl")
 
 include("time_evolution/time_evolve.jl")
 include("time_evolution/time_evolve_triangular.jl")
+include("time_evolution/time_evolve_honeycomb.jl")
 include("models/time_evolve_models.jl")
 
 include("models/data_generation.jl")
@@ -59,6 +61,13 @@ include("clusterexpansions_triangular/solve_clusters_triangular.jl")
 include("triangular.jl")
 include("CTM_triangular.jl")
 include("C6vCTM_triangular.jl")
+include("C3vCTM_honeycomb.jl")
+
+include("clusterexpansions_honeycomb/expectation_values/expval_honeycomb.jl")
+
+include("clusterexpansions_honeycomb/solve_clusters_honeycomb.jl")
+include("clusterexpansions_honeycomb/PEPOs_honeycomb.jl")
+
 
 export EntanglementFiltering, filter_loop, truncate_loop
 export rotl90_fermionic, rotl180_fermionic
@@ -80,7 +89,8 @@ export tJ_operators, hubbard_operators
 
 export TrotterDecomposition, ising_operators_Trotter
 
-export evolution_operator, evolution_operator_triangular
+export evolution_operator
+export evolution_operator_triangular, evolution_operator_honeycomb
 export StaticTimeEvolution, TimeDependentTimeEvolution
 export UniformTimeEvolution, SquaringTimeEvolution
 export UniformGroundStateTimeEvolution, SquaringGroundStateTimeEvolution
@@ -89,6 +99,7 @@ export time_evolve_model, time_scan_model
 export time_evolve_triangular
 
 export CTM_triangular, c6vCTM_triangular, run!, _contract_onesite
+export c3vCTM_honeycomb
 export _contract_twosite_0, _contract_twosite_60, _contract_twosite_120
 
 export data_generation_SF_CE, data_generation_ising_CE

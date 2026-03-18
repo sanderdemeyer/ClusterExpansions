@@ -1,4 +1,4 @@
-struct TriangularCluster
+struct HoneycombCluster
     N::Int
     cluster
     bonds_sites
@@ -10,7 +10,7 @@ struct TriangularCluster
     n
 end
 
-function TriangularCluster(lattice::Triangular, cluster; levels_convention = "tree_depth", symmetry = nothing)
+function HoneycombCluster(lattice::Honeycomb, cluster; levels_convention = "tree_depth", symmetry = nothing)
     @assert levels_convention == "tree_depth" "Only 'tree_depth' levels convention is implemented for Triangular lattices"
     N = length(cluster)
     bonds_sites, bonds_indices = get_bonds(lattice, cluster)
@@ -24,65 +24,36 @@ function TriangularCluster(lattice::Triangular, cluster; levels_convention = "tr
     cycles = cycle_basis(g_dir)
     m = length(cycles)
 
-    if m >= 1
-        levels_sites = nothing
-        # if !isnothing(symmetry)
-        #     permutation = vcat(cycles[1], setdiff(1:N, cycles[1]))
-        #     permute!(cluster, permutation)
-        #     bonds_sites, bonds_indices = get_bonds(lattice, cluster)
-        #     g = SimpleGraph(Graphs.SimpleEdge.(bonds_indices))
-        #     g_dir = get_directed_graph(bonds_indices)
-
-        #     longest_path, n = get_longest_path(g_dir, N)
-        #     cycles = cycle_basis(g_dir)
-        #     m = length(cycles)
-        #     @assert m >= 1
-        # end
-        coo = get_coordination_number(bonds_indices, N)
-        levels = get_tree_depths(g, bonds_indices, vcat(cycles...))
-        levels = update_levels_loops(lattice, levels, cycles, m, bonds_indices, cluster)
-        # middle_cycle = nothing
-        # if m >= 3
-        #     for (ic, cycle) = enumerate(cycles)
-        #         if sum([check_connectedness(cycle, c) for c = cycles]) == 2
-        #             middle_cycle = ic
-        #             break
-        #         end
-        #     end
-        # end
-        # for (i,(u,v)) = enumerate(bonds_indices)
-        #     if (m >= 3) && (u ∈ cycles[middle_cycle] && v ∈ cycles[middle_cycle]) # ladder
-        #         isedge = false
-        #         for ic = setdiff(1:m, middle_cycle)
-        #             if u ∈ cycles[ic] && v ∈ cycles[ic]
-        #                 isedge = true
-        #                 break
-        #             end
-        #         end
-        #         levels[i] = -1 - isedge
-        #     elseif u ∈ cycles[1] && v ∈ cycles[1] # all other cycles
-        #         levels[i] = -1
-        #     end
-        # end
-        levels_sites = get_levels_sites(lattice, bonds_sites, bonds_indices, levels, N)
-    else
-        coo = get_coordination_number(bonds_indices, N)
-        levels = get_tree_depths(g, bonds_indices)
-        levels_sites = get_levels_sites(lattice, bonds_sites, bonds_indices, levels, N)
-
-    end
-    c = TriangularCluster(N, cluster, bonds_sites, bonds_indices, diag_bonds_sites, diag_bonds_indices, levels_sites, m, n)
+    coo = get_coordination_number(bonds_indices, N)
+    levels = get_tree_depths(g, bonds_indices)
+    levels_sites = get_levels_sites(lattice, bonds_sites, bonds_indices, levels, N)
+    c = HoneycombCluster(N, cluster, bonds_sites, bonds_indices, diag_bonds_sites, diag_bonds_indices, levels_sites, m, n)
     return c
 end
 
 function isdiagonal(lattice::Triangular, site₁, site₂)
-    return (distance(lattice, site₁, site₂) == 3)
+    return (distance(lattice::Ho, site₁, site₂) == 3)
 end
 
-function distance(::Triangular, ind₁, ind₂)
+function distance(::Honeycomb, ind₁, ind₂)
     c1 = ind₁[1] - ind₂[1]
     c2 = ind₁[2] - ind₂[2]
-    return c1^2 + c1 * c2 + c2^2
+
+    if c2 == 0
+        return abs(c1)
+    elseif c2 == 1
+        if (mod(ind₁[1], 4) == 1 && c1 == 1) || (mod(ind₁[1], 4) == 2 && c1 == -1)
+            return 1
+        else
+            return Inf
+        end
+    elseif c2 == -1
+        if (mod(ind₁[1], 4) == 0 && c1 == -1) || (mod(ind₁[1], 4) == 3 && c1 == 1)
+            return 1
+        else
+            return Inf
+        end
+    end
 end
 
 function get_direction(lattice::Triangular, site₁, site₂) # should not have to be restricted to Triangular lattices

@@ -68,20 +68,6 @@ function find_P1P2(A1, A2, ind1, ind2, trunc; check_space = true, proj = :svd)
     return oblique_projector(R1, R2, trunc; proj)
 end
 
-function eig_with_truncation_triangular(x, space)
-    T = scalartype(x)
-    D = dim(space)
-    eigval, eigvec = eig(x)
-    if space == domain(eigval)[1]
-        return eigval, eigvec
-    end
-    eigval_trunc = zeros(T, space, space)
-    eigvec_trunc = zeros(T, codomain(x), space)
-    eigval_trunc[] = eigval[][1:D, 1:D]
-    eigvec_trunc[] = eigvec[][:, 1:D]
-    return eigval_trunc, eigvec_trunc
-end
-
 function oblique_projector(R1, R2, trunc; proj = :svd)
     mat = R1 * R2
     if proj == :svd

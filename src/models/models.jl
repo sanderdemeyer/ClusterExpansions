@@ -197,7 +197,7 @@ end
 
 function heisenberg_XXX_operators(Jx; spin = 1 // 2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = ℂ^4, kwargs...)
     twosite_op = rmul!(SpinOperators.S_exchange(T, spin_symmetry; spin = spin), Jx)
-    onesite_op = rmul!(id(SpinOperators.spin_space(spin_symmetry; spin = spin)), T(0))
+    onesite_op = rmul!(id(T, SpinOperators.spin_space(spin_symmetry; spin = spin)), T(0))
     spaces, envspace = spaces_heisenberg(spin_symmetry; loop_space)
     return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, kwargs...)
 end
@@ -220,8 +220,51 @@ function heisenberg_operators(Jx, Jy, Jz, h; spin = 1 // 2, spin_symmetry = Triv
     return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, kwargs...)
 end
 
+function heisenberg_kitaev_operators(J, K, h; spin = 1 // 2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = ℂ^4, kwargs...)
+    @assert spin_symmetry == Trivial
+    heisenberg_term = rmul!(SpinOperators.S_exchange(T, spin_symmetry; spin = spin), J)
+
+    twosite_ops = [heisenberg_term + rmul!(SpinOperators.S_x_S_x(T, spin_symmetry; spin), K),
+        heisenberg_term + rmul!(SpinOperators.S_y_S_y(T, spin_symmetry; spin), K),
+        heisenberg_term + rmul!(SpinOperators.S_z_S_z(T, spin_symmetry; spin), K)
+    ]
+
+    onesite_op = rmul!(SpinOperators.S_z(T, spin_symmetry; spin = spin), h)
+    spaces, envspace = spaces_heisenberg(spin_symmetry; loop_space)
+    return ClusterExpansion(twosite_ops, onesite_op; spaces, envspace, kwargs...)
+end
+
+function heisenberg_kitaev_operators_anisotropic(Jx, Jy, Jz, Kx, Ky, Kz, h; spin = 1 // 2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = ℂ^4, kwargs...)
+    @assert spin_symmetry == Trivial
+    heisenberg_term = rmul!(SpinOperators.S_x_S_x(T, spin_symmetry; spin), Jx) + 
+        rmul!(SpinOperators.S_y_S_y(T, spin_symmetry; spin), Jy) + rmul!(SpinOperators.S_z_S_z(T, spin_symmetry; spin), Jz)
+
+    twosite_ops = [heisenberg_term + rmul!(SpinOperators.S_x_S_x(T, spin_symmetry; spin), Kx),
+        heisenberg_term + rmul!(SpinOperators.S_y_S_y(T, spin_symmetry; spin), Ky),
+        heisenberg_term + rmul!(SpinOperators.S_z_S_z(T, spin_symmetry; spin), Kz)
+    ]
+
+    onesite_op = rmul!(SpinOperators.S_z(T, spin_symmetry; spin = spin), h)
+    spaces, envspace = spaces_heisenberg(spin_symmetry; loop_space)
+    return ClusterExpansion(twosite_ops, onesite_op; spaces, envspace, kwargs...)
+end
+
 function heisenberg_operators(; kwargs...)
     return heisenberg_operators(1.0, 1.0, 1.0, 0.0; kwargs...)
+end
+
+function J1J2_operators_honeycomb(J1, J2, h; spin = 1 // 2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = ℂ^4, kwargs...)
+    twosite_op = rmul!(SpinOperators.S_exchange(T, spin_symmetry; spin), J1)
+    nn_term = rmul!(SpinOperators.S_exchange(T, spin_symmetry; spin), J2)
+    if h == 0.0
+        pspace = domain(twosite_op)[1]
+        onesite_op = rmul!(id(T, pspace), 0.0)
+    else
+        onesite_op = rmul!(SpinOperators.S_z(T, spin_symmetry; spin), h)
+    end
+
+    spaces, envspace = spaces_heisenberg(spin_symmetry; loop_space)
+    return ClusterExpansion([twosite_op, twosite_op, twosite_op], onesite_op; nn_term, spaces, envspace, kwargs...)
 end
 
 function J1J2_operators(J1, J2, h; spin = 1 // 2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = ℂ^4, kwargs...)

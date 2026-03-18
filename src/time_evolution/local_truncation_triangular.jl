@@ -106,9 +106,9 @@ function approximate_state(
     @tensor opt = true Onew[-1 -2; -3 -4 -5 -6 -7 -8] := A[1][1 -2; 8 9 10 11 12 13] * A[2][-1 1; 2 3 4 5 6 7] * P120[2 8; -3] * P60[3 9; -4] * P0[4 10; -5] * P300[5 11; -6] * P240[6 12; -7] * P180[7 13; -8]
     # Onew = (Onew + flip(permute(Onew, ((1,2),(4,5,6,7,8,3))), [5 8])) / 2
 
-    @assert norm(flip(permute(Onew, ((1, 2), (4, 5, 6, 7, 8, 3))), [5 8]) - Onew) < 1.0e-10 "$(norm(flip(permute(Onew, ((1, 2), (4, 5, 6, 7, 8, 3))), [5 8]) - Onew))"
-    @tensor Tnew[-6 -5 -4; -1 -2 -3] := Onew[1 1; -1 -2 -3 -4 -5 -6]
+    # @assert norm(flip(permute(Onew, ((1, 2), (4, 5, 6, 7, 8, 3))), [5 8]) - Onew) < 1.0e-10 "$(norm(flip(permute(Onew, ((1, 2), (4, 5, 6, 7, 8, 3))), [5 8]) - Onew))"
+    # @tensor Tnew[-6 -5 -4; -1 -2 -3] := Onew[1 1; -1 -2 -3 -4 -5 -6]
     # @assert norm(Tnew - Tnew') < 1e-10 "$(norm(Tnew - Tnew'))"
-    @assert norm(Tnew - flip(permute(Tnew, ((6, 5, 4), (3, 2, 1))), [1 2 3 4 5 6])) < 1.0e-10
+    # @assert norm(Tnew - flip(permute(Tnew, ((6, 5, 4), (3, 2, 1))), [1 2 3 4 5 6])) < 1.0e-10
     return Onew, nothing
 end

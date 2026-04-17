@@ -90,7 +90,9 @@ function MPSKit.expectation_value(ρ::InfinitePEPO, symb::Symbol, env::CTMRGEnv)
         below = InfiniteMPS([tensor_below])
         ϵ, δ, θ = marek_gap(above; below, num_vals = 20)
         return 1 / ϵ, δ, θ
-    else        
+    elseif symb == :network_value
+        return network_value(ρ, env)
+    else
         @warn "Observable $(symb) not defined. This will be set to zero"
         return 0
     end
@@ -121,7 +123,7 @@ function calculate_observables(O::AbstractTensorMap{E,S,2,4}, χ::Int, observabl
     pf = PEPSKit.trace_out(ρ)
     if :VUMPS ∈ env_algs
         T = InfiniteMPO([pf[1,1]])
-        pspace = domain(pf[1,1])[2]
+        pspace = codomain(pf[1,1])[2]
     
         mps = InfiniteMPS([
             randn(
@@ -158,39 +160,45 @@ function observable_purification(O::AbstractTensorMap{T,S,1,1}; Nr = 1, Nc = 1) 
     return H
 end
 
+function observable_purification(observables::Vector{PEPOObservable})
+    return [PEPOObservable(observable_purification(obs.obs), obs.env_alg, obs.func) for obs in observables]
+end
+
 function observable_purification(O::Symbol; Nr = 1, Nc = 1)
     return O
 end
 
 function calculate_observables_purification(O::AbstractTensorMap{E,S,2,4}, χ::Int, observables_base) where {E,S}
-    observables = observable_purification.(observables_base)
+    observables = observable_purification(observables_base)
     envspace = _envspace(codomain(O)[1])(χ)
-    env_algs = fill(:CTMRG, length(observables)) # For purification, we only use CTMRG
+    env_algs = _env_algs(observables)
     pspace = codomain(O)[1]
 
-    ctm_alg = SimultaneousCTMRG(; maxiter = 500)
-    vumps_alg = 
+    vumps_alg = get_env_alg(observables, VUMPS)
+    ctm_alg = get_env_alg(observables, PEPSKit.CTMRGAlgorithm)
 
     F = isometry(fuse(pspace,pspace), pspace ⊗ pspace')
     @tensor A[-1; -2 -3 -4 -5] := twist(O,2)[1 2; -2 -3 -4 -5] * F[-1; 1 2]
     peps = InfinitePEPS(A)
     if :VUMPS ∈ env_algs
-        T = InfiniteMPO([pf[1,1]])
-        pspace = domain(pf[1,1])[2]
-    
-        mps = InfiniteMPS([
-            randn(
-                ComplexF64,
-                envspace * pspace,
-                envspace,
-            )])
+        T = InfiniteTransferPEPS(peps, 1, 1)
+        mps = initialize_mps(T, [envspace])
+
+        # T = InfiniteMPO([peps[1,1]])
+        # pspace = domain(peps[1,1])[2]    
+        # mps = InfiniteMPS([
+        #     randn(
+        #         ComplexF64,
+        #         envspace * pspace,
+        #         envspace,
+        #     )])
         mps, env, _ = leading_boundary(mps, T, vumps_alg)
         vumps_env = (mps, env)
     end
     if :CTMRG ∈ env_algs
         ctmrg_env, = leading_boundary(CTMRGEnv(peps, envspace), peps, ctm_alg)
     end
-    return [expectation_value(peps, obs, ctmrg_env) for obs = observables]
+    return [env_type == :VUMPS ? expectation_value(obs.func(peps), obs.obs, vumps_env) : (env_type == :CTMRG ? expectation_value(obs.func(peps), obs.obs, ctmrg_env) : obs.obs(obs.func(peps))) for (obs,env_type) = zip(observables, env_algs)]
 end
 
 # Utility functions for Simple Update

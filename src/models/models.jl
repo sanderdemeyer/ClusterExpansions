@@ -294,18 +294,41 @@ function spaces_tJ(particle_symmetry, spin_symmetry; loop_space = Vect[fℤ₂](
                 Vect[fℤ₂ ⊠ U1Irrep ⊠ U1Irrep]((0,0,0) => 3, (0, 0, 1)=>1, (0, 0, -1)=>1, (1, 1, 1/2)=>1, (1, 1, -1/2)=>1, (1, -1, 1/2)=>1, (1, -1, -1/2)=>1)
             end
             envspace = χ -> Vect[fℤ₂ ⊠ U1Irrep ⊠ U1Irrep]((0,0,0) => div(χ,2), (0,0,1) => div(χ,4), (0,0,-1) => div(χ,4))
+        elseif spin_symmetry == SU2Irrep
+            spaces = i -> if i == 0
+                Vect[fℤ₂ ⊠ U1Irrep ⊠ SU2Irrep]((0,0,0) => 1)
+            elseif i == 1
+                Vect[fℤ₂ ⊠ U1Irrep ⊠ SU2Irrep]((0,0,0) => 2, (0, 0, 1)=>1, (1, 1, 1/2)=>1, (1, -1, 1/2)=>1)
+            end
+            envspace = χ -> Vect[fℤ₂ ⊠ U1Irrep ⊠ SU2Irrep]((0,0,0) => div(χ,2), (0,0,1) => div(χ,4), (1, 1, 1/2) => div(χ,8), (1, -1, 1/2) => div(χ,8))
         end
     else
-        spaces = i -> if i == 0
-        Vect[fℤ₂](0 => 1)
-        elseif i == 1
-            Vect[fℤ₂](0 => 5, 1 => 4)
-        elseif i > 0
-            Vect[fℤ₂](0 => 2*3^(2*i-1), 1 => 2*3^(2*i-1))
-        else
-            Vect[fℤ₂](0 => 20, 1 => 20)
+        if spin_symmetry == Trivial
+            spaces = i -> if i == 0
+                Vect[fℤ₂](0 => 1)
+            elseif i == 1
+                Vect[fℤ₂](0 => 5, 1 => 4)
+            elseif i > 0
+                Vect[fℤ₂](0 => 2*3^(2*i-1), 1 => 2*3^(2*i-1))
+            else
+                Vect[fℤ₂](0 => 20, 1 => 20)
+            end
+            envspace = χ -> Vect[fℤ₂](0 => div(χ,2), 1 => div(χ,2))
+        elseif spin_symmetry == U1Irrep
+            spaces = i -> if i == 0
+                Vect[fℤ₂ ⊠ U1Irrep]((0,0) => 1)
+            elseif i == 1
+                Vect[fℤ₂ ⊠ U1Irrep]((0,0) => 3, (0,1) => 1, (0,-1) => 1, (1,1/2) => 2, (1,-1/2) => 2)
+            end
+            envspace = χ -> Vect[fℤ₂ ⊠ U1Irrep]((0,0) => div(χ,2), (0,1) => div(χ,8), (0,-1) => div(χ,8), (1,1/2) => div(χ,8), (1,-1/2) => div(χ,8))
+        elseif spin_symmetry == SU2Irrep
+            spaces = i -> if i == 0
+                Vect[fℤ₂ ⊠ SU2Irrep]((0,0) => 1)
+            elseif i == 1
+                Vect[fℤ₂ ⊠ SU2Irrep]((0,0) => 2, (0,1)=>1, (1, 1/2)=>2)
+            end
+            envspace = χ -> Vect[fℤ₂ ⊠ SU2Irrep]((0,0,0) => div(χ,2), (0,0,1) => div(χ,4), (1, 1, 1/2) => div(χ,8), (1, -1, 1/2) => div(χ,8))
         end
-        envspace = χ -> Vect[fℤ₂](0 => div(χ,2), 1 => div(χ,2))
     end
     return spaces, envspace
 end
@@ -317,10 +340,16 @@ function tJ_operators(t, J, μ; t′ = 0.0, h = 0.0, particle_symmetry = Trivial
     hopping_operator = TJOperators.e_hop(T, particle_symmetry, spin_symmetry; slave_fermion)
     number_operator = TJOperators.e_num(T, particle_symmetry, spin_symmetry; slave_fermion)
     heisenberg_operators = TJOperators.S_exchange(particle_symmetry, spin_symmetry; slave_fermion) - (filling^2 / 4) * (number_operator ⊗ number_operator)
-    external_field = TJOperators.S_z(particle_symmetry, spin_symmetry; slave_fermion)
 
     twosite_op = rmul!(hopping_operator, -T(t)) + rmul!(heisenberg_operators, T(J))
-    onesite_op = rmul!(number_operator, -T(μ)) + rmul!(external_field, h)
+
+    if spin_symmetry == SU2Irrep
+        @assert h == 0.0 "External magnetic field is not allowed for SU(2) symmetric t-J model"
+        onesite_op = rmul!(number_operator, -T(μ))
+    else
+        external_field = TJOperators.S_z(particle_symmetry, spin_symmetry; slave_fermion)
+        onesite_op = rmul!(number_operator, -T(μ)) + rmul!(external_field, h)
+    end
 
     spaces, envspace = spaces_tJ(particle_symmetry, spin_symmetry; loop_space = Vect[fℤ₂](0 => 5, 1 => 5), slave_fermion = false)
     if t′ == 0.0

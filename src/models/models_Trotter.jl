@@ -1,4 +1,4 @@
-abstract type TrotterDecomposition end
+abstract type TrotterDecomposition <: EvolutionPEPO end
 
 struct TwositeTrotterDecomposition <: TrotterDecomposition
     twosite_op
@@ -24,7 +24,7 @@ function get_Trotter_twosite(op::AbstractTensorMap{E,S,1,1}, vspace, β::Number)
     tensor_base = cosh(β)^2 * sqrt(tanh(β)) * op
     UZZ = zeros(T, pspace ⊗ pspace', vspace ⊗ vspace ⊗ vspace' ⊗ vspace')
     for i = 1:2, j = 1:2, k = 1:2, l = 1:2
-        UZZ[][:,:,i,j,k,l] = tensor_base[]^(i+j+k+l)
+        UZZ[][:,:,i,j,k,l] = (tensor_base^(i+j+k+l))[]
     end
     return UZZ
 end

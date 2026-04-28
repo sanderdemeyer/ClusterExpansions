@@ -1,28 +1,15 @@
 # This is not valid in the fermionic case. For fermions, flippers have to be used, which are defined in TensorKit v0.14
 
 function rotl90_fermionic(A::AbstractTensorMap{E,S,1,4}) where {E,S<:ElementarySpace}
-    return twist(flip(rotl90(A), [3 5]), [3 5])
-    A = rotl90(A)
-
-    I₂ = isometry(A.dom[2], (A.dom[2])')
-    I₄ = isometry(A.dom[4], (A.dom[4])')
-
-    @tensor A_rot[-1; -2 -3 -4 -5] := A[-1; -2 1 -4 2] * I₂[1; -3] * I₄[2; -5]
-    return A_rot
+    return twist(flip(permute(A, ((1,),(3,4,5,2))), [3 5]), [3 5])
 end
 
 function rotl90_fermionic(A::AbstractTensorMap{E,S,2,4}) where {E,S<:ElementarySpace}
-    return twist(flip(rotl90(A), [4 6]), [4 6])
-    A = rotl90(A)
-
-    I₂ = isometry(A.dom[2], (A.dom[2])')
-    I₄ = isometry(A.dom[4], (A.dom[4])')
-
-    @tensor A_rot[-1 -2; -3 -4 -5 -6] := A[-1 -2; -3 1 -5 2] * I₂[1; -4] * I₄[2; -6]
-    return A_rot
+    return twist(flip(permute(A, ((1,2),(4,5,6,3))), [4 6]), [4 6])
 end
 
 function rotl180_fermionic(A::AbstractTensorMap{E,S,1,4}) where {E,S<:ElementarySpace}
+    return rotl90_fermionic(rotl90_fermionic(A))
     return twist(flip(rotl90(rotl90(A)), [2 3 4 5]), [2 3 4 5])
     A = rotl90(rotl90(A))
 
@@ -35,6 +22,7 @@ function rotl180_fermionic(A::AbstractTensorMap{E,S,1,4}) where {E,S<:Elementary
 end
 
 function rotl180_fermionic(A::AbstractTensorMap{E,S,2,4}) where {E,S<:ElementarySpace}
+    return rotl90_fermionic(rotl90_fermionic(A))
     return twist(flip(rotl90(rotl90(A)), [3 4 5 6]), [3 4 5 6])
     A = rotl90(rotl90(A))
 
@@ -59,6 +47,21 @@ function symmetrize(symmetry, levels_to_update, solutions; N = length(levels_to_
 end
 
 function symmetrize_C4(levels_to_update, solutions, N)
+    rotate_i_times(n) = x -> foldl(|>, fill(rotl90_fermionic, n), init = x)
+
+    new_levels = copy(levels_to_update)
+    new_solutions = copy(solutions)
+    for i = 1:3
+        for (level_to_update,solution) = zip(levels_to_update,solutions)
+            new_level = tuple(circshift(collect(level_to_update), -i)...)
+            if new_level ∉ new_levels
+                new_solution = rotate_i_times(i)(solution)
+                push!(new_levels, new_level)
+                push!(new_solutions, new_solution)
+            end
+        end
+    end
+    return new_levels, new_solutions
     if N == 1
         # for _ = 1:2
         #     new_levels = tuple(circshift(collect(levels_to_update[end]), -1)...)

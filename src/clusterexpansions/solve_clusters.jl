@@ -53,7 +53,9 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; nn_
         end
         return spaces
     end
-    levels_to_update, solutions = symmetrize(symmetry, levels_to_update, solutions)
+    if cluster.N == 2
+        levels_to_update, solutions = symmetrize(symmetry, levels_to_update, solutions)
+    end
     merge!(PEPO, Dict(zip(levels_to_update, solutions)))
     return spaces
 end
@@ -106,7 +108,14 @@ function get_all_indices(T, PEPO, p, β, twosite_op, onesite_op, spaces; nn_term
             @info "Maximum is $(maximum(abs.(tens.data))), norm is $(norm(tens))"
             @info "Summary = $(summary(tens))"
         end
-    end    
+    end
+    if verbosity > 0
+        for (key, tens) = PEPO
+            if key != (0,0,0,0) && norm(tens) > 1.0
+                @warn "PEPO tensor at level $(key) has norm $(norm(tens)) > 1.0"
+            end
+        end
+    end
     return PEPO
 end    
 

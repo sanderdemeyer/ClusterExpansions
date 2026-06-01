@@ -146,6 +146,7 @@ function MPSKit.time_evolve(
     skip_first::Bool = false,
     initial_guesses = i -> nothing,
     saving::Bool = true,
+    saving_frequency::Int = 1,
     normalizing::Bool = true,
     trunc_alg_start = nothing
 )
@@ -153,7 +154,6 @@ function MPSKit.time_evolve(
         As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
     else
         As = AbstractTensorMap[approximate_state(evolution_operator(ce_alg, β; canoc_alg), trunc_alg_start)[1] for β = time_alg.βs_helper]
-
     end
     times = copy(time_alg.βs_helper)
     if isnothing(A0)
@@ -205,7 +205,9 @@ function MPSKit.time_evolve(
         push!(times, times[end] + times[ind])
         if saving
             push!(expvals, obs)
-            push!(As, copy(A))
+            if mod(i, saving_frequency) == 0
+                push!(As, copy(A))
+            end
         end
         if time_alg.verbosity > 1
             @info "Time evolution step $(i) with β = $(times[end]), obs = $(obs)"

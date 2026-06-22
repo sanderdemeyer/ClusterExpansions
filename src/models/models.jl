@@ -416,3 +416,20 @@ end
 function hubbard_operators(; kwargs...)
     return hubbard_operators(1.0, 0.0, 0.0; kwargs...)
 end
+
+function bose_hubbard_operators(t, U, V, μ; cutoff = 1, symmetry = Trivial, T = BigFloat, loop_space = Vect[fℤ₂](0 => 4, 1 => 4), kwargs...)
+    pspace = BosonOperators.boson_space(symmetry; cutoff)
+    N_op = BosonOperators.n(T, symmetry; cutoff)
+
+    twosite_op = rmul!(BosonOperators.b_hop(T, symmetry; cutoff), -T(t)) + rmul!(N_op ⊗ N_op, T(V))
+    @tensor NN_op[-1; -2] := N_op[1; -2] * (N_op - id(pspace))[-1; 1]
+    onesite_op = rmul!(NN_op, T(U/2)) + rmul!(N_op, -T(μ))
+
+    if symmetry == Trivial
+        spaces = i -> (i >= 0) ? ℂ^((1+cutoff)^(2*i)) : loop_space
+        envspace = χ -> ℂ^χ
+    elseif symmetry == U1Irrep
+        @error "symmetry = U1Irrep not yet implemented for the bose-Hubbard model"
+    end
+    return ClusterExpansion(twosite_op, onesite_op; T, spaces, envspace, kwargs...)
+end

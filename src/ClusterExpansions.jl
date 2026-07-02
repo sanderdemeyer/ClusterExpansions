@@ -13,7 +13,10 @@ include("clusterexpansions/utility/symmetries.jl")
 
 include("utility/canonical_form.jl")
 include("utility/observables.jl")
-include("utility/observables_cubic.jl")
+include("utility/observables_cubic_bpeps.jl")
+include("utility/ctmrg_cubic.jl")
+include("utility/ctmrg3D.jl")
+include("utility/ctmrg3D_Oh.jl")
 
 include("time_evolution/utility.jl")
 include("time_evolution/global_truncation.jl")
@@ -68,6 +71,8 @@ export UniformTimeEvolution, SquaringTimeEvolution
 export UniformGroundStateTimeEvolution, SquaringGroundStateTimeEvolution
 export time_evolve, get_time_array, time_scan
 export time_evolve_model, time_scan_model
+
+export CTMRG3D, CTMRG3D_Oh
 
 export data_generation_SF_CE, data_generation_ising_CE
 export data_generation_SF_SU, data_generation_ising_SU

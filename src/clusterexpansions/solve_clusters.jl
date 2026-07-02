@@ -53,9 +53,7 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; nn_
         end
         return spaces
     end
-    if cluster.N == 2
-        levels_to_update, solutions = symmetrize(symmetry, levels_to_update, solutions)
-    end
+    levels_to_update, solutions = symmetrize(symmetry, levels_to_update, solutions)
     merge!(PEPO, Dict(zip(levels_to_update, solutions)))
     return spaces
 end

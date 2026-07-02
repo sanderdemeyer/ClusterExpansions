@@ -96,8 +96,6 @@ function approximate_state(
         PN,PS = find_P1P2(lattice,A[1],A[2],4,7,trunc_alg.trscheme);
         PE,PW = find_P1P2(lattice,A[1],A[2],5,8,trunc_alg.trscheme);
     end
-    
-    println("spaces are PU: $(PU.space), PD: $(PD.space), PN: $(PN.space), PS: $(PS.space), PE: $(PE.space), PW: $(PW.space)")
     @tensor opt = true Onew[-1 -2; -3 -4 -5 -6 -7 -8] := A[1][1 -2; 8 9 10 11 12 13] * A[2][-1 1; 2 3 4 5 6 7] * PU[2 8; -3] * PN[3 9; -4] * PE[4 10; -5] * PD[-6; 5 11] * PS[-7; 6 12] * PW[-8; 7 13]
     return Onew, nothing
 end

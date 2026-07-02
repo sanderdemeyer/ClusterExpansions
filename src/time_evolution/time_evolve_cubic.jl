@@ -17,15 +17,15 @@ function construct_levels(key)
     ]
 end
 
-function construct_tensors(tens, TS)
+function construct_tensors(tens, TS; T = scalartype(tens))
     VS = domain(tens)
     VS1 = [TS, VS[1], VS[2], TS', VS[3], VS[4]]
     VS2 = [VS[1], TS, VS[2], VS[3], TS', VS[4]]
     VS3 = [VS[1], VS[2], TS, VS[3], VS[4], TS']
 
-    tens1 = zeros(codomain(tens), ⊗(VS1...))
-    tens2 = zeros(codomain(tens), ⊗(VS2...))
-    tens3 = zeros(codomain(tens), ⊗(VS3...))
+    tens1 = zeros(T, codomain(tens), ⊗(VS1...))
+    tens2 = zeros(T, codomain(tens), ⊗(VS2...))
+    tens3 = zeros(T, codomain(tens), ⊗(VS3...))
 
     tens1[:,:,1,:,:,1,:,:] .= tens[:,:,:,:,:,:]
     tens2[:,:,:,1,:,:,1,:] .= tens[:,:,:,:,:,:]
@@ -57,8 +57,8 @@ function evolution_operator_cubic(ce_alg::ClusterExpansion, β::Number; T_conv =
     PEPO_3D = construct_cubic_CE(PEPO_2D)
     O_clust_full = get_PEPO_cubic(ce_alg.T, pspace, PEPO_3D, ce_alg.spaces)
 
-    O_clust_full = convert(TensorMap, O_clust_full)
-    O_canoc = canonicalize(O_clust_full, canoc_alg)
+    O_clust_full_tm = convert(TensorMap, O_clust_full)
+    O_canoc = canonicalize(O_clust_full_tm, canoc_alg)
     O = zeros(T_conv, codomain(O_canoc), domain(O_canoc))
     for (f_full, f_conv) in zip(blocks(O_canoc), blocks(O))
         f_conv[2] .= f_full[2]

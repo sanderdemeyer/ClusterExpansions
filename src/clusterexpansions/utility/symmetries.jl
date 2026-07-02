@@ -38,7 +38,7 @@ function symmetrize(symmetry, levels_to_update, solutions; N = length(levels_to_
     @assert length(solutions) == N "Number of solutions $(length(solutions)) does not match number of levels to update $(N)"
     if isnothing(symmetry)
         return levels_to_update, solutions
-    elseif symmetry == "C4"
+    elseif (symmetry == "C4" && N == 2) || (symmetry == "C4_manifest")
         return symmetrize_C4(levels_to_update, solutions, N)
     else
         @error "Symmetry $(symmetry) is not implemented"

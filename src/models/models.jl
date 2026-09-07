@@ -211,9 +211,9 @@ function spaces_heisenberg(spin_symmetry; loop_space = ℂ^4)
     return spaces, envspace
 end
 
-function heisenberg_XXX_operators(Jx; spin = 1//2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = ℂ^4, kwargs...)
+function heisenberg_XXX_operators(Jx; h = 0.0, spin = 1//2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = ℂ^4, kwargs...)
     twosite_op = rmul!(SpinOperators.S_exchange(T, spin_symmetry; spin=spin), Jx)
-    onesite_op = rmul!(id(SpinOperators.spin_space(spin_symmetry; spin=spin)), T(0))
+    onesite_op = rmul!(SpinOperators.S_z(spin_symmetry; spin=spin), T(h))
     spaces, envspace = spaces_heisenberg(spin_symmetry; loop_space)
     return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, kwargs...)
 end
@@ -417,13 +417,13 @@ function hubbard_operators(; kwargs...)
     return hubbard_operators(1.0, 0.0, 0.0; kwargs...)
 end
 
-function bose_hubbard_operators(t, U, V, μ; cutoff = 1, particle_symmetry = Trivial, T = BigFloat, loop_space = Vect[fℤ₂](0 => 4, 1 => 4), kwargs...)
+function bose_hubbard_operators(t, U, V, μ; δ = 0.0, cutoff = 1, particle_symmetry = Trivial, T = BigFloat, loop_space = Vect[fℤ₂](0 => 4, 1 => 4), kwargs...)
     pspace = BosonOperators.boson_space(particle_symmetry; cutoff)
     N_op = BosonOperators.n(T, particle_symmetry; cutoff)
 
     twosite_op = rmul!(BosonOperators.b_hop(T, particle_symmetry; cutoff), -T(t)) + rmul!(N_op ⊗ N_op, T(V))
     @tensor NN_op[-1; -2] := N_op[1; -2] * (N_op - id(pspace))[-1; 1]
-    onesite_op = rmul!(NN_op, T(U/2)) + rmul!(N_op, -T(μ))
+    onesite_op = rmul!(NN_op, T(U/2)) + rmul!(N_op, -T(μ)) + rmul!(BosonOperators.b⁺(T, particle_symmetry; cutoff) - BosonOperators.b⁻(T, particle_symmetry; cutoff), T(δ))
 
     if particle_symmetry == Trivial
         spaces = i -> (i >= 0) ? ℂ^((1+cutoff)^(2*i)) : loop_space

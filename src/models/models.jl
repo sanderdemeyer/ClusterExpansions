@@ -423,7 +423,7 @@ function bose_hubbard_operators(t, U, V, μ; δ = 0.0, cutoff = 1, particle_symm
 
     twosite_op = rmul!(BosonOperators.b_hop(T, particle_symmetry; cutoff), -T(t)) + rmul!(N_op ⊗ N_op, T(V))
     @tensor NN_op[-1; -2] := N_op[1; -2] * (N_op - id(pspace))[-1; 1]
-    onesite_op = rmul!(NN_op, T(U/2)) + rmul!(N_op, -T(μ)) + rmul!(BosonOperators.b⁺(T, particle_symmetry; cutoff) - BosonOperators.b⁻(T, particle_symmetry; cutoff), T(δ))
+    onesite_op = rmul!(NN_op, T(U/2)) + rmul!(N_op, -T(μ)) + rmul!(BosonOperators.b⁺(T, particle_symmetry; cutoff) + BosonOperators.b⁻(T, particle_symmetry; cutoff), T(δ))
 
     if particle_symmetry == Trivial
         spaces = i -> (i >= 0) ? ℂ^((1+cutoff)^(2*i)) : loop_space

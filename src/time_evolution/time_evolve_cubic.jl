@@ -23,14 +23,14 @@ function construct_tensors(tens, TS; T = scalartype(tens))
     VS2 = [VS[1], TS, VS[2], VS[3], TS', VS[4]]
     VS3 = [VS[1], VS[2], TS, VS[3], VS[4], TS']
 
-    tens1 = zeros(T, codomain(tens), ⊗(VS1...))
-    tens2 = zeros(T, codomain(tens), ⊗(VS2...))
-    tens3 = zeros(T, codomain(tens), ⊗(VS3...))
+    F1 = isomorphism(VS, TS ⊗ VS[1] ⊗ VS[2] ⊗ TS' ⊗ VS[3] ⊗ VS[4])
+    F2 = isomorphism(VS, VS[1] ⊗ TS ⊗ VS[2] ⊗ VS[3] ⊗ TS' ⊗ VS[4])
+    F3 = isomorphism(VS, VS[1] ⊗ VS[2] ⊗ TS ⊗ VS[3] ⊗ VS[4] ⊗ TS')
 
-    tens1[:,:,1,:,:,1,:,:] .= tens[:,:,:,:,:,:]
-    tens2[:,:,:,1,:,:,1,:] .= tens[:,:,:,:,:,:]
-    tens3[:,:,:,:,1,:,:,1] .= tens[:,:,:,:,:,:]
-
+    tens1 = tens * F1
+    tens2 = tens * F2
+    tens3 = tens * F3
+    
     return [tens1, tens2, tens3]
 end
 

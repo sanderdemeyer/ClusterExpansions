@@ -19,7 +19,7 @@ function leading_boundary(env::CTMRG3D_alg)
     for i = 1:env.maxiter
         S_new = ctmrgstep(env)
         push!(ϵs, norm(S_new - S_old))
-        if ϵs[end] < env.tol
+        if (ϵs[end] < env.tol) && (i > env.miniter)
             if env.verbosity > 1
                 @info "CTMRG3D converged after $i iterations with ϵ = $(ϵs[end])"
             end
@@ -36,17 +36,14 @@ function leading_boundary(env::CTMRG3D_alg)
     return env, ϵs
 end
 
-function MPSKit.expectation_value(PEPO::AbstractTensorMap{A,S,2,6}, obss, bpepsspace, envspace; ctm_alg = CTMRG3D, maxiter = 150, tol = 1e-8, verbosity = 0) where {A,S}
+function MPSKit.expectation_value(PEPO::AbstractTensorMap{A,S,2,6}, obss, bpepsspace, envspace; ctm_alg = CTMRG3D, miniter = 5, maxiter = 150, tol = 1e-8, verbosity = 0) where {A,S}
     @tensor O[-1 -2 -3 -4 -5 -6] := twist(PEPO, 2)[1 1; -1 -2 -3 -4 -5 -6]
     O = flip(permute(O, ((),(1,2,3,4,5,6))), [4 5 6])
     
     trunc_bpeps = truncdim(dim(bpepsspace))
     trunc_env = truncdim(dim(envspace))
-    env = ctm_alg(O; trunc_env, trunc_bpeps, Vbp = bpepsspace, Vv = envspace, maxiter, tol, verbosity)
+    env = ctm_alg(O; trunc_env, trunc_bpeps, Vbp = bpepsspace, Vv = envspace, miniter, maxiter, tol, verbosity)
     env, ϵs = leading_boundary(env);
-    println("A = $(env.A.space)")
-    println("E = $(env.E.space)")
-    println("C = $(env.C.space)")
     expvals = []
     for obs = obss
         if obs == :spectrum
@@ -54,6 +51,8 @@ function MPSKit.expectation_value(PEPO::AbstractTensorMap{A,S,2,6}, obss, bpepss
             x0 = rand(scalartype(TM), domain(TM), ℂ^1)
             eigvals, eigvecs = eigsolve(x -> TM * x, x0, 5)
             m = marek_gap(eigvals)
+        elseif obs == :universal
+            m = calculate_universal_3D_spectrum(env)
         else
             @tensor M[-1 -2 -3 -4 -5 -6] := twist(PEPO, 2)[1 2; -1 -2 -3 -4 -5 -6] * obs[2; 1]
             M = flip(permute(M, ((),(1,2,3,4,5,6))), [4 5 6])

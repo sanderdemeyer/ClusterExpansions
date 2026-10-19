@@ -175,11 +175,11 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         # xtry = zeros(T, pspace ⊗ pspace' ⊗ prod([conj ? trivspace : trivspace' for conj = conjugated[1]]), pspace' ⊗ pspace ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
         b = permute(exp_H, ((1,3), (2,4)))
         if dir == (3,1)
-            Isom_domain = isomorphism(domain(b), domain(b) ⊗ trivspace ⊗ trivspace' ⊗ trivspace')
-            Isom_codomain = isomorphism(codomain(b) ⊗ trivspace' ⊗ trivspace' ⊗ trivspace, codomain(b))
+            Isom_domain = isomorphism(T, domain(b), domain(b) ⊗ trivspace ⊗ trivspace' ⊗ trivspace')
+            Isom_codomain = isomorphism(T, codomain(b) ⊗ trivspace' ⊗ trivspace' ⊗ trivspace, codomain(b))
         elseif dir == (2,4)
-            Isom_domain = isomorphism(domain(b), domain(b) ⊗ trivspace ⊗ trivspace ⊗ trivspace')
-            Isom_codomain = isomorphism(codomain(b) ⊗ trivspace' ⊗ trivspace ⊗ trivspace, codomain(b))
+            Isom_domain = isomorphism(T, domain(b), domain(b) ⊗ trivspace ⊗ trivspace ⊗ trivspace')
+            Isom_codomain = isomorphism(T, codomain(b) ⊗ trivspace' ⊗ trivspace ⊗ trivspace, codomain(b))
         else
             @error "Unexpected value for dir"
         end

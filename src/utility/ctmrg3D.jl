@@ -5,13 +5,14 @@ mutable struct CTMRG3D{T, S, TT <: AbstractTensorMap{T, S, 0, 6}, TA <: Abstract
     C::Array{TC,1}
     trunc_bpeps::TruncationScheme
     trunc_env::TruncationScheme
+    miniter::Int
     maxiter::Int
     tol::Float64
     verbosity::Int
 
-    function CTMRG3D(O::TT; trunc_bpeps = notrunc(), trunc_env = notrunc(), Vp = space(O)[1]', Vbp = oneunit(Vp), Vv = oneunit(Vp), maxiter::Int = 150, tol::Float64 = 1e-8, verbosity::Int = 0) where {T, S, TT <: AbstractTensorMap{T, S, 0, 6}}
+    function CTMRG3D(O::TT; trunc_bpeps = notrunc(), trunc_env = notrunc(), Vp = space(O)[1]', Vbp = oneunit(Vp), Vv = oneunit(Vp), miniter::Int = 5, maxiter::Int = 150, tol::Float64 = 1e-8, verbosity::Int = 0) where {T, S, TT <: AbstractTensorMap{T, S, 0, 6}}
         A, E, C = CTMRG3D_init(O; Vp, Vbp, Vv)
-        new{T, S, TT, typeof(A[1]), typeof(E[1]), typeof(C[1])}(O, A, E, C, trunc_bpeps, trunc_env, maxiter, tol, verbosity)
+        new{T, S, TT, typeof(A[1]), typeof(E[1]), typeof(C[1])}(O, A, E, C, trunc_bpeps, trunc_env, miniter, maxiter, tol, verbosity)
     end
 end
 
@@ -54,18 +55,29 @@ function rot_we_90(env::CTMRG3D)
     rotl_90!(env, p_corners, p_edges, p_as)
 end
 
-function enlarged_corner(env::CTMRG3D)
-    @tensor opt = true ec[UP1 UP2 NORTH1 NORTH2 EAST] := 
+function enlarged_corners(env::CTMRG3D)
+    @tensor opt = true ec1[UP1 UP2 NORTH1 NORTH2 EAST] := 
                         env.C[4][UP1 NORTH1 1] * flip(env.E[3], [2 3 4])[1 NORTH2; EAST UP2]
-    return permute(ec, ((),(1,2,3,4,5)))
+    @tensor opt = true ec2[UP1 UP2 NORTH1 NORTH2 EAST] := 
+                        env.C[1][UP1 NORTH1 1] * flip(env.E[1], [2 3 4])[1 NORTH2; EAST UP2]
+    @tensor opt = true ec3[UP1 UP2 NORTH1 NORTH2 EAST] := 
+                        env.C[5][UP1 NORTH1 1] * flip(env.E[9], [2 3 4])[1 NORTH2; EAST UP2]
+    @tensor opt = true ec4[UP1 UP2 NORTH1 NORTH2 EAST] := 
+                        env.C[8][UP1 NORTH1 1] * flip(env.E[11], [2 3 4])[1 NORTH2; EAST UP2]
+    
+    return [permute(ec, ((),(1,2,3,4,5))) for ec in [ec1 ec2 ec3 ec4]]
 end
 
-function enlarged_edge(env::CTMRG3D)
+function enlarged_edges(env::CTMRG3D)
     @tensor opt = true ee1[UP1 UP2 NORTH1 NORTH2; DOWN1 DOWN2 EAST] := 
                         env.E[4][UP1 NORTH1 DOWN1 1] * flip(env.A[1], [1 2 4 5])[NORTH2; UP2 1 DOWN2 EAST]
+    @tensor opt = true ee2[UP1 UP2 NORTH1 NORTH2; DOWN1 DOWN2 EAST] := 
+                        env.E[5][UP1 NORTH1 DOWN1 1] * flip(env.A[2], [1 2 4 5])[NORTH2; UP2 1 DOWN2 EAST]
     @tensor opt = true ee3[UP1 UP2 NORTH1 NORTH2; DOWN1 DOWN2 EAST] := 
+                        env.E[12][UP1 NORTH1 DOWN1 1] * flip(env.A[6], [1 2 4 5])[NORTH2; UP2 1 DOWN2 EAST]
+    @tensor opt = true ee4[UP1 UP2 NORTH1 NORTH2; DOWN1 DOWN2 EAST] := 
                         env.E[8][UP1 NORTH1 DOWN1 1] * flip(env.A[4], [1 2 4 5])[NORTH2; UP2 1 DOWN2 EAST]
-    return ee1, ee3
+    return ee1, ee2, ee3, ee4
 end
 
 function enlarged_side(env::CTMRG3D)
@@ -74,44 +86,72 @@ function enlarged_side(env::CTMRG3D)
     return es
 end
 
+function get_projectors_corner(ecs, trunc)
+    Uys = []
+    Uzs = []
+    for i = 1:4
+        Uy, Sy, Vyᴴ = tsvd(permute(ecs[i], ((1,2),(3,4,5))); trunc)
+        Uz, Sz, Vzᴴ = tsvd(permute(ecs[i], ((3,4),(1,2,5))); trunc)
+
+        push!(Uys, Uy * sqrt(Sy))
+        push!(Uzs, Uz * sqrt(Sz))
+    end
+    return Uys, Uzs
+end
+
+function get_projectors_edge(ees, trunc)
+    Ws = []
+    for i = 1:4
+        W, S, M = tsvd(permute(ees[i], ((3,4),(1,2,5,6,7))); trunc)
+
+        push!(Ws, W * sqrt(S))
+    end
+    return Ws
+end
+
+
 function partial_ctmrgstep(env::CTMRG3D)
-    ec = enlarged_corner(env)
-    ee1, ee3 = enlarged_edge(env)
+    ecs = enlarged_corners(env)
+    ees = enlarged_edges(env)
     es = enlarged_side(env)
 
+    Uys, Uzs = get_projectors_corner(ecs, env.trunc_env)
+    Ws = get_projectors_edge(ees, env.trunc_bpeps)
 
-    Uy, S₁, Vyᴴ, = tsvd(permute(ec, ((1,2),(3,4,5))); trunc = env.trunc_env)
-    Uz, S₂, Vzᴴ, = tsvd(permute(ec, ((3,4),(1,2,5))); trunc = env.trunc_env)
-    Wz, S₃, Mzᴴ, = tsvd(permute(ee1, ((3,4),(1,2,5,6,7))); trunc = env.trunc_bpeps)
-    Wy, S₄, Myᴴ, = tsvd(permute(ee3, ((3,4),(1,2,5,6,7))); trunc = env.trunc_bpeps)
+    renormalize_corners(env, ecs, Uys, Uzs)
+    renormalize_edges(env, ees, Uys, Uzs, Ws)
+    renormalize_side(env, es, Ws)
 
-    Uy, Vyᴴ = Uy * sqrt(S₁), sqrt(S₁) * Vyᴴ
-    Uz, Vzᴴ = Uz * sqrt(S₂), sqrt(S₂) * Vzᴴ
-    Wz, Mzᴴ = Wz * sqrt(S₃), sqrt(S₃) * Mzᴴ
-    Wy, Myᴴ = Wy * sqrt(S₄), sqrt(S₄) * Myᴴ
+    # Uy, S₁, Vyᴴ, = tsvd(permute(ec, ((1,2),(3,4,5))); trunc = env.trunc_env)
+    # Uz, S₂, Vzᴴ, = tsvd(permute(ec, ((3,4),(1,2,5))); trunc = env.trunc_env)
+    # Wz, S₃, Mzᴴ, = tsvd(permute(ee1, ((3,4),(1,2,5,6,7))); trunc = env.trunc_bpeps)
+    # Wy, S₄, Myᴴ, = tsvd(permute(ee3, ((3,4),(1,2,5,6,7))); trunc = env.trunc_bpeps)
 
-    Wy = flip(Wy, [3])
-    Wz = flip(Wz, [3])
-    Myᴴ = flip(Myᴴ, [1])
-    Mzᴴ = flip(Mzᴴ, [1])
+    # Uy, Vyᴴ = Uy * sqrt(S₁), sqrt(S₁) * Vyᴴ
+    # Uz, Vzᴴ = Uz * sqrt(S₂), sqrt(S₂) * Vzᴴ
+    # Wz, Mzᴴ = Wz * sqrt(S₃), sqrt(S₃) * Mzᴴ
+    # Wy, Myᴴ = Wy * sqrt(S₄), sqrt(S₄) * Myᴴ
 
-    env.C[4] = renormalize_corner(ec, Uy, Uz)
-    env.E[8] = renormalize_edge(ee3, Uz, Wy)
-    env.E[4] = renormalize_edge(ee1, Uy, Wz)
-    env.A[5] = renormalize_side(es, Wy, Wz)
+    # Wy = flip(Wy, [3])
+    # Wz = flip(Wz, [3])
+    # Myᴴ = flip(Myᴴ, [1])
+    # Mzᴴ = flip(Mzᴴ, [1])
+
+    # env.C[4] = renormalize_corner(ec, Uy, Uz)
+    # env.E[8] = renormalize_edge(ee3, Uz, Wy)
+    # env.E[4] = renormalize_edge(ee1, Uy, Wz)
+    # env.A[5] = renormalize_side(es, Wy, Wz)
 
     normalize!(env)
 
-    return S₁
+    return
 end
 
 function ctmrg_4steps(env::CTMRG3D)
-    local S
     for i = 1:4
-        S = partial_ctmrgstep(env)
+        partial_ctmrgstep(env)
         rot_we_90(env)
     end
-    return S
 end
 
 function ctmrgstep(env::CTMRG3D)
@@ -123,32 +163,62 @@ function ctmrgstep(env::CTMRG3D)
     ctmrg_4steps(env)
     rot_ns_90(env)
     rot_ns_90(env)
-    S = ctmrg_4steps(env)
+    ctmrg_4steps(env)
+    _, S, _ = tsvd(permute(env.C[1], ((1,2),(3,))))
     return S
 end
 
-function renormalize_corner(ec, Uy, Uz)
-    @tensor opt = true C′[u n e] :=
-                        ec[UP1 UP2 NORTH1 NORTH2 e] * 
-                        conj(Uy[UP1 UP2; u]) * conj(Uz[NORTH1 NORTH2; n])
-    return permute(C′, ((),(1,2,3)))
+function renormalize_corners(env::CTMRG3D, ecs, Uys, Uzs)
+    corners = [4, 1, 5, 8]
+    for i = 1:4
+        @tensor opt = true C′[u n e] :=
+                            ecs[i][UP1 UP2 NORTH1 NORTH2 e] * 
+                            conj(Uys[i][UP1 UP2; u]) * conj(Uzs[i][NORTH1 NORTH2; n])
+        env.C[corners[i]] = permute(C′, ((),(1,2,3)))
+    end
 end
 
-function renormalize_edge(ee, U, W)
-    @tensor opt = true E′[u n; d e] := 
-                        ee[UP1 UP2 NORTH1 NORTH2; DOWN1 DOWN2 e] * 
-                        U[UP1 UP2; u] * U[DOWN1 DOWN2; d] *
-                        conj(W[NORTH1 NORTH2; n])
-    return E′
+function renormalize_edges(env::CTMRG3D, ees, Uys, Uzs, Ws)
+    edges = [4, 5, 12, 8]
+    for i = 1:4
+        @tensor opt = true E′[u n; d e] := 
+                            ees[i][UP1 UP2 NORTH1 NORTH2; DOWN1 DOWN2 e] * 
+                            Uzs[mod1(i+1,4)][UP1 UP2; u] * Uys[i][DOWN1 DOWN2; d] *
+                            conj(Ws[i][NORTH1 NORTH2; n])
+        env.E[edges[i]] = flip(E′, 2)
+    end
 end
 
-function renormalize_side(es, Wy, Wz)
+function renormalize_side(env::CTMRG3D, es, Ws)
     @tensor opt = true A′[e; u n d s] := 
                         es[e; UP1 UP2 NORTH1 NORTH2 DOWN1 DOWN2 SOUTH1 SOUTH2] * 
-                        Wz[UP1 UP2; u] * Wy[NORTH1 NORTH2; n] * 
-                        Wz[DOWN1 DOWN2; d] * Wy[SOUTH1 SOUTH2; s]
-    return A′
+                        Ws[1][UP1 UP2; u] * Ws[2][NORTH1 NORTH2; n] * 
+                        Ws[3][DOWN1 DOWN2; d] * Ws[4][SOUTH1 SOUTH2; s]
+    env.A[5] = flip(A′, [2 3 4 5])
 end
+
+# function renormalize_corner(ec, Uy, Uz)
+#     @tensor opt = true C′[u n e] :=
+#                         ec[UP1 UP2 NORTH1 NORTH2 e] * 
+#                         conj(Uy[UP1 UP2; u]) * conj(Uz[NORTH1 NORTH2; n])
+#     return permute(C′, ((),(1,2,3)))
+# end
+
+# function renormalize_edge(ee, U, W)
+#     @tensor opt = true E′[u n; d e] := 
+#                         ee[UP1 UP2 NORTH1 NORTH2; DOWN1 DOWN2 e] * 
+#                         U[UP1 UP2; u] * U[DOWN1 DOWN2; d] *
+#                         conj(W[NORTH1 NORTH2; n])
+#     return E′
+# end
+
+# function renormalize_side(es, Wy, Wz)
+#     @tensor opt = true A′[e; u n d s] := 
+#                         es[e; UP1 UP2 NORTH1 NORTH2 DOWN1 DOWN2 SOUTH1 SOUTH2] * 
+#                         Wz[UP1 UP2; u] * Wy[NORTH1 NORTH2; n] * 
+#                         Wz[DOWN1 DOWN2; d] * Wy[SOUTH1 SOUTH2; s]
+#     return A′
+# end
 
 function normalize!(env::CTMRG3D)
     for i = 1:8
@@ -162,22 +232,97 @@ function normalize!(env::CTMRG3D)
     end
 end
 
-function contract_onesite(env::CTMRG3D, M)
-    # add 3x3x3 contraction
-    return @tensor opt = true M[UP NORTH EAST; DOWN SOUTH WEST] * 
-                        env.A[1][UP; U9 U7 U4 U6] * env.A[6][DOWN; L4 L7 L9 L6] *
-                        env.A[5][WEST; A4 M3 B4 M8] * env.A[3][EAST; A6 M10 B6 M5] *
-                        env.A[2][NORTH; A2 M2 B2 M1] * env.A[4][SOUTH; A8 M11 B8 M12] * 
-                        env.E[8][A7 M8; B7 M11] * env.E[11][L11 L9; L12 B8] * 
-                        env.E[7][B9 M12; A9 M10] * env.E[3][U12 U9; U11 A8] *
-                        env.E[5][A1 M1; B1 M3] * env.E[1][U2 A2; U1 U4] * 
-                        env.E[6][B3 M2; A3 M5] * env.E[9][L1 B2; L2 L4] * 
-                        env.E[4][U3 U6; U8 A4] * env.E[2][U5 U7; U10 A6] * 
-                        env.E[10][L5 B6; L10 L7] * env.E[12][L3 L6; L8 B4] *
-                        env.C[4][U8 A7 U11] * env.C[1][U1 A1 U3] * 
-                        env.C[2][U5 A3 U2] * env.C[3][U12 A9 U10] * 
-                        env.C[8][B7 L8 L11] * env.C[5][B1 L1 L3] *
-                        env.C[6][L5 L2 B3] * env.C[7][L12 L10 B9]
+# function contract_onesite(env::CTMRG3D, M)
+#     # add 3x3x3 contraction
+#     return @tensor opt=true M[UP NORTH EAST; DOWN SOUTH WEST] * 
+#                     env.A[1][UP; U9 U7 U4 U6] * env.A[6][DOWN; L4 L7 L9 L6] *
+#                     env.A[5][WEST; A4 M3 B4 M8] * env.A[3][EAST; A6 M10 B6 M5] *
+#                     env.A[2][NORTH; A2 M2 B2 M1] * env.A[4][SOUTH; A8 M11 B8 M12] * 
+#                     env.E[8][A7 M8; B7 M11] * env.E[5][A1 M1; B1 M3] *
+#                     env.E[6][A3 M5; B3 M2] * env.E[7][A9 M12; B9 M10] *
+#                     env.E[4][U3 A4; U8 U6] * env.E[1][U2 A2; U1 U4] * 
+#                     env.E[2][U10 A6; U5 U7] * env.E[3][U11 A8; U12 U9] *
+#                     env.E[12][L8 B4; L3 L6] * env.E[9][L1 B2; L2 L4] *
+#                     env.E[10][L5 B6; L10 L7] * env.E[11][L12 B8; L11 L9] * 
+#                     env.C[8][B7 L8 L11] * env.C[5][B1 L1 L3] *
+#                     env.C[6][B3 L5 L2] * env.C[7][B9 L12 L10] *
+#                     env.C[4][U8 A7 U11] * env.C[1][U1 A1 U3] * 
+#                     env.C[2][U5 A3 U2] * env.C[3][U12 A9 U10] 
+# # env.A[1][UP; U9 U7 U4 U6] * env.A[6][DOWN; L4 L7 L9 L6] *
+#     # env.A[5][WEST; A4 M3 B4 M8] * env.A[3][EAST; A6 M10 B6 M5] *
+#     # env.A[2][NORTH; A2 M2 B2 M1] * env.A[4][SOUTH; A8 M11 B8 M12] * 
+#     # env.E[8][A7 M8; B7 M11] * env.E[11][L11 L9; L12 B8] * 
+#     # env.E[7][B9 M12; A9 M10] * env.E[3][U12 U9; U11 A8] *
+#     # env.E[5][A1 M1; B1 M3] * env.E[1][U2 A2; U1 U4] * 
+#     # env.E[6][B3 M2; A3 M5] * env.E[9][L1 B2; L2 L4] * 
+#     # env.E[4][U3 U6; U8 A4] * env.E[2][U5 U7; U10 A6] * 
+#     # env.E[10][L5 B6; L10 L7] * env.E[12][L3 L6; L8 B4] *
+#     # env.C[4][U8 A7 U11] * env.C[1][U1 A1 U3] * 
+#     # env.C[2][U5 A3 U2] * env.C[3][U12 A9 U10] * 
+#     # env.C[8][B7 L8 L11] * env.C[5][B1 L1 L3] *
+#     # env.C[6][L5 L2 B3] * env.C[7][L12 L10 B9]
+# end
+
+# Memory-minimal contraction order for the closed cube network of snippet.txt.
+#
+# At χ = 8, D = 5 (corner legs χ, all other legs D):
+#
+#                     flops      largest intermediate   live intermediates (peak)
+#   opt = true        1.52e12    119.2 GiB (χ⁴D⁹)       238.4 GiB
+#   this order        2.27e12     23.8 GiB (χ⁴D⁸)        39.1 GiB
+#
+# parentheses enforce contraction order, so no `opt` is needed.
+
+function contract_onesite(env::CTMRG3D, M; allocator = ManualAllocator())
+    return @tensor allocator = allocator (
+        env.C[1][U1 A1 U3] *
+        (
+            env.E[1][U2 A2; U1 U4] *
+            (
+                env.C[2][U5 A3 U2] *
+                (
+                    (
+                        (env.E[5][A1 M1; B1 M3] * env.C[5][B1 L1 L3]) *
+                        (
+                            env.A[2][NORTH; A2 M2 B2 M1] *
+                            (env.E[6][A3 M5; B3 M2] * (env.E[9][L1 B2; L2 L4] * env.C[6][B3 L5 L2]))
+                        )
+                    ) *
+                    (
+                        (
+                            (env.E[2][U10 A6; U5 U7] * env.C[3][U12 A9 U10]) *
+                            (
+                                env.A[1][UP; U9 U7 U4 U6] *
+                                (env.E[4][U3 A4; U8 U6] * (env.E[3][U11 A8; U12 U9] * env.C[4][U8 A7 U11]))
+                            )
+                        ) *
+                        (
+                            (
+                                env.A[5][WEST; A4 M3 B4 M8] *
+                                (env.E[8][A7 M8; B7 M11] * (env.E[12][L8 B4; L3 L6] * env.C[8][B7 L8 L11]))
+                            ) *
+                            (
+                                M[UP NORTH EAST; DOWN SOUTH WEST] *
+                                (
+                                    env.A[3][EAST; A6 M10 B6 M5] *
+                                    (
+                                        env.A[4][SOUTH; A8 M11 B8 M12] *
+                                        (
+                                            env.E[7][A9 M12; B9 M10] *
+                                            (
+                                                env.A[6][DOWN; L4 L7 L9 L6] *
+                                                (env.E[11][L12 B8; L11 L9] * (env.E[10][L5 B6; L10 L7] * env.C[7][B9 L12 L10]))
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
 end
 
 function transfer_matrix(env::CTMRG3D)
@@ -185,4 +330,25 @@ function transfer_matrix(env::CTMRG3D)
                             flip(env.E[1], 1)[A7 1; B7 4] * flip(env.E[9], [1 2 4])[A1 2; B1 1] * 
                             flip(env.E[11], 1)[A3 3; B3 2] * flip(env.E[3], [1 2 4])[A9 4; B9 3]
     return TM
+end
+
+function calculate_universal_3D_spectrum(env::CTMRG3D)
+    @tensor opt=true mat_e[M1a M4a; M1b M4b] := env.C[8][M4b B4 B3] * flip(env.C[5], [1 2 3])[M1b B1 B4] * env.C[6][M2 B2 B1] * flip(env.C[7], [1 2 3])[M3 B3 B2] * 
+                                flip(env.C[4], [1 2 3])[A4 M4a A3] * env.C[1][A1 M1a A4] * flip(env.C[2], [1 2 3])[A2 M2 A1] * env.C[3][A3 M3 A2]
+
+    @tensor opt=true mat_c[M1a; M1b] := mat_e[M1a M4; M1b M4]
+    println("mat_e = $(mat_e.space), mat_c = $(mat_c.space)")
+    _, S_e, V = tsvd(permute(mat_e, ((1,3),(2,4))); trunc = notrunc())
+    println("S_e = $(S_e)")
+    S_e /= tr(S_e)
+    println("S_e = $(S_e)")
+    _, S_c, V = tsvd(mat_c; trunc = notrunc())
+    println("S_c = $(S_c)")
+    S_c /= tr(S_c)
+    println("S_c = $(S_c)")
+
+    EE_e = -tr(S_e * log(S_e))
+    EE_c = -tr(S_c * log(S_c))
+    @info "EE_e = $(EE_e), EE_c = $(EE_c)"
+    return EE_e - EE_c
 end

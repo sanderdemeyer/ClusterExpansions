@@ -3,8 +3,8 @@ mutable struct CTMRG3D{T, S, TT <: AbstractTensorMap{T, S, 0, 6}, TA <: Abstract
     A::Array{TA,1}
     E::Array{TE,1}
     C::Array{TC,1}
-    trunc_bpeps::TruncationScheme
-    trunc_env::TruncationScheme
+    trunc_bpeps::MatrixAlgebraKit.TruncationStrategy
+    trunc_env::MatrixAlgebraKit.TruncationStrategy
     miniter::Int
     maxiter::Int
     tol::Float64
@@ -90,8 +90,8 @@ function get_projectors_corner(ecs, trunc)
     Uys = []
     Uzs = []
     for i = 1:4
-        Uy, Sy, Vyᴴ = tsvd(permute(ecs[i], ((1,2),(3,4,5))); trunc)
-        Uz, Sz, Vzᴴ = tsvd(permute(ecs[i], ((3,4),(1,2,5))); trunc)
+        Uy, Sy, Vyᴴ = svd_trunc(permute(ecs[i], ((1,2),(3,4,5))); trunc)
+        Uz, Sz, Vzᴴ = svd_trunc(permute(ecs[i], ((3,4),(1,2,5))); trunc)
 
         push!(Uys, Uy * sqrt(Sy))
         push!(Uzs, Uz * sqrt(Sz))
@@ -102,7 +102,7 @@ end
 function get_projectors_edge(ees, trunc)
     Ws = []
     for i = 1:4
-        W, S, M = tsvd(permute(ees[i], ((3,4),(1,2,5,6,7))); trunc)
+        W, S, M = svd_trunc(permute(ees[i], ((3,4),(1,2,5,6,7))); trunc)
 
         push!(Ws, W * sqrt(S))
     end
@@ -121,26 +121,6 @@ function partial_ctmrgstep(env::CTMRG3D)
     renormalize_corners(env, ecs, Uys, Uzs)
     renormalize_edges(env, ees, Uys, Uzs, Ws)
     renormalize_side(env, es, Ws)
-
-    # Uy, S₁, Vyᴴ, = tsvd(permute(ec, ((1,2),(3,4,5))); trunc = env.trunc_env)
-    # Uz, S₂, Vzᴴ, = tsvd(permute(ec, ((3,4),(1,2,5))); trunc = env.trunc_env)
-    # Wz, S₃, Mzᴴ, = tsvd(permute(ee1, ((3,4),(1,2,5,6,7))); trunc = env.trunc_bpeps)
-    # Wy, S₄, Myᴴ, = tsvd(permute(ee3, ((3,4),(1,2,5,6,7))); trunc = env.trunc_bpeps)
-
-    # Uy, Vyᴴ = Uy * sqrt(S₁), sqrt(S₁) * Vyᴴ
-    # Uz, Vzᴴ = Uz * sqrt(S₂), sqrt(S₂) * Vzᴴ
-    # Wz, Mzᴴ = Wz * sqrt(S₃), sqrt(S₃) * Mzᴴ
-    # Wy, Myᴴ = Wy * sqrt(S₄), sqrt(S₄) * Myᴴ
-
-    # Wy = flip(Wy, [3])
-    # Wz = flip(Wz, [3])
-    # Myᴴ = flip(Myᴴ, [1])
-    # Mzᴴ = flip(Mzᴴ, [1])
-
-    # env.C[4] = renormalize_corner(ec, Uy, Uz)
-    # env.E[8] = renormalize_edge(ee3, Uz, Wy)
-    # env.E[4] = renormalize_edge(ee1, Uy, Wz)
-    # env.A[5] = renormalize_side(es, Wy, Wz)
 
     normalize!(env)
 
@@ -164,7 +144,8 @@ function ctmrgstep(env::CTMRG3D)
     rot_ns_90(env)
     rot_ns_90(env)
     ctmrg_4steps(env)
-    _, S, _ = tsvd(permute(env.C[1], ((1,2),(3,))))
+    rot_ns_90(env)
+    _, S, _ = svd_trunc(permute(env.C[1], ((1,2),(3,))))
     return S
 end
 
@@ -338,11 +319,11 @@ function calculate_universal_3D_spectrum(env::CTMRG3D)
 
     @tensor opt=true mat_c[M1a; M1b] := mat_e[M1a M4; M1b M4]
     println("mat_e = $(mat_e.space), mat_c = $(mat_c.space)")
-    _, S_e, V = tsvd(permute(mat_e, ((1,3),(2,4))); trunc = notrunc())
+    _, S_e, V = svd_full(permute(mat_e, ((1,3),(2,4))))
     println("S_e = $(S_e)")
     S_e /= tr(S_e)
     println("S_e = $(S_e)")
-    _, S_c, V = tsvd(mat_c; trunc = notrunc())
+    _, S_c, V = svd_full(mat_c)
     println("S_c = $(S_c)")
     S_c /= tr(S_c)
     println("S_c = $(S_c)")

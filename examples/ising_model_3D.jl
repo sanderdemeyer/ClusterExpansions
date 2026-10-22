@@ -6,7 +6,6 @@ using ClusterExpansions
 using Plots
 using Random
 using LinearAlgebra
-using JLD2
 
 Random.seed!(123456789)
 
@@ -15,7 +14,7 @@ const βc_exact = 0.2216546 # voor g = 0.0
 T = Float64
 spin_symmetry = Trivial
 J = 1.0
-g = 0.0
+g = 2.0
 
 function evolve_CE(obs, Δβ_iter, Δβ_obs, maxiter_obs, D, chipeps, chienv; J = 1.0, g = 0.0, spin_symmetry = Trivial)
     if spin_symmetry == Trivial
@@ -32,14 +31,14 @@ function evolve_CE(obs, Δβ_iter, Δβ_obs, maxiter_obs, D, chipeps, chienv; J 
     @assert abs(nsteps - Δβ_obs / Δβ_iter) < 1e-10 "Δβ_obs and Δβ_iter are incomptatible"
 
     # define time-evolution (truncation) algorithm
-    trunc_alg = NoEnvTruncation(truncdim(D))
+    trunc_alg = NoEnvTruncation(truncrank(D))
 
     # define cluster-expansion algorithm. p = 3 is default.
     ce_alg = ising_operators(J, g, 0.0; T = BigFloat, symmetry = nothing)
-    ΔO = ClusterExpansions.evolution_operator_cubic(ce_alg, Δβ_iter);
+    ΔO = ClusterExpansions.evolution_operator_cubic(ce_alg, Δβ_iter; T_conv = Float64);
     
     # start with density operator at β = 0
-    O = ClusterExpansions.evolution_operator_cubic(ce_alg, 0.0);
+    O = ClusterExpansions.evolution_operator_cubic(ce_alg, 0.0; T_conv = Float64);
 
     ms = []
     for i = 1:maxiter_obs

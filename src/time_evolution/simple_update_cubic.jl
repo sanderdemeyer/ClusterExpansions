@@ -101,6 +101,8 @@ function Base.isapprox(wts1::SUWeight3D, wts2::SUWeight3D; kwargs...)
     return all(isapprox(wt1, wt2; kwargs...) for (wt1, wt2) in zip(wts1, wts2))
 end
 
+PEPSKit._singular_value_distance(tup::NTuple{2}) = PEPSKit._singular_value_distance(tup...)
+
 """
     compare_weights(wts1::SUWeight3D, wts2::SUWeight3D)
 
@@ -460,8 +462,8 @@ function _qr_bond3D(A::PEPSTensor3D, B::PEPSTensor3D, dir::Int)
     @assert isdual(space(A, lA)) # A ← B
     restA = Tuple(filter(!=(lA), 2:7))
     restB = Tuple(filter(!=(lB), 2:7))
-    X, a = leftorth(A, (restA, (1, lA)))
-    Y, b = leftorth(B, (restB, (1, lB)))
+    X, a = left_orth(permute(A, (restA, (1, lA))))
+    Y, b = left_orth(permute(B, (restB, (1, lB))))
     @assert !isdual(space(a, 1))
     @assert !isdual(space(b, 1))
     b = permute(b, ((3, 2), (1,)))
@@ -511,7 +513,7 @@ function _apply_gate3D(a, b, gate::AbstractTensorMap{<:Any,S,2,2}, trscheme) whe
     else
         trscheme
     end
-    return tsvd!(a2b2; trunc, alg=TensorKit.SVD())
+    return svd_trunc!(a2b2; trunc)#, alg=TensorKit.SVD())
 end
 
 #
@@ -772,12 +774,18 @@ function cubic_pepo_purified(peps::InfiniteWeightPEPS3D, dm::DensityMatrixSpace)
 end
 
 function _cubic_pepo_purified_tensor(dm::DensityMatrixSpace, A::PEPSTensor3D)
-    vspace = A.space[2]
-    I = isometry(fuse(vspace, vspace)', vspace ⊗ vspace)
-    Iconj = isometry(fuse(vspace, vspace), vspace' ⊗ vspace')
-    @tensor O[p1 p2; u n e d s w] := dm.U[p1 p; f1] * dm.U[p p2; f2] * A[f1; u1 n1 e1 d1 s1 w1] * A[f2; u2 n2 e2 d2 s2 w2] * I[u; u1 u2] * I[n; n1 n2] * I[e; e1 e2] * Iconj[d; d1 d2] * Iconj[s; s1 s2] * Iconj[w; w1 w2]
+    Vs = ntuple(k -> k <= 3 ? domain(A)[k] : domain(A)[k]', 6)
+    F = map(V -> isometry(fuse(V, V'), V ⊗ V'), Vs)
+    Fu, Fn, Fe = adjoint(F[1]), adjoint(F[2]), adjoint(F[3])
+    Fd, Fs, Fw = F[4], F[5], F[6]
+    @tensor O[p1 p2; u n e d s w] :=
+        dm.U[p1 a; f1] * A[f1; u1 n1 e1 d1 s1 w1] *
+        conj(dm.U[p2 a; f2]) * conj(A[f2; u2 n2 e2 d2 s2 w2]) *
+        Fu[u1 u2; u] * Fn[n1 n2; n] * Fe[e1 e2; e] *
+        Fd[d; d1 d2] * Fs[s; s1 s2] * Fw[w; w1 w2]
     return O
 end
+
 
 
 #
@@ -795,7 +803,7 @@ converged once the mean singular-value change of the bond weights drops below `t
 - `dt::Float64` : imaginary time step.
 - `tol::Float64` : convergence tolerance on the bond weights.
 - `maxiter::Int` : maximum number of sweeps.
-- `trscheme::TensorKit.TruncationScheme` : bond truncation after each gate application.
+- `trscheme::MatrixAlgebraKit.TruncationStrategy` : bond truncation after each gate application.
 - `normalize_vertices::Bool` : rescale every vertex tensor after each bond update. This has
   no physical effect but avoids over/underflow during long evolutions.
 """
@@ -803,14 +811,14 @@ struct SimpleUpdate3D
     dt::Float64
     tol::Float64
     maxiter::Int
-    trscheme::TensorKit.TruncationScheme
+    trscheme::MatrixAlgebraKit.TruncationStrategy
     normalize_vertices::Bool
 end
 function SimpleUpdate3D(
     dt::Number,
     tol::Number,
     maxiter::Int,
-    trscheme::TensorKit.TruncationScheme;
+    trscheme::MatrixAlgebraKit.TruncationStrategy;
     normalize_vertices::Bool=true,
 )
     return SimpleUpdate3D(Float64(dt), Float64(tol), maxiter, trscheme, normalize_vertices)
@@ -966,7 +974,7 @@ function simpleupdate3D(
     dts::AbstractVector{<:Number};
     tol::Number=1e-8,
     maxiter::Int=1000,
-    trscheme::TensorKit.TruncationScheme=FixedSpaceTruncation(),
+    trscheme::MatrixAlgebraKit.TruncationStrategy=FixedSpaceTruncation(),
     normalize_vertices::Bool=true,
     kwargs...,
 )

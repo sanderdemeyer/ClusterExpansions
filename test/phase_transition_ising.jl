@@ -18,7 +18,7 @@ time_alg = UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 0)
 
 # Set up truncation algorithm
 Dcut = 4
-trunc_alg = NoEnvTruncation(truncdim(Dcut); verbosity = 0)
+trunc_alg = NoEnvTruncation(truncrank(Dcut); verbosity = 0)
 
 # Define observables
 vumps_alg = VUMPS(; maxiter = 100, verbosity = 0)

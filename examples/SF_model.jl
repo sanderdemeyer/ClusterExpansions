@@ -15,7 +15,7 @@ max_beta = 1.0
 maxiter = ceil((max_beta - β₀)/Δβ)
 
 time_alg = UniformTimeEvolution(β₀, Δβ, maxiter)
-trunc_alg = NoEnvTruncation(truncdim(Dcut))
+trunc_alg = NoEnvTruncation(truncrank(Dcut))
 ce_alg = spinless_fermion_operators(1.0, V, 0.0; symmetry = nothing, T = Float64)
 
 # Define observables

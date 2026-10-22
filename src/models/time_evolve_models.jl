@@ -77,6 +77,7 @@
 # end
 
 function time_evolve_model(model, param, time_alg, χenv, trscheme, trscheme_parameters; trscheme_kwargs = (), ce_kwargs = (), observables = [], convert_symm = false, verbosity_ctm = 0, verbosity_trunc = 0, A0 = nothing, finalize! = nothing)
+    @warn "Old code - not fully checked with new definitions"
     ce_alg = model(param...; ce_kwargs...)
     # envspace = ce_alg.envspace(χenv)
 
@@ -91,12 +92,13 @@ function time_evolve_model(model, param, time_alg, χenv, trscheme, trscheme_par
 
     trunc_alg = trscheme(trscheme_parameters...; verbosity = verbosity_trunc, trscheme_kwargs...)
     # obs_function = O -> [observable_time_evolve(O, obs, envspace, ctm_alg; convert_symm) for obs in observables]
-    obs_function = O -> calculate_observables(O, χenv, observables)
+    obs_function = (O,i) -> calculate_observables(O, χenv, observables)
     times, expvals, As = time_evolve(ce_alg, time_alg, trunc_alg, obs_function; A0, finalize!)
     return times, expvals, As
 end
 
 function time_scan_model(model, param, times, χenv; ce_kwargs = (), observables = [], verbosity_time = 0, verbosity_ctm = 0, convert_symm = false)
+    @warn "Old code - not fully checked with new definitions"
     ce_alg = model(param...; ce_kwargs...)
     envspace = ce_alg.envspace(χenv)
 

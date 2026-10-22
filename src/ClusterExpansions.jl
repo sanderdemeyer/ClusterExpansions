@@ -1,5 +1,6 @@
 module ClusterExpansions
 
+using MatrixAlgebraKit
 using TensorKit, TensorKitTensors
 using KrylovKit
 using BlockTensorKit: ⊕, SumSpace
@@ -9,6 +10,7 @@ using Graphs
 using Zygote, OptimKit
 using TensorOperations
 using TensorOperations: ManualAllocator
+using GenericLinearAlgebra, GenericSchur
 
 include("clusterexpansions/utility/loop_filtering.jl")
 include("clusterexpansions/utility/symmetries.jl")
@@ -64,7 +66,8 @@ export approximate_state
 export ClusterExpansion, evolution_operator
 export ising_operators
 export spinless_fermion_operators, spinless_fermion_model
-export heisenberg_operators, J1J2_operators
+export heisenberg_operators, heisenberg_XXX_operators
+export J1J2_operators
 export tJ_operators, hubbard_operators
 export bose_hubbard_operators
 

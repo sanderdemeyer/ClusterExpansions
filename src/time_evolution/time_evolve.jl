@@ -285,7 +285,7 @@ function time_evolve_filling(
         end
     end
     if time_alg.verbosity > 0
-        @warn "Ground state search did not converge after $(maxiter) iterations. Energy is $(expvals[end][1])"
+        @warn "Ground state search did not converge after $(time_alg.maxiter) iterations. Energy is $(expvals[end][1])"
     end
     return times, expvals, μs, As
 end
@@ -358,8 +358,8 @@ function PEPSKit.fixedpoint(
         if i > 2 && abs(expvals[end][1] - expvals[end-1][1]) < time_alg.tol_energy
             if time_alg.verbosity > 1
                 @info "Ground state search converged after $(i) iterations. Energy is $(expvals[end][1])"
-                return As[end], expvals[end]
             end
+            return As[end], expvals[end]
         end
     end
     if time_alg.verbosity > 0

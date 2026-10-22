@@ -4,7 +4,7 @@ function data_generation_SF_CE(time_alg, trunc_alg, χenv; V = 0.0, name = "SF_m
     # Define observables
     vumps_alg = VUMPS(; maxiter = 100, verbosity = 0)
     observables = PEPO_observables([FermionOperators.f_num(), FermionOperators.f_hop(), :spectrum], vumps_alg)
-    obs_function = O -> ClusterExpansions.calculate_observables(O, χenv, observables)
+    obs_function = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
     
     βs, expvals, As = time_evolve(ce_alg, time_alg, trunc_alg, obs_function)
 
@@ -33,7 +33,7 @@ function data_generation_ising_CE(time_alg, trunc_alg, χenv; g = 0.0, name = "i
     # Define observables
     vumps_alg = VUMPS(; maxiter = 100, verbosity = 0)
     observables = PEPO_observables([SpinOperators.σᶻ(), SpinOperators.σˣ(), :spectrum], vumps_alg)
-    observable = O -> ClusterExpansions.calculate_observables(O, χenv, observables)
+    observable = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
 
     βs, expvals, As = time_evolve(ce_alg, time_alg, trunc_alg, observable);
 
@@ -148,7 +148,7 @@ function data_generation_SF_SU(time_alg, trunc_alg, χenv; V = 0.0, name = "SF_m
     
     ctm_alg = SimultaneousCTMRG(; maxiter = 250, verbosity = 2)
     observables_SU = PEPO_observables([observable_SU(pspace, FermionOperators.f_num(); Nr, Nc), observable_SU(pspace, FermionOperators.f_hop(); Nr, Nc)], ctm_alg)
-    obs_function = O -> ClusterExpansions.calculate_observables(O, χenv, observables_SU)
+    obs_function = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables_SU)
 
     tol = 0.0
     maxiter = floor(time_alg.Δt / time_alg.dt)
@@ -211,7 +211,7 @@ function data_generation_ising_SU(time_alg, trunc_alg, χenv; g = 0.0, name = "i
     vumps_alg = VUMPS(; maxiter = 100, verbosity = 0)
     ctm_alg = SimultaneousCTMRG(; maxiter = 250, verbosity = 2)
     observables_SU = PEPO_observables([observable_SU(pspace, SpinOperators.σᶻ(); Nr, Nc), observable_SU(pspace, SpinOperators.σˣ(); Nr, Nc), :spectrum], [ctm_alg, ctm_alg, vumps_alg])
-    obs_function = O -> ClusterExpansions.calculate_observables(O, χenv, observables_SU)
+    obs_function = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables_SU)
     
     tol = 0.0
     maxiter = floor(time_alg.Δt / time_alg.dt)

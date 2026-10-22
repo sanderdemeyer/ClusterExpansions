@@ -13,7 +13,7 @@ tot = 27
 # As: UP, NORTH, EAST, SOUTH, WEST. All arrows outgoing
 # tensor O: UP, NORTH, EAST, DOWN, SOUTH, WEST. All arrows ingoing
 
-function leading_boundary(env::CTMRG3D_alg)
+function MPSKit.leading_boundary(env::CTMRG3D_alg)
     S_old = id(envspace(env))
     ϵs = []
     for i = 1:env.maxiter
@@ -40,8 +40,8 @@ function MPSKit.expectation_value(PEPO::AbstractTensorMap{A,S,2,6}, obss, bpepss
     @tensor O[-1 -2 -3 -4 -5 -6] := twist(PEPO, 2)[1 1; -1 -2 -3 -4 -5 -6]
     O = flip(permute(O, ((),(1,2,3,4,5,6))), [4 5 6])
     
-    trunc_bpeps = truncdim(dim(bpepsspace))
-    trunc_env = truncdim(dim(envspace))
+    trunc_bpeps = truncrank(dim(bpepsspace))
+    trunc_env = truncrank(dim(envspace))
     env = ctm_alg(O; trunc_env, trunc_bpeps, Vbp = bpepsspace, Vv = envspace, miniter, maxiter, tol, verbosity)
     env, ϵs = leading_boundary(env);
     expvals = []

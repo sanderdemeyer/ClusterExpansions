@@ -6,21 +6,21 @@ end
 # QR decomposition
 function QR_two_pepo_left(lattice::Cubic, O1, O2, ind)
     pb = (1, ind)
-    _, Rb = leftorth(O1, (Tuple(setdiff(1:8, pb)), pb))
+    _, Rb = left_orth(permute(O1, (Tuple(setdiff(1:8, pb)), pb)))
     pt = (2, ind)
-    _, Rt = leftorth(O2, (Tuple(setdiff(1:8, pt)), pt))
+    _, Rt = left_orth(permute(O2, (Tuple(setdiff(1:8, pt)), pt)))
     @tensor M[-1 -2; -3 -4] := Rt[-3; 1 -1] * Rb[-4; 1 -2]
-    _, R = leftorth(M, (3, 4), (1, 2))
+    _, R = left_orth(permute(M, ((3, 4), (1, 2))))
     return R
 end
 
 function QR_two_pepo_right(lattice::Cubic, O1, O2, ind)
     pb = (1, ind)
-    Rb, _ = rightorth(O1, (pb, Tuple(setdiff(1:8, pb))))
+    Rb, _ = right_orth(permute(O1, (pb, Tuple(setdiff(1:8, pb)))))
     pt = (2, ind)
-    Rt, _ = rightorth(O2, (pt, Tuple(setdiff(1:8, pt))))
+    Rt, _ = right_orth(permute(O2, (pt, Tuple(setdiff(1:8, pt)))))
     @tensor M[-1 -2; -3 -4] := Rt[1 -1;-3] * Rb[1 -2;-4]
-    R, _ = rightorth(M, (1, 2), (3, 4))
+    R, _ = right_orth(permute(M, ((1, 2), (3, 4))))
     return R
 end
 
@@ -30,7 +30,7 @@ function QR_two_pepo(lattice::Cubic, O1, O2, ind; side = :left)
     elseif side == :right
         return QR_two_pepo_right(lattice, O1, O2, ind)
     else
-        @error "side shoulde be :left or :right"
+        error("side shoulde be :left or :right")
     end
 end
 
@@ -39,7 +39,7 @@ function R1R2(lattice::Cubic, A1, A2, ind1, ind2; check_space = true)
     RA2 = QR_two_pepo(lattice, A1, A2, ind2; side = :right)
     if check_space
         if domain(RA1) != codomain(RA2)
-            @error "space mismatch"
+            error("space mismatch")
         end
     end
     return RA1, RA2
@@ -57,10 +57,11 @@ end
 function oblique_projector(lattice::Cubic, R1, R2, trunc; proj = :svd)
     mat = R1 * R2
     if proj == :svd
-        U, S, Vt = tsvd(mat; trunc)
+        U, S, Vt = svd_trunc(mat; trunc)
         P1 = R2 * adjoint(Vt) * inv(sqrt(S))
         P2 = inv(sqrt(S)) * adjoint(U) * R1
     elseif proj == :eig
+        error("Use proj = :svd")
         dims = minimum([dim(domain(mat)) trunc.dim])
         D, V = eig_with_truncation_triangular(mat, ℂ^(dims))
         P1 = R2 * V * inv(sqrt(D))

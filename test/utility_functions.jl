@@ -18,7 +18,7 @@ setprecision(128)
     O_asymm, _ = clusterexpansion(ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
 
     for (key, value) in O_symm
-        @test norm(O_symm[key])-norm(O_asymm[key]) < 1e-14
+        @test abs(norm(O_symm[key])-norm(O_asymm[key])) < 1e-14
     end
 end
 

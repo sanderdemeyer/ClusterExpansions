@@ -6,10 +6,10 @@ using PEPSKit
 using Plots
 
 g = 2.5
-Dcut = 6
+Dcut = 4
 χenv = 12
 
-trunc_alg_CE = NoEnvTruncation(truncdim(Dcut))
+trunc_alg_CE = NoEnvTruncation(truncrank(Dcut))
 
 β₀ = 0.05
 Δβ = 0.05
@@ -17,7 +17,7 @@ max_beta = 1.0
 maxiter = ceil(Int, (max_beta - β₀) / Δβ)
 time_alg_CE = UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 2)
 
-ce_alg = ising_operators(1.0, g, 0.0; T = Float64, symmetry = "C4")
+ce_alg = ising_operators(1.0, g, 0.0; T = Float64, symmetry = nothing)
 t_alg = ising_operators_Trotter(1.0, g, 0.0; T = Float64)
 
 # Define observables

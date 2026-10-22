@@ -13,7 +13,7 @@ J = 0.5
 
 # Parameters in the truncation scheme
 Dcut = 16
-trunc_alg = NoEnvTruncation(truncdim(Dcut); verbosity = 1)
+trunc_alg = NoEnvTruncation(truncrank(Dcut); verbosity = 1)
 
 # Set up time evolution algorithm
 β₀ = 0.0
@@ -24,7 +24,7 @@ time_alg = UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 0)
 ctm_alg = SimultaneousCTMRG(; maxiter = 500)
 vumps_alg = VUMPS(; maxiter = 250, verbosity = 1)
 
-trunc_alg_start = NoEnvTruncation(truncdim(9))
+trunc_alg_start = NoEnvTruncation(truncrank(9))
 
 ns = []
 for particle_symmetry = [Trivial, U1Irrep]

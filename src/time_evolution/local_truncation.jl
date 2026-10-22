@@ -1,10 +1,10 @@
 struct NoEnvTruncation <: EnvTruncation
-    trscheme::TruncationScheme
+    trscheme::MatrixAlgebraKit.TruncationStrategy
     check_fidelity::Bool
     verbosity::Int
 end
 
-function NoEnvTruncation(trscheme::TruncationScheme;
+function NoEnvTruncation(trscheme::MatrixAlgebraKit.TruncationStrategy;
     check_fidelity::Bool = false, verbosity::Int = 0)
     NoEnvTruncation(trscheme, check_fidelity, verbosity)
 end
@@ -12,21 +12,21 @@ end
 # QR decomposition
 function QR_two_pepo_left(O1,O2,ind)
     pb = (1,ind)
-    _, Rb= leftorth(O1,(Tuple(setdiff(1:6, pb)),pb))
+    _, Rb= left_orth(permute(O1,(Tuple(setdiff(1:6, pb)),pb)))
     pt = (2,ind)
-    _, Rt= leftorth(O2,(Tuple(setdiff(1:6, pt)),pt))
+    _, Rt= left_orth(permute(O2,(Tuple(setdiff(1:6, pt)),pt)))
     @tensor M[-1 -2; -3 -4] := Rt[-3; 1 -1] * Rb[-4; 1 -2]
-    _, R = leftorth(M, (3,4),(1,2))
+    _, R = left_orth(permute(M, ((3,4),(1,2))))
     return R
 end
 
 function QR_two_pepo_right(O1,O2,ind)
     pb = (1,ind)
-    Rb, _ = rightorth(O1, (pb, Tuple(setdiff(1:6,pb))))
+    Rb, _ = right_orth(permute(O1, (pb, Tuple(setdiff(1:6,pb)))))
     pt = (2,ind)
-    Rt, _ = rightorth(O2, (pt, Tuple(setdiff(1:6,pt))))
+    Rt, _ = right_orth(permute(O2, (pt, Tuple(setdiff(1:6,pt)))))
     @tensor M[-1 -2; -3 -4] := Rt[1 -1;-3] * Rb[1 -2;-4]
-    R, _ = rightorth(M, (1,2),(3,4))
+    R, _ = right_orth(permute(M, ((1,2),(3,4))))
     return R
 end
 
@@ -68,7 +68,7 @@ end
 function oblique_projector(R1, R2, trunc)
     mat = R1 * R2
 
-    U, S, Vt, ϵ = tsvd(mat; trunc)
+    U, S, Vt, ϵ = svd_trunc(mat; trunc)
     P1 = R2 * adjoint(Vt) * inv(sqrt(S))
     P2 = inv(sqrt(S)) * adjoint(U) * R1
 

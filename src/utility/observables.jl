@@ -30,7 +30,7 @@ function localoperator_model(pspace, op::Tuple{TensorMap{T,S,1,1},TensorMap{T,S,
     pspaces = fill(pspace, Nr, Nc)
     lattice = InfiniteSquare(Nr, Nc)
     return PEPSKit.LocalOperator(pspaces, (neighbor => op[2] for neighbor in PEPSKit.nearest_neighbours(lattice))...,
-                                            ((idx,) => op[1] for idx in vertices(lattice))...,)
+                                            ((idx,) => op[1] for idx in PEPSKit.vertices(lattice))...,)
 end
 
 function MPSKit.expectation_value(ρ::InfinitePEPO, obs::Union{TensorMap{T,S,1,1},TensorMap{T,S,2,2}}, env::CTMRGEnv) where {T,S}
@@ -120,7 +120,8 @@ function calculate_observables(O::AbstractTensorMap{E,S,2,4}, χ::Int, observabl
     vumps_alg = get_env_alg(observables, VUMPS)
     ctm_alg = get_env_alg(observables, PEPSKit.CTMRGAlgorithm)
     ρ = InfinitePEPO(O)
-    pf = PEPSKit.trace_out(ρ)
+    @tensor pf_tensor[-4 -3; -1 -2] := twist(O, 2)[1 1; -1 -2 -3 -4] 
+    pf = InfinitePartitionFunction(pf_tensor)
     if :VUMPS ∈ env_algs
         T = InfiniteMPO([pf[1,1]])
         pspace = codomain(pf[1,1])[2]
@@ -177,7 +178,7 @@ function calculate_observables_purification(O::AbstractTensorMap{E,S,2,4}, χ::I
     vumps_alg = get_env_alg(observables, VUMPS)
     ctm_alg = get_env_alg(observables, PEPSKit.CTMRGAlgorithm)
 
-    F = isometry(fuse(pspace,pspace), pspace ⊗ pspace')
+    F = isometry(fuse(pspace,pspace'), pspace ⊗ pspace')
     @tensor A[-1; -2 -3 -4 -5] := twist(O,2)[1 2; -2 -3 -4 -5] * F[-1; 1 2]
     peps = InfinitePEPS(A)
     if :VUMPS ∈ env_algs

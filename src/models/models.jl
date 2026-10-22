@@ -113,8 +113,7 @@ function spinless_fermion_operators(t, V, μ; b = 0.0, δ = 0.0, T = Complex{Big
     @tensor number_twosite[-1 -2; -3 -4] := number_operator_halffilling[-1; -3] * number_operator_halffilling[-2; -4]
     
     twosite_op = rmul!(kinetic_operator, -T(t)) + rmul!(number_twosite, T(V)) - rmul!(symmetry_breaking_term, T(δ))
-    onesite_op = rmul!(number_operator, -T(μ)) + rmul!(number_operator, 2*T(V)*T(b))
-
+    onesite_op = rmul!(number_operator, T(-μ + 2*V*b))
     if t == 0.0
         spaces = i -> if i == 0
             Vect[fℤ₂](0 => 1)
@@ -362,7 +361,7 @@ end
 
 function tJ_σ_operators(t, J, μ; t′ = 0.0, particle_symmetry = Trivial, spin_symmetry = Trivial, slave_fermion = false, T = Complex{BigFloat}, filling = 1, kwargs...)
     e_plus_e_min_σ = TJOperators.u_plus_u_min(T, particle_symmetry, spin_symmetry; slave_fermion) - TJOperators.d_plus_d_min(T, particle_symmetry, spin_symmetry; slave_fermion)
-    hopping_operator = e_plus_e_min_σ - copy(adjoint(e_plus_e_min_σ))
+    hopping_operator = e_plus_e_min_σ + copy(adjoint(e_plus_e_min_σ))
     number_operator = TJOperators.e_num(T, particle_symmetry, spin_symmetry; slave_fermion)
     heisenberg_operators = TJOperators.S_exchange(particle_symmetry, spin_symmetry; slave_fermion) - (filling^2 / 4) * (number_operator ⊗ number_operator)
 
@@ -417,7 +416,7 @@ function hubbard_operators(; kwargs...)
     return hubbard_operators(1.0, 0.0, 0.0; kwargs...)
 end
 
-function bose_hubbard_operators(t, U, V, μ; δ = 0.0, cutoff = 1, particle_symmetry = Trivial, T = BigFloat, loop_space = Vect[fℤ₂](0 => 4, 1 => 4), kwargs...)
+function bose_hubbard_operators(t, U, V, μ; δ = 0.0, cutoff = 1, particle_symmetry = Trivial, T = BigFloat, loop_space = ℂ^4, kwargs...)
     pspace = BosonOperators.boson_space(particle_symmetry; cutoff)
     N_op = BosonOperators.n(T, particle_symmetry; cutoff)
 

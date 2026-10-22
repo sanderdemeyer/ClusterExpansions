@@ -33,7 +33,7 @@ T = ComplexF64
     # Find the ground state with imaginary-time evolution
     ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4")
     time_alg = UniformGroundStateTimeEvolution(0.1, 0.1, 200, 1e-8; verbosity = 2)
-    trunc_alg = NoEnvTruncation(truncdim(D); verbosity = 0)
+    trunc_alg = NoEnvTruncation(truncrank(D); verbosity = 0)
     
     ctm_alg = SimultaneousCTMRG(; maxiter = 200, verbosity = 1)
     obss = PEPO_observables([H], ctm_alg)
@@ -65,7 +65,7 @@ end
     # Find the ground state with imaginary-time evolution
     ce_alg = spinless_fermion_operators(t, V, μ; T = Complex{BigFloat}, symmetry = "C4")
     time_alg = UniformGroundStateTimeEvolution(0.1, 0.1, 200, 1e-8; verbosity = 2)
-    trunc_alg = NoEnvTruncation(truncdim(D); verbosity = 0)
+    trunc_alg = NoEnvTruncation(truncrank(D); verbosity = 0)
     
     ctm_alg = SimultaneousCTMRG(; maxiter = 100, verbosity = 1)
     obss = PEPO_observables([H], ctm_alg)

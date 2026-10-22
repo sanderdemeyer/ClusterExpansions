@@ -3,14 +3,14 @@ abstract type EnvTruncation end
 struct ApproximateEnvTruncation <: EnvTruncation
     ctm_alg
     envspace::ElementarySpace
-    trscheme::TruncationScheme
+    trscheme::MatrixAlgebraKit.TruncationStrategy
     check_fidelity::Bool
     maxiter::Int
     tol::Float64
     verbosity::Int
 end
 
-function ApproximateEnvTruncation(ctm_alg, envspace::ElementarySpace, trscheme::TruncationScheme;
+function ApproximateEnvTruncation(ctm_alg, envspace::ElementarySpace, trscheme::MatrixAlgebraKit.TruncationStrategy;
     check_fidelity::Bool = false, maxiter::Int = 50, tol::Float64 = 1e-10, verbosity::Int = 0)
     ApproximateEnvTruncation(ctm_alg, envspace, trscheme, check_fidelity, maxiter, tol, verbosity)
 end
@@ -73,7 +73,8 @@ function truncation_environment(
     A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}},
     Ws::Vector{<:AbstractTensorMap{E,S}},
     trunc_alg::ApproximateEnvTruncation, 
-    M::AbstractTensorMap{E,S,1,1}
+    M::AbstractTensorMap{E,S,1,1};
+    retries::Int = 3
 ) where {E,S}
     A_trunc = apply_isometry(A, Ws)
     A_stack = fill(A_trunc, 1, 1, 2)
@@ -129,9 +130,10 @@ function truncation_environment(
         t_ver = contract_43_patch(AB_above, AT_above, AB_below, AT_below, env)
         
         return t_hor, t_ver, num / denom
-    catch
-        @warn "LAPACK error: trying again"
-        return truncation_environment(A, Ws, trunc_alg, M)
+    catch err
+        (err isa LAPACKException && retries > 0) || rethrow()
+        @warn "LAPACK error, retrying ($retries attempts left)" exception = err
+        return truncation_environment(A, Ws, trunc_alg, M; retries = retries - 1)
     end
 end
 

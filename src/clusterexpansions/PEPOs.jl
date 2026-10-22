@@ -28,11 +28,11 @@ function get_size_level(highest, highest_loop, spaces)
 end
 
 function get_sum_space(highest, highest_loop, spaces)
-    summedspace = ⊕([spaces(i) for i = 0:highest]...)
+    summedspace = SumSpace([spaces(i) for i = 0:highest]...)
     # zerospace = ℂ^0
     # total_space = zerospace
     for ind = -1:-1:highest_loop
-        summedspace = summedspace ⊕ spaces(ind)
+        summedspace = SumSpace([summedspace spaces(ind)])
     end
     return summedspace
 end

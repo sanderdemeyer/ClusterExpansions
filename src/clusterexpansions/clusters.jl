@@ -22,7 +22,7 @@ function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
 
     longest_path, n = get_longest_path(g_dir, N)
     # longest_cycle, m = get_longest_cycle(g_dir)
-    cycles = cycle_basis(g_dir)
+    cycles = cycle_basis(g)
     m = length(cycles)
 
     if m >= 1
@@ -40,6 +40,7 @@ function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
         end
         coo = get_coordination_number(bonds_indices, N)
         if levels_convention == "initial"
+            @warn "using levels_convention = initial is highly discouraged"
             levels = get_levels(longest_path, n, bonds_indices, coo)
         elseif levels_convention == "tree_depth"
             levels = get_tree_depths(g, bonds_indices, vcat(cycles...))
@@ -75,6 +76,7 @@ function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
         coo = get_coordination_number(bonds_indices, N)
 
         if levels_convention == "initial"
+            @warn "using levels_convention = initial is highly discouraged"
             levels = get_levels(longest_path, n, bonds_indices, coo)
         elseif levels_convention == "tree_depth"
             levels = get_tree_depths(g, bonds_indices)
@@ -179,7 +181,7 @@ function get_branch(site1, site2, bonds)
             error("Multiple branches - currently not implemented")
         end
         push!(branch, surroundings[1])
-        prev_bond = site2
+        prev_bond = edge_bond
         edge_bond = surroundings[1]
         surroundings = [setdiff(bond, edge_bond)[1] for bond = bonds if ((edge_bond ∈ bond) && !(prev_bond ∈ bond))]
     end

@@ -12,6 +12,7 @@ function get_update_dir(c, sites_to_update)
 end
 
 function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; nn_term = nothing, symmetry = nothing, verbosity = 2, solving_loops = true, svd = true)
+    @assert isnothing(symmetry) || isnothing(nn_term)
     if verbosity >= 2
         println(cluster)
         println(cluster.cluster)

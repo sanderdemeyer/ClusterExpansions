@@ -212,7 +212,7 @@ function approximate_state(
     finalize = (x, f, g, numiter) -> (x, f, g)
 ) where {E,S,T<:VOPEPO}
     if isnothing(B)
-        B, _ = approximate_state(A, NoEnvTruncation(truncdim(dim(trunc_alg.truncspace))))
+        B, _ = approximate_state(A, NoEnvTruncation(truncrank(dim(trunc_alg.truncspace))))
     end
     # Use a random initial guess
     # B = randn(scalartype(B), codomain(B), domain(B))
@@ -250,7 +250,7 @@ function approximate_state(
     finalize = (x, f, g, numiter) -> (x, f, g)
 ) where {E,S,T<:VOPEPO}
     if isnothing(B)
-        B, _ = approximate_state(A, NoEnvTruncation(truncdim(dim(trunc_alg.truncspace))))
+        B, _ = approximate_state(A, NoEnvTruncation(truncrank(dim(trunc_alg.truncspace))))
     end
     # Use a random initial guess
     B = randn(scalartype(B), codomain(B), domain(B))

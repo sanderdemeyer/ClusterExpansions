@@ -30,7 +30,7 @@ function get_twists(dir)
     elseif dir == (1,3) || dir == (2,4)
         return [1 4 5]
     else
-        @error "Unexpected value for dir"
+        error("Unexpected value for dir")
     end
 end
 
@@ -181,7 +181,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             Isom_domain = isomorphism(T, domain(b), domain(b) ⊗ trivspace ⊗ trivspace ⊗ trivspace')
             Isom_codomain = isomorphism(T, codomain(b) ⊗ trivspace' ⊗ trivspace ⊗ trivspace, codomain(b))
         else
-            @error "Unexpected value for dir"
+            error("Unexpected value for dir")
         end
         x = Isom_codomain * b * Isom_domain
         # x.data = b.data
@@ -202,9 +202,9 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         else
             x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000))
         end
-        error = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
-        if error > 1e-10 && verbosity > 0
-            @warn "Error made on the solution is of the order $(error)"
+        error_sol = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
+        if error_sol > 1e-10 && verbosity > 0
+            @warn "Error made on the solution is of the order $(error_sol)"
         end
         x = permute(x, ((7,9,1,2,3),(8,10,4,5,6)))
 
@@ -221,9 +221,9 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         else
             x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000))
         end
-        error = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
-        if error > 1e-10 && verbosity > 0
-            @warn "Error made on the solution is of the order $(error)"
+        error_sol = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
+        if error_sol > 1e-10 && verbosity > 0
+            @warn "Error made on the solution is of the order $(error_sol)"
         end
         x = permute(x, ((5,6),(1,2,3,4)))
         x = [x,]
@@ -238,7 +238,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
     end
     if length(sites_to_update) == 2
         if svd
-            U, Σ, V = tsvd(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
+            U, Σ, V = svd_trunc(x, trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
             x1 = U * sqrt(Σ)
             x2 = sqrt(Σ) * V
             if norm(x - x1 * x2)/norm(x) > eps(real(T))*1e2 && verbosity > 0
@@ -249,7 +249,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
                 x = flip(x, (2,3,4,6,9,10))
                 x = permute(x, ((1,2,3,4,5), (6,7,9,10,8)))
             else
-                @error "TBA"
+                error("TBA - other direction than dir = (3,1)")
             end
             if !(ishermitian(x))
                 x = (x + x')/2
@@ -282,7 +282,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             x = flip(x, (2,3,4,6,9,10))
             x = permute(x, ((1,2,3,4,5), (6,7,9,10,8)))
         else
-            @error "TBA"
+            error("TBA")
         end
         if !(ishermitian(x))
             x = (x + x')/2

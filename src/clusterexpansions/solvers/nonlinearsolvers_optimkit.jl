@@ -19,6 +19,14 @@ function solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = 1, symmet
     trivspace = spaces(0)
     pspace = codomain(RHS)[1]
     
+    # position of every site in the ring [NW, NE, SE, SW] used by check_loop
+    dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
+    values = [dict[key] for key in levels_to_update]
+    @assert sort(values) == 1:4 "Loop sites do not form a single plaquette: $(levels_to_update)"
+    # check_loop attaches As[i] to RHS leg 5-i, so put the site at ring position 5-j on leg j
+    perm = Tuple(findfirst(==(5 - j), values) for j = 1:4)
+    RHS = permute(RHS, (perm, perm .+ 4))
+    
     opt_alg = LBFGS(; maxiter=500, gradtol=gradtol, verbosity)
 
     if isnothing(symmetry)
@@ -69,8 +77,9 @@ function solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = 1, symmet
         @error "Symmetry $(symmetry) not implemented"
     end
 
-    dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
-    values = [dict[key] for key in levels_to_update]
+    if f > 1e-6 && verbosity >= 1
+        @warn "Loop fit did not converge: relative error = $(f)"
+    end
     As = [As_final[values[1]], As_final[values[2]], As_final[values[3]], As_final[values[4]]]
     return As, f
 end

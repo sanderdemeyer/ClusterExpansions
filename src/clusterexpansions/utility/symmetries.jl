@@ -62,18 +62,4 @@ function symmetrize_C4(levels_to_update, solutions, N)
         end
     end
     return new_levels, new_solutions
-    if N == 1
-        new_levels = tuple(circshift(collect(levels_to_update[1]), -1)...)
-        new_solution = rotl90_fermionic(solutions[1])
-        push!(levels_to_update, new_levels)
-        push!(solutions, new_solution)
-    elseif N == 2
-        for i = 1:2
-            new_levels = tuple(circshift(collect(levels_to_update[i]), -1)...)
-            new_solution = rotl90_fermionic(solutions[i])
-            push!(levels_to_update, new_levels)
-            push!(solutions, new_solution)
-        end
-    end
-    return levels_to_update, solutions
 end

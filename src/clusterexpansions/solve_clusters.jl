@@ -55,7 +55,12 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; nn_
         return spaces
     end
     levels_to_update, solutions = symmetrize(symmetry, levels_to_update, solutions)
-    merge!(PEPO, Dict(zip(levels_to_update, solutions)))
+    try
+        merge!(PEPO, Dict(zip(levels_to_update, solutions)))
+    catch e
+        e isa InexactError || rethrow()
+        error("Could not store the solution with scalartype $(scalartype(solutions)) in the PEPO with scalartype $(scalartype(PEPO[(0,0,0,0)])) ")
+    end
     return spaces
 end
 
@@ -121,6 +126,10 @@ end
 function clusterexpansion(T, p, β, twosite_op, onesite_op; nn_term = nothing, levels_convention = "tree_depth", spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10, symmetry = nothing, verbosity = 2, solving_loops = true, svd = true)
     (p < 10) || error("Only cluster up until 9th order are implemented correctly")
     dim(spaces(0)) == 1 || error("The zeroth space should be of dimension 1")
+    ((symmetry == "C4_manifest") != svd) || @warn "Highly encouraged to use `svd=false` for C4_manifest and `svd=true` for nothing"
+    (!svd && T <: Real) && @warn "Using `svd = false`, while T <: Real is not guaranteed to succeed."
+    ((BraidingStyle(sectortype(spaces(0))) isa Fermionic) && !isnothing(symmetry)) && @warn "spatial symmetries discouraged in fermionic code."
+
     pspace = domain(onesite_op)[1]
     PEPO₀ = init_PEPO(T, β, onesite_op, spaces(0))
     PEPO = get_all_indices(T, PEPO₀, p, β, twosite_op, onesite_op, spaces; nn_term, levels_convention, symmetry, verbosity, solving_loops, svd)

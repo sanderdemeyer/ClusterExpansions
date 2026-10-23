@@ -123,10 +123,10 @@ function get_all_indices(T, PEPO, p, β, twosite_op, onesite_op, spaces; nn_term
     return PEPO
 end    
 
-function clusterexpansion(T, p, β, twosite_op, onesite_op; nn_term = nothing, levels_convention = "tree_depth", spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10, symmetry = nothing, verbosity = 2, solving_loops = true, svd = true)
+function clusterexpansion(T, p, β, twosite_op, onesite_op; nn_term = nothing, levels_convention = "tree_depth", spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10, symmetry = nothing, verbosity = 2, solving_loops = true, svd = isnothing(symmetry))
     (p < 10) || error("Only cluster up until 9th order are implemented correctly")
     dim(spaces(0)) == 1 || error("The zeroth space should be of dimension 1")
-    ((symmetry == "C4_manifest") != svd) || @warn "Highly encouraged to use `svd=false` for C4_manifest and `svd=true` for nothing"
+    ((symmetry == "C4v") != svd) || @warn "Highly encouraged to use `svd=false` for C4v and `svd=true` for nothing"
     (!svd && T <: Real) && @warn "Using `svd = false`, while T <: Real is not guaranteed to succeed."
     ((BraidingStyle(sectortype(spaces(0))) isa Fermionic) && !isnothing(symmetry)) && @warn "spatial symmetries discouraged in fermionic code."
 

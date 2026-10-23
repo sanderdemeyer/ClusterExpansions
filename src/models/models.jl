@@ -55,7 +55,7 @@ _envspace(::GradedSpace{SU2Irrep, TensorKit.SortedVectorDict{SU2Irrep, Int64}}) 
 _envspace(::GradedSpace{FermionParity, Tuple{Int64, Int64}}) = χ -> Vect[FermionParity](0 => χ-div(χ,2), 1 => div(χ,2))
 _envspace(space::GradedSpace{ProductSector{T},T2}) where {T <: Tuple, T2} = χ -> Vect[sectortype(space)](ntuple(_ -> 0, fieldcount(T)) => χ)
 
-function ClusterExpansion(twosite_op, onesite_op; nn_term = nothing, p = 3, verbosity = 0, T = Complex{BigFloat}, spaces = i -> (i >= 0) ? ℂ^(2^(i)) : ℂ^10, symmetry = nothing, solving_loops = true, svd = true, envspace = χ -> ℂ^χ)
+function ClusterExpansion(twosite_op, onesite_op; nn_term = nothing, p = 3, verbosity = 0, T = Complex{BigFloat}, spaces = i -> (i >= 0) ? ℂ^(2^(i)) : ℂ^10, symmetry = nothing, solving_loops = true, svd = isnothing(symmetry), envspace = χ -> ℂ^χ)
     return ClusterExpansion(twosite_op, onesite_op, nn_term, p, verbosity, T, spaces, symmetry, solving_loops, svd, envspace)
 end
 

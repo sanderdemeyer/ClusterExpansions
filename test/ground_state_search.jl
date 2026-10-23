@@ -31,7 +31,7 @@ T = ComplexF64
     peps, env, E = fixedpoint(H, peps, env; optimizer_alg = LBFGS(8; gradtol = 1e-4, verbosity = 3, maxiter = 50), verbosity = 3);
     
     # Find the ground state with imaginary-time evolution
-    ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4")
+    ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4v")
     time_alg = UniformGroundStateTimeEvolution(0.1, 0.1, 200, 1e-8; verbosity = 2)
     trunc_alg = NoEnvTruncation(truncrank(D); verbosity = 0)
     
@@ -63,7 +63,7 @@ end
     peps, env, E = fixedpoint(H, peps, env; optimizer_alg = LBFGS(4; gradtol = 1e-4, verbosity = 3, maxiter = 25), verbosity = 3);
     
     # Find the ground state with imaginary-time evolution
-    ce_alg = spinless_fermion_operators(t, V, μ; T = Complex{BigFloat}, symmetry = "C4")
+    ce_alg = spinless_fermion_operators(t, V, μ; T = Complex{BigFloat}, symmetry = "C4v")
     time_alg = UniformGroundStateTimeEvolution(0.1, 0.1, 200, 1e-8; verbosity = 2)
     trunc_alg = NoEnvTruncation(truncrank(D); verbosity = 0)
     

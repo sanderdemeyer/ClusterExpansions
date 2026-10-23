@@ -4,7 +4,6 @@ using ClusterExpansions
 using PEPSKit
 import PEPSKit: rmul!, σᶻᶻ, σˣ
 
-symmetry = "C4_manifest"
 critical = false
 
 T = Complex{BigFloat}
@@ -100,20 +99,20 @@ ps = [i for i = 2:pmax]
 errors = zeros(length(βs), length(ps))
 
 L = 2
-for (j,p) = enumerate(ps)
-    ce_alg = ising_operators(J, g, 0.0; p, verbosity = 0, symmetry, T)
-    for (i,β) = enumerate(βs)
-        @info "Starting with p = $p and β = $(round(Float64(β), digits = 4))"
-        O_clust_full = evolution_operator(ce_alg, β)
+@testset "Order of the cluster expansion with symmetry = $(symmetry)" for symmetry in ["C4v", nothing]
+    for (j,p) = enumerate(ps)
+        ce_alg = ising_operators(J, g, 0.0; p, verbosity = 0, symmetry, T)
+        for (i,β) = enumerate(βs)
+            @info "Starting with p = $p and β = $(round(Float64(β), digits = 4))"
+            O_clust_full = evolution_operator(ce_alg, β)
 
-        exp_exact = exponentiate_hamiltonian_periodic(T, onesite_op, twosite_op, β, L)
-        exp_approx = contract_PEPO_periodic(O_clust_full, L)
-        error = norm(exp_exact-exp_approx)/norm(exp_approx)
-        errors[i,j] = error
+            exp_exact = exponentiate_hamiltonian_periodic(T, onesite_op, twosite_op, β, L)
+            exp_approx = contract_PEPO_periodic(O_clust_full, L)
+            error = norm(exp_exact-exp_approx)/norm(exp_approx)
+            errors[i,j] = error
+        end
     end
-end
 
-@testset "Order of the cluster expansion" begin
     for p = 2:pmax
         for n = 1:nodp-1
             @test log(errors[n+1,p-1]/errors[n,p-1]) / log(βs[n+1]/βs[n]) / p ≈ 1 atol=5e-2

@@ -34,7 +34,7 @@ for particle_symmetry = [Trivial, U1Irrep]
         observable = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
         observable_during = (O,i) -> []
 
-        ce_alg = tJ_operators(t, J, μ; h, T = Float64, particle_symmetry, spin_symmetry, symmetry = nothing, p = 3, verbosity = 0, svd = true)
+        ce_alg = tJ_operators(t, J, μ; h, T = Float64, particle_symmetry, spin_symmetry, symmetry = nothing, p = 3, verbosity = 0)
 
         βs, expvals, Os = time_evolve(ce_alg, time_alg, trunc_alg, observable_during; trunc_alg_start, normalizing = true);
 

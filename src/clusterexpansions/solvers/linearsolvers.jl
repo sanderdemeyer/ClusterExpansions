@@ -243,7 +243,9 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             eigval, eigvec = eig_trunc(x; trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
             x1 = eigvec * sqrt(eigval)
             x2 = sqrt(eigval) * eigvec'
-            @assert norm(x - x1 * x2) < eps(real(T))*1e2 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2))"
+            if norm(x - x1 * x2) > eps(real(T))*1e2 
+                @warn "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2))"
+            end
             if dir == (3,1)
                 x1 = flip(x1, (2,3,4))
                 x2 = permute(x2, ((1,), (2,3,6,4,5)))

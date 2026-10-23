@@ -54,8 +54,9 @@ function solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = 1, symmet
             g = only(gs)
             return E, g
         end
-    elseif symmetry == "C4" || symmetry == "C4_manifest"
+    elseif symmetry == "C4v"
         A = randn(T, pspace ⊗ pspace', trivspace ⊗ vspace ⊗ vspace' ⊗ trivspace')
+        A = (A + flip(permute(A, ((1,2),(6,5,4,3))), [3 4 5 6])) / 2
         A *= norm(RHS)^(1/4) / norm(A)
 
         custom_costfun = ψ -> check_loop(construct_PEPO_loop(ψ), RHS, spaces)
@@ -72,6 +73,8 @@ function solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = 1, symmet
             g = only(gs)
             return E, g
         end
+        A_final = (A_final + flip(permute(A_final, ((1,2),(6,5,4,3))), [3 4 5 6])) / 2
+
         As_final = construct_PEPO_loop(A_final)
     else
         @error "Symmetry $(symmetry) not implemented"

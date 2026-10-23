@@ -10,7 +10,7 @@ setprecision(128)
 @testset "Loop solver" begin
     T = Complex{BigFloat}
     β = 1e-2
-    symmetry = "C4_manifest"
+    symmetry = "C4v"
 
     twosite_op = FermionOperators.f_hop()
     onesite_op = FermionOperators.f_num()

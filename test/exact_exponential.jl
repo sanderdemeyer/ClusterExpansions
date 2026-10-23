@@ -42,7 +42,6 @@ function exponentiate_hamiltonian_periodic(T, onesite_op, twosite_op, β, L)
             push!(H, permute(term, (Tuple(1:N), Tuple(N+1:2*N))))
         end
     end
-    @info "β = $β"
     exp_H = exp(-β*sum(H))
     return exp_H
 end
@@ -95,7 +94,7 @@ bmin = -1
 bmax = -2
 pmax = 4
 nodp = 4 # number of data points for β
-βs = [round(T(10.0)^(x), digits = 3) for x in LinRange(bmin, bmax, nodp)]
+βs = [T(10.0)^(x) for x in LinRange(bmin, bmax, nodp)]
 ps = [i for i = 2:pmax]
 
 errors = zeros(length(βs), length(ps))
@@ -104,12 +103,11 @@ L = 2
 for (j,p) = enumerate(ps)
     ce_alg = ising_operators(J, g, 0.0; p, verbosity = 0, symmetry, T)
     for (i,β) = enumerate(βs)
-        @warn "Starting with p = $p and β = $(β)"
+        @info "Starting with p = $p and β = $(round(Float64(β), digits = 4))"
         O_clust_full = evolution_operator(ce_alg, β)
 
         exp_exact = exponentiate_hamiltonian_periodic(T, onesite_op, twosite_op, β, L)
         exp_approx = contract_PEPO_periodic(O_clust_full, L)
-        println("norms = $(norm(exp_exact)) and $(norm(exp_approx))")
         error = norm(exp_exact-exp_approx)/norm(exp_approx)
         errors[i,j] = error
     end

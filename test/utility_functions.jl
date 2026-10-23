@@ -10,7 +10,6 @@ setprecision(128)
 @testset "Loop solver" begin
     T = Complex{BigFloat}
     β = 1e-2
-    symmetry = "C4v"
 
     twosite_op = FermionOperators.f_hop()
     onesite_op = FermionOperators.f_num()
@@ -22,7 +21,7 @@ setprecision(128)
     spaces = i -> Vect[fℤ₂](0 => 3, 1 => 3)
 
     As_asymm, error_asymm = ClusterExpansions.solve_4_loop_optim(exp_H, spaces, levels_to_update; verbosity = 0, symmetry = nothing);
-    As_symm, error_symm = ClusterExpansions.solve_4_loop_optim(exp_H, spaces, levels_to_update; verbosity = 0, symmetry = "C4");
+    As_symm, error_symm = ClusterExpansions.solve_4_loop_optim(exp_H, spaces, levels_to_update; verbosity = 0, symmetry = "C4v");
 
     @test error_asymm < 1e-3
     @test error_symm < 2e-2

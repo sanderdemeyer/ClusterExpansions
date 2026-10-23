@@ -35,24 +35,30 @@ function rotl_90!(env::CTMRG3D, p_corners, p_edges, p_as)
 end
 
 function rot_ud_90(env::CTMRG3D)
+    # negative rotation along the down -> up axis
     p_corners = [4, 1, 2, 3, 8, 5, 6, 7]
     p_edges = [4, 1, 2, 3, 8, 5, 6, 7, 12, 9, 10, 11]
     p_as = [1, 5, 2, 3, 4, 6]
     rotl_90!(env, p_corners, p_edges, p_as)
+    env.O = permute(env.O, ((),(1,6,2,4,3,5)))
 end
 
 function rot_ns_90(env::CTMRG3D)
+    # positive rotation along the south -> north axis
     p_corners = [5, 1, 4, 8, 6, 2, 3, 7]
     p_edges = [5, 4, 8, 12, 9, 1, 3, 11, 6, 2, 7, 10]
     p_as = [5, 2, 1, 4, 6, 3]
     rotl_90!(env, p_corners, p_edges, p_as)
+    env.O = permute(env.O, ((),(6,2,1,3,5,4)))
 end
 
 function rot_we_90(env::CTMRG3D)
+    # positive rotation along the east -> west axis
     p_corners = [4, 3, 7, 8, 1, 2, 6, 5]
     p_edges = [3, 7, 11, 8, 4, 2, 10, 12, 1, 6, 9, 5]
     p_as = [4, 1, 3, 6, 5, 2]
     rotl_90!(env, p_corners, p_edges, p_as)
+    env.O = permute(env.O, ((),(5,1,3,2,4,6)))
 end
 
 function enlarged_corners(env::CTMRG3D)

@@ -34,7 +34,7 @@ function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
             g_dir = get_directed_graph(bonds_indices)
         
             longest_path, n = get_longest_path(g_dir, N)
-            cycles = cycle_basis(g_dir)
+            cycles = cycle_basis(g)
             m = length(cycles)
             @assert m >= 1
         end

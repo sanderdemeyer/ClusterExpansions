@@ -87,12 +87,12 @@ end
 
 # Approximation of a single PEPO tensor
 function QR_two_pepo_left(O,ind)
-    _, R= leftorth(O,(Tuple(setdiff(1:6, ind)),(ind,)))
+    _, R= left_orth(permute(O,(Tuple(setdiff(1:6, ind)),(ind,))))
     return R
 end
 
 function QR_two_pepo_right(O,ind)
-    R, _ = rightorth(O, ((ind,), Tuple(setdiff(1:6,ind))))
+    R, _ = right_orth(permute(O, ((ind,), Tuple(setdiff(1:6,ind)))))
     return R
 end
 
@@ -135,21 +135,21 @@ end
 # Application of PEPO on PEPS
 function QR_two_pepo_left(ψ::AbstractTensorMap{E,S,1,4},O::AbstractTensorMap{E,S,2,4},ind) where {E,S}
     pb = (1,ind-1)
-    _, Rb= leftorth(ψ,(Tuple(setdiff(1:5, pb)),pb))
+    _, Rb= left_orth(permute(ψ,(Tuple(setdiff(1:5, pb)),pb)))
     pt = (2,ind)
-    _, Rt= leftorth(O,(Tuple(setdiff(1:6, pt)),pt))
+    _, Rt= left_orth(permute(O,(Tuple(setdiff(1:6, pt)),pt)))
     @tensor M[-1 -2; -3 -4] := Rt[-3; 1 -1] * Rb[-4; 1 -2]
-    _, R = leftorth(M, (3,4),(1,2))
+    _, R = left_orth(permute(M, ((3,4),(1,2))))
     return R
 end
 
 function QR_two_pepo_right(ψ::AbstractTensorMap{E,S,1,4},O::AbstractTensorMap{E,S,2,4},ind) where {E,S}
     pb = (1,ind-1)
-    Rb, _ = rightorth(ψ, (pb, Tuple(setdiff(1:5,pb))))
+    Rb, _ = right_orth(permute(ψ, (pb, Tuple(setdiff(1:5,pb)))))
     pt = (2,ind)
-    Rt, _ = rightorth(O, (pt, Tuple(setdiff(1:6,pt))))
+    Rt, _ = right_orth(permute(O, (pt, Tuple(setdiff(1:6,pt)))))
     @tensor M[-1 -2; -3 -4] := Rt[1 -1;-3] * Rb[1 -2;-4]
-    R, _ = rightorth(M, (1,2),(3,4))
+    R, _ = right_orth(permute(M, ((1,2),(3,4))))
     return R
 end
 

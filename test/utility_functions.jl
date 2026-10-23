@@ -7,25 +7,10 @@ using Random
 Random.seed!(1654843513)
 setprecision(128)
 
-@testset "Symmetries of fermionic cluster expansion" begin
-    (t, V, μ) = (1.0, -2.5, 0.0)
-    β = 0.1
-    T = Complex{Float64}
-
-    ce_alg = spinless_fermion_operators(t, V, μ; T, symmetry = nothing)
-    O_symm, _ = clusterexpansion(ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
-    ce_alg = spinless_fermion_operators(t, V, μ; T, symmetry = "C4")
-    O_asymm, _ = clusterexpansion(ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
-
-    for (key, value) in O_symm
-        @test abs(norm(O_symm[key])-norm(O_asymm[key])) < 1e-14
-    end
-end
-
 @testset "Loop solver" begin
     T = Complex{BigFloat}
     β = 1e-2
-    symmetry = "C4"
+    symmetry = "C4_manifest"
 
     twosite_op = FermionOperators.f_hop()
     onesite_op = FermionOperators.f_num()

@@ -2,21 +2,18 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "647424fb52e3cecb17bcbbd1490b71445f65e583"
+project_hash = "a420544c0f88fd160f4ec281a89b0fd62bf0c084"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
 git-tree-sha1 = "d92ad398961a3ed262d8bf04a1a2b8340f915fef"
 uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
 version = "1.5.0"
+weakdeps = ["ChainRulesCore", "Test"]
 
     [deps.AbstractFFTs.extensions]
     AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
     AbstractFFTsTestExt = "Test"
-
-    [deps.AbstractFFTs.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.Accessors]]
 deps = ["CompositionsBase", "ConstructionBase", "Dates", "InverseFunctions", "MacroTools"]
@@ -149,7 +146,7 @@ uuid = "ae650224-84b6-46f8-82ea-d812ca08434e"
 version = "3.2.0"
 
 [[deps.ClusterExpansions]]
-deps = ["BlockTensorKit", "GenericLinearAlgebra", "Graphs", "KrylovKit", "LinearAlgebra", "MPSKit", "MatrixAlgebraKit", "OptimKit", "PEPSKit", "TensorKit", "TensorKitTensors", "TensorOperations", "Zygote"]
+deps = ["BlockTensorKit", "GenericLinearAlgebra", "GenericSchur", "Graphs", "KrylovKit", "LinearAlgebra", "MPSKit", "MatrixAlgebraKit", "OptimKit", "PEPSKit", "SafeTestsets", "TensorKit", "TensorKitTensors", "TensorOperations", "Test", "Zygote"]
 path = "."
 uuid = "92b11117-b6de-4aaf-9615-3d4572a43351"
 version = "0.2.0"
@@ -363,14 +360,11 @@ version = "1.11.0"
 git-tree-sha1 = "5cc6ad3e2bfc75a11eed92632ee341d37f4a4536"
 uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
 version = "0.1.18"
+weakdeps = ["Dates", "Test"]
 
     [deps.InverseFunctions.extensions]
     InverseFunctionsDatesExt = "Dates"
     InverseFunctionsTestExt = "Test"
-
-    [deps.InverseFunctions.weakdeps]
-    Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
-    Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "d22e8bdb3f03c300a103ff23c0dd5a654c6701de"
@@ -631,6 +625,11 @@ version = "1.4.3"
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 version = "0.7.0"
 
+[[deps.SafeTestsets]]
+git-tree-sha1 = "81ec49d645af090901120a1542e67ecbbe044db3"
+uuid = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+version = "0.1.0"
+
 [[deps.ScopedValues]]
 deps = ["HashArrayMappedTries", "Logging"]
 git-tree-sha1 = "67a144433c4ce877ee6d1ada69a124d6b1ecf7be"
@@ -872,6 +871,11 @@ version = "5.8.2"
     Mooncake = "da2b9cff-9c12-43a0-ae48-6db2b0edb7d6"
     TBLIS = "48530278-0828-4a49-9772-0f3830dfa1e9"
     cuTENSOR = "011b41b2-24ef-40a8-b3eb-fa098493e9e1"
+
+[[deps.Test]]
+deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
+uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+version = "1.11.0"
 
 [[deps.TimerOutputs]]
 deps = ["ExprTools", "Printf"]

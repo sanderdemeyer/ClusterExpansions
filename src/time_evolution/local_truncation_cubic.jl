@@ -4,7 +4,7 @@ struct Cubic <: Lattice
 end
 
 # QR decomposition
-function QR_two_pepo_left(lattice::Cubic, O1, O2, ind)
+function QR_two_pepo_left(::Cubic, O1, O2, ind)
     pb = (1, ind)
     _, Rb = left_orth(permute(O1, (Tuple(setdiff(1:8, pb)), pb)))
     pt = (2, ind)
@@ -14,7 +14,7 @@ function QR_two_pepo_left(lattice::Cubic, O1, O2, ind)
     return R
 end
 
-function QR_two_pepo_right(lattice::Cubic, O1, O2, ind)
+function QR_two_pepo_right(::Cubic, O1, O2, ind)
     pb = (1, ind)
     Rb, _ = right_orth(permute(O1, (pb, Tuple(setdiff(1:8, pb)))))
     pt = (2, ind)
@@ -54,7 +54,7 @@ end
    └──┘        └──┘   
 =#
 
-function oblique_projector(lattice::Cubic, R1, R2, trunc; proj = :svd)
+function oblique_projector(::Cubic, R1, R2, trunc; proj = :svd)
     mat = R1 * R2
     if proj == :svd
         U, S, Vt = svd_trunc(mat; trunc)

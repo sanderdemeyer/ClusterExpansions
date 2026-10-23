@@ -32,7 +32,7 @@ function get_sum_space(highest, highest_loop, spaces)
     # zerospace = ℂ^0
     # total_space = zerospace
     for ind = -1:-1:highest_loop
-        summedspace = SumSpace([summedspace spaces(ind)])
+        summedspace = SumSpace(summedspace..., spaces(ind))
     end
     return summedspace
 end

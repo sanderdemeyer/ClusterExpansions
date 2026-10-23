@@ -1,7 +1,7 @@
 function check_loop(As, RHS, spaces)
     trivspace = spaces(0)
     conjugated = [2 6 7 8]
-    tens = [(c ∈ conjugated) ? Tensor(ones, trivspace') : Tensor(ones, trivspace) for c = 1:8]
+    tens = [(c ∈ conjugated) ? ones(trivspace') : ones(trivspace) for c = 1:8]
     @tensor RHS_check[-1 -2 -3 -4; -5 -6 -7 -8] := As[1][-4 -8; 1 9 12 2] * As[2][-3 -7; 3 4 10 9] * As[3][-2 -6; 10 5 6 11] * As[4][-1 -5; 12 11 7 8] * tens[1][1] * tens[2][2] * tens[3][3] * tens[4][4] * tens[5][5] * tens[6][6] * tens[7][7] * tens[8][8]
     return norm(RHS_check - RHS) / norm(RHS)
 end
@@ -21,7 +21,7 @@ function solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = 1, symmet
     
     # position of every site in the ring [NW, NE, SE, SW] used by check_loop
     dict = Dict((0, -1, -1, 0) => 1, (0, 0, -1, -1) => 2, (-1, 0, 0, -1) => 3, (-1, -1, 0, 0) => 4)
-    values = [dict[key] for key in levels_to_update]
+    values = vec([dict[key] for key in levels_to_update])
     @assert sort(values) == 1:4 "Loop sites do not form a single plaquette: $(levels_to_update)"
     # check_loop attaches As[i] to RHS leg 5-i, so put the site at ring position 5-j on leg j
     perm = Tuple(findfirst(==(5 - j), values) for j = 1:4)
@@ -54,7 +54,7 @@ function solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity = 1, symmet
             g = only(gs)
             return E, g
         end
-    elseif symmetry == "C4"
+    elseif symmetry == "C4" || symmetry == "C4_manifest"
         A = randn(T, pspace ⊗ pspace', trivspace ⊗ vspace ⊗ vspace' ⊗ trivspace')
         A *= norm(RHS)^(1/4) / norm(A)
 

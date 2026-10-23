@@ -1,0 +1,34 @@
+using TensorKit
+using ClusterExpansions
+using PEPSKit
+using TensorKitTensors
+using Test
+using Random
+
+Random.seed!(2718281828)
+
+# Set up the Heisenberg model
+(Jx, Jy, Jz, z) = (1.0, -1.0, 1.0, 0.5)
+
+# Parameters in the truncation scheme
+Dcut = 4
+trunc_alg = NoEnvTruncation(truncrank(Dcut))
+χenv = 16 # Environment bond dimension used in the calculation of expectation values
+β = 0.05
+
+p = 3
+spin_symmetry = Trivial
+
+symmetries = [nothing, "C4_manifest"]
+svds = [true false]
+
+@testset "Check rotational invariance and imaginary component for symmetry = $(symmetry)" for (i,(symmetry,svd)) in enumerate(zip(symmetries,svds))
+        # ce_alg = heisenberg_operators(Jx, Jy, Jz, z; spin_symmetry, p, T = ComplexF64, symmetry)
+        ce_alg = ising_operators(-1.0, 2.0, 0.0; spin_symmetry, p, T = ComplexF64, symmetry, svd)
+        O = evolution_operator(ce_alg, β)
+
+        check_rot = norm(flip(permute(O, ((1,2),(4,5,6,3))), [4 6]) - O) < 1e-10
+        check_imag = norm(imag.(O.data)) < 1e-10
+
+        @test (i == 1 && !check_rot && check_imag) || (i == 2 && check_rot && !check_imag)
+end

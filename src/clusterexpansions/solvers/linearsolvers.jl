@@ -154,25 +154,10 @@ function permute_dir(x, dir, second)
     return permute(x, ((1,2).+second, (Tuple(tup))))
 end
 
-function eig_with_truncation(x, space)
-    T = scalartype(x)
-    D = dim(space)
-    eigval, eigvec = eig(x)
-    if space == domain(eigval)[1]
-        return eigval, eigvec
-    end
-    eigval_trunc = zeros(T, space, space)
-    eigvec_trunc = zeros(T, codomain(x), space)
-    eigval_trunc[] = eigval[][1:D,1:D]
-    eigvec_trunc[] = eigvec[][:,:,:,:,:,1:D]
-    return eigval_trunc, eigvec_trunc
-end
 
 function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update, dir, N, spaces; verbosity = 2, svd = true)
-    # pspace = codomain(exp_H)[1]
     trivspace = spaces(0)
     if N == 2
-        # xtry = zeros(T, pspace ⊗ pspace' ⊗ prod([conj ? trivspace : trivspace' for conj = conjugated[1]]), pspace' ⊗ pspace ⊗ prod([conj ? trivspace' : trivspace for conj = conjugated[2]]))
         b = permute(exp_H, ((1,3), (2,4)))
         if dir == (3,1)
             Isom_domain = isomorphism(T, domain(b), domain(b) ⊗ trivspace ⊗ trivspace' ⊗ trivspace')
@@ -184,8 +169,6 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             error("Unexpected value for dir")
         end
         x = Isom_codomain * b * Isom_domain
-        # x.data = b.data
-        # x[][:,:,1,1,1,:,:,1,1,1] = b[]
     elseif length(sites_to_update) == 2
         A = permute(A, (Tuple(1:2*N-4),Tuple(2*N-3:2*N+2)))
 
@@ -196,9 +179,6 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
 
         if scalartype(exp_H) == Complex{BigFloat}
             x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-36)))
-            # x = permute(x, ((1,6,3,4,8), (2,7,9,5,10)))
-            # x = (x + x')/2
-            # x = permute(x, ((1,6,3,4,9), (2,7,5,8,10)))
         else
             x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000))
         end
@@ -248,23 +228,31 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             if dir == (3,1)
                 x = flip(x, (2,3,4,6,9,10))
                 x = permute(x, ((1,2,3,4,5), (6,7,9,10,8)))
+            elseif dir == (2,4)
+                x = flip(x, (2,3,6,10))
+                x = permute(x, ((1,2,3,4,5), (6,7,10,8,9)))
             else
-                error("TBA - other direction than dir = (3,1)")
+                error("TBA - other direction than (3,1). dir = $(dir)")
             end
-            if !(ishermitian(x))
+            if !(TensorKit.ishermitian(x))
                 x = (x + x')/2
                 if verbosity > 0
                     @warn "Hermiticicing: Change is of order $(norm(x-x')/(2*norm(x)))"
                 end
             end
-            eigval, eigvec = eig_with_truncation(x, spaces(levels_to_update[1][dir[1]]))
+            eigval, eigvec = eig_trunc(x; trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
             x1 = eigvec * sqrt(eigval)
             x2 = sqrt(eigval) * eigvec'
             @assert norm(x - x1 * x2) < eps(real(T))*1e2 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2))"
-            # @assert norm(x - x1 * x2)/norm(x) < eps(real(T))*1e2 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2)/norm(x))"
-            x1 = flip(x1, (2,3,4))
-            x2 = permute(x2, ((1,), (2,3,6,4,5)))
-            x2 = flip(x2, (2,5,6))
+            if dir == (3,1)
+                x1 = flip(x1, (2,3,4))
+                x2 = permute(x2, ((1,), (2,3,6,4,5)))
+                x2 = flip(x2, (2,5,6))
+            elseif dir == (2,4)
+                x1 = flip(x1, (2,3))
+                x2 = permute(x2, ((1,), (2,3,5,6,4)))
+                x2 = flip(x2, (2,6))
+            end
         end
         x1 = permute_dir(x1, dir[1], 0)
         x2 = permute_dir(x2, dir[2], 1)
@@ -275,37 +263,8 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         # x2_rot = rotl180_fermionic(x2)
         x = [x1, x2]
         # x = symmetrize_cluster!(x1, x2, dir)
-    elseif length(sites_to_update) == 3
-        @warn "This happens because the error in the previous levels is too small - be warned, things can go wrong"
-        @warn "Using eigendecomposition regardless of what you want"
-        if dir == (3,1)
-            x = flip(x, (2,3,4,6,9,10))
-            x = permute(x, ((1,2,3,4,5), (6,7,9,10,8)))
-        else
-            error("TBA")
-        end
-        if !(ishermitian(x))
-            x = (x + x')/2
-            @warn "Hermiticicing: Change is of order $(norm(x-x')/(2*norm(x)))"
-        end
-        eigval, eigvec = eig_with_truncation(x, spaces(levels_to_update[1][dir[1]]))
-        x1 = eigvec * sqrt(eigval)
-        x2 = sqrt(eigval) * eigvec'
-        @assert norm(x - x1 * x2)/norm(x) < 1e-10 "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2)/norm(x))"
-        println("Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2)/norm(x))")
-        x1 = flip(x1, (2,3,4))
-        x2 = permute(x2, ((1,), (2,3,6,4,5)))
-        x2 = flip(x2, (2,5,6))
-
-        x1 = permute_dir(x1, dir[1], 0)
-        x2 = permute_dir(x2, dir[2], 1)
-        if (dir == (3,1) || dir == (4,2))
-            x1 = permute(flip(x1, 2+dir[1]), ((1,2),(3,4,5,6)))
-            x2 = permute(flip(x2, 2+dir[2]), ((1,2),(3,4,5,6)))
-        end
-
-        x = [x1, x2]
-        # x = symmetrize_cluster!(x1, x2, dir)
+    elseif length(sites_to_update) > 2
+        error("length(sites_to_update) = $(length(sites_to_update)). This happens because the error in the previous levels is too small.")
     end
     return x
 end

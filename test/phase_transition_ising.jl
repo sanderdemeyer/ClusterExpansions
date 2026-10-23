@@ -3,7 +3,6 @@ using TensorKitTensors
 using MPSKit
 using ClusterExpansions
 using PEPSKit
-using Plots
 using Random
 
 Random.seed!(1654841489)
@@ -28,7 +27,7 @@ obs_function = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, obss)
 @testset "Classical Ising model" begin
     # Set up the classical Ising model
     (J, g, z) = (1.0, 0.0, 0.0)
-    ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4")
+    ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4_manifest")
 
     # Perform the time evolution.
     βs, expvals, Os = time_evolve(ce_alg, time_alg, trunc_alg, obs_function)
@@ -50,7 +49,7 @@ end
 @testset "Quantum Ising model" begin
     # Set up the classical Ising model
     (J, g, z) = (1.0, 2.5, 0.0)
-    ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4")
+    ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4_manifest")
 
     # Perform the time evolution.
     βs, expvals, Os = time_evolve(ce_alg, time_alg, trunc_alg, obs_function)

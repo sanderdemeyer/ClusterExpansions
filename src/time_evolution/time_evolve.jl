@@ -1,13 +1,5 @@
 abstract type TimeEvolution end
 
-# struct StaticTimeEvolution <: TimeEvolution
-#     β₀
-#     Δβ
-#     maxiter
-#     trunc_alg
-#     verbosity
-# end
-
 struct TimeDependentTimeEvolution <: TimeEvolution
     β₀
     Δβ
@@ -64,6 +56,7 @@ function SquaringGroundStateTimeEvolution(β₀, maxiter, tol_energy; verbosity 
 end
 
 function TimeDependentTimeEvolution(β₀, Δβ, maxiter; verbosity = 0, f₁ = β -> 1.0, f₂ = β -> 1.0)
+    # Create a time evolution where the onesite and twosite operators are given by f₁(β) * onesite and f₂(β) * twosite_op, respectively.
     return TimeDependentTimeEvolution(β₀, Δβ, maxiter, verbosity, f₁, f₂)
 end
 
@@ -71,17 +64,12 @@ function UniformGroundStateFillingTimeEvolution(β₀, Δβ, maxiter, f_target; 
     return GroundStateFillingTimeEvolution(β₀, Δβ, maxiter, f_target, μ₀, α, tol_energy, verbosity)
 end
 
-# function evolution_operator(ce_alg::ClusterExpansion, time_alg::StaticTimeEvolution)
-#     _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, time_alg.Δβ, ce_alg.twosite_op, ce_alg.onesite_op; spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops)
-#     O_clust_full = convert(TensorMap, O_clust_full)
-#     O = zeros(ComplexF64, codomain(O_clust_full), domain(O_clust_full))
-#     for (f_full, f_conv) in zip(blocks(O_clust_full), blocks(O))
-#         f_conv[2] .= f_full[2]
-#     end
-#     return O
-# end
+function infinite_temperature_PEPO(T, pspace, vspace)
+    return permute(id(T, pspace ⊗ vspace ⊗ vspace), ((1,4),(5,6,2,3)))
+end
 
 function evolution_operator(ce_alg::ClusterExpansion, time_alg::TimeDependentTimeEvolution, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+    β == 0.0 && return infinite_temperature_PEPO(T_conv, domain(ce_alg.onesite_op)[1], ce_alg.spaces(0))
     _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, time_alg.Δβ, time_alg.f₂(β) * ce_alg.twosite_op, time_alg.f₁(β) * ce_alg.onesite_op; nn_term = ce_alg.nn_term, spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops, svd = ce_alg.svd)
     O_clust_full = convert(TensorMap, O_clust_full)
     O_canoc = canonicalize(O_clust_full, canoc_alg)
@@ -93,12 +81,7 @@ function evolution_operator(ce_alg::ClusterExpansion, time_alg::TimeDependentTim
 end
 
 function evolution_operator(ce_alg::ClusterExpansion, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
-    if β == 0.0
-        pspace = domain(ce_alg.onesite_op)[1]
-        vspace = ce_alg.spaces(0)
-        t = id(T_conv, pspace ⊗ vspace ⊗ vspace)
-        return permute(t, ((1,4),(5,6,2,3)))
-    end
+    β == 0.0 && return infinite_temperature_PEPO(T_conv, domain(ce_alg.onesite_op)[1], ce_alg.spaces(0))
     _, O_clust_full = clusterexpansion(ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; nn_term = ce_alg.nn_term, spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops, svd = ce_alg.svd)
     O_clust_full = convert(TensorMap, O_clust_full)
     O_canoc = canonicalize(O_clust_full, canoc_alg)
@@ -109,13 +92,8 @@ function evolution_operator(ce_alg::ClusterExpansion, β::Number; T_conv = Compl
     return O # Don't normalize, otherwise Atsushi will be mad.
 end
 
-function evolution_operator(td_alg::GenericTrotterDecomposition, β::Number; T = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
-    if β == 0.0
-        pspace = domain(td_alg.onesite_op)[1]
-        vspace = td_alg.spaces(0)
-        t = id(T, pspace ⊗ vspace ⊗ vspace)
-        return permute(t, ((1,4),(5,6,2,3)))
-    end
+function evolution_operator(td_alg::GenericTrotterDecomposition, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+    β == 0.0 && return infinite_temperature_PEPO(T_conv, domain(td_alg.onesite_op)[1], td_alg.spaces(0))
     U_onesite = get_Trotter_onesite(td_alg.onesite_op, td_alg.g, β)
     U_twosite = get_Trotter_twosite(td_alg.twosite_op, td_alg.spaces(1), β)
     @tensor O_Trotter[-1 -2; -3 -4 -5 -6] := U_onesite[-1; 1] * U_twosite[1 2; -3 -4 -5 -6] * U_onesite[2; -2]
@@ -123,13 +101,8 @@ function evolution_operator(td_alg::GenericTrotterDecomposition, β::Number; T =
     return O_canoc
 end
 
-function evolution_operator(td_alg::TwositeTrotterDecomposition, β::Number; T = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
-    if β == 0.0
-        pspace = domain(td_alg.onesite_op)[1]
-        vspace = td_alg.spaces(0)
-        t = id(T, pspace ⊗ vspace ⊗ vspace)
-        return permute(t, ((1,4),(5,6,2,3)))
-    end
+function evolution_operator(td_alg::TwositeTrotterDecomposition, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
+    β == 0.0 && return infinite_temperature_PEPO(T_conv, domain(td_alg.onesite_op)[1], td_alg.spaces(0))
     O_Trotter = get_Trotter_twosite(td_alg.twosite_op, td_alg.spaces(1), β)
     O_canoc = canonicalize(O_Trotter, canoc_alg)
     return O_canoc
@@ -193,7 +166,7 @@ function MPSKit.time_evolve(
             elseif ind == i
                 A, ϵ = approximate_state((A, A), trunc_alg)
             else
-                @error "Cannot perform time evolution without saving intermediaire steps for this time algorithm"
+                error("Cannot perform time evolution without saving intermediaire steps for this time algorithm")
             end
         end
         if normalizing
@@ -246,20 +219,12 @@ function time_evolve_filling(
     expvals = [observable(A)]
     μ = time_alg.μ₀
 
-    if trunc_alg isa VOPEPO
-        env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[time_alg.update_list[1]])[1], trunc_alg) # this will give errors due to time_alg.update_list
-    end
     for i = 1:time_alg.maxiter
         μ -= real((expvals[end][1] - time_alg.f_target) * time_alg.α)
-        println("μ = $(μ), n = $(expvals[end][1])")
-        if trunc_alg isa VOPEPO
-            if codomain(env_triple.edges[1,1,1])[2] ≠ domain(A)[1] || codomain(env_triple.edges[1,1,1])[3] ≠ domain(As[ind])[1]
-                env_double, env_triple = initialize_vomps_environments(domain(A)[1], domain(As[ind])[1], trunc_alg)
-            end
-            A, env_double, _ = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i, B = initial_guesses(i))
-        else
-            A, _ = approximate_state((A, evolution_operator(ce_alg(μ), time_alg.Δβ)), trunc_alg)
+        if time_alg.verbosity > 2
+            @info "At step $i, μ = $(μ), n = $(expvals[end][1])"
         end
+        A, _ = approximate_state((A, evolution_operator(ce_alg(μ), time_alg.Δβ)), trunc_alg)
         A /= norm(A)
         A = canonicalize(A, canoc_alg)
         obs = observable(A)
@@ -291,6 +256,7 @@ function time_evolve_filling(
 end
 
 function get_time_array(time_alg::StaticTimeEvolution)
+    # Helper function that is exported but never used internally.
     times = copy(time_alg.βs_helper)
     push!(times, time_alg.β₀)
     for ind in time_alg.update_list
@@ -379,7 +345,7 @@ function time_scan(
     As = []
     for (i,t) = enumerate(times)
         A = evolution_operator(ce_alg, t)
-        obs = observable(A)
+        obs = observable(A,i)
 
         push!(expvals, obs)
         push!(As, copy(A))

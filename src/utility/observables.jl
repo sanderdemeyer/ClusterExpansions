@@ -79,8 +79,6 @@ function MPSKit.expectation_value(::InfinitePEPS, symb::Symbol, (mps,env)::Tuple
         @warn "Observable $(symb) not defined. This will be set to zero"
         return 0
     end
-    # ξ_h, ξ_v, λ_h, λ_v = correlation_length(ψ, env; num_vals = 3)
-    # return ξ_h, log(abs(λ_h[2])/log(λ_h[3]))
 end
 
 function MPSKit.expectation_value(ρ::InfinitePEPO, symb::Symbol, env::CTMRGEnv)
@@ -185,14 +183,6 @@ function calculate_observables_purification(O::AbstractTensorMap{E,S,2,4}, χ::I
         T = InfiniteTransferPEPS(peps, 1, 1)
         mps = initialize_mps(T, [envspace])
 
-        # T = InfiniteMPO([peps[1,1]])
-        # pspace = domain(peps[1,1])[2]    
-        # mps = InfiniteMPS([
-        #     randn(
-        #         ComplexF64,
-        #         envspace * pspace,
-        #         envspace,
-        #     )])
         mps, env, _ = leading_boundary(mps, T, vumps_alg)
         vumps_env = (mps, env)
     end

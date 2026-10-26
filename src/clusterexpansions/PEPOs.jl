@@ -29,8 +29,6 @@ end
 
 function get_sum_space(highest, highest_loop, spaces)
     summedspace = SumSpace([spaces(i) for i = 0:highest]...)
-    # zerospace = ℂ^0
-    # total_space = zerospace
     for ind = -1:-1:highest_loop
         summedspace = SumSpace(summedspace..., spaces(ind))
     end
@@ -55,9 +53,7 @@ function get_PEPO(T, pspace, PEPO, spaces)
     O = zeros(T, SumSpace(pspace) ⊗ SumSpace(pspace)', ⊗([conj ? (get_sum_space(h, hloop, spaces))' : get_sum_space(h, hloop, spaces) for (conj,h,hloop) = zip(conjugated,highest,highest_loop)]...))
     for (key, tens) = PEPO
         key = [i < 0 ? h - i + 1 : i + 1 for (i,h) = zip(key,highest)]
-        # places = [get_location_PEPO(ind, highest[dir], spaces) for (dir,ind) = enumerate(key)]
         O[1,1,key...] = tens
-        # O[][:,:,places[1],places[2],places[3],places[4]] = tens[]
     end
     return O
 end

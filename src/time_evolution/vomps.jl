@@ -211,6 +211,7 @@ function approximate_state(
     B::Union{AbstractTensorMap{E,S,2,4},Nothing} = nothing,
     finalize = (x, f, g, numiter) -> (x, f, g)
 ) where {E,S,T<:VOPEPO}
+    error("VOPEPO is deprecated due to the use of the current version of PEPSKit.jl")
     if isnothing(B)
         B, _ = approximate_state(A, NoEnvTruncation(truncrank(dim(trunc_alg.truncspace))))
     end
@@ -249,6 +250,7 @@ function approximate_state(
     B::Union{AbstractTensorMap{E,S,2,4},Nothing} = nothing,
     finalize = (x, f, g, numiter) -> (x, f, g)
 ) where {E,S,T<:VOPEPO}
+    error("VOPEPO is deprecated due to the use of the current version of PEPSKit.jl")
     if isnothing(B)
         B, _ = approximate_state(A, NoEnvTruncation(truncrank(dim(trunc_alg.truncspace))))
     end

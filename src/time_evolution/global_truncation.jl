@@ -88,14 +88,6 @@ function truncation_environment(
 
     try    
         env, = leading_boundary(CTMRGEnv(network, trunc_alg.envspace), network, trunc_alg.ctm_alg)
-        # num = PEPSKit.@autoopt @tensor env.corners[1,1,1][χ8; χ1] * env.edges[1,1,1][χ1 DN1 DN2; χ2] * env.corners[2,1,1][χ2; χ3] * 
-        #                                 env.edges[2,1,1][χ3 DE1 DE2; χ4] * env.corners[3,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DS1 DS2; χ6] * 
-        #                                 env.corners[4,1,1][χ6; χ7] * env.edges[4,1,1][χ7 DW1 DW2; χ8] * 
-        #                                 twist(A_trunc,2)[Dp1 Dp2; DN1 DE1 DS1 DW1] * conj(A_trunc[Dp3 Dp2; DN2 DE2 DS2 DW2]) * M[Dp3; Dp1]
-        # denom = PEPSKit.@autoopt @tensor env.corners[1,1,1][χ8; χ1] * env.edges[1,1,1][χ1 DN1 DN2; χ2] * env.corners[2,1,1][χ2; χ3] * 
-        #                                 env.edges[2,1,1][χ3 DE1 DE2; χ4] * env.corners[3,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DS1 DS2; χ6] * 
-        #                                 env.corners[4,1,1][χ6; χ7] * env.edges[4,1,1][χ7 DW1 DW2; χ8] * 
-        #                                 twist(A_trunc,2)[Dp1 Dp2; DN1 DE1 DS1 DW1] * conj(A_trunc[Dp1 Dp2; DN2 DE2 DS2 DW2])
         num = PEPSKit.@autoopt @tensor env.corners[1,1,1][χ8; χ1] * env.edges[1,1,1][χ1 DN1 DN2; χ2] * env.corners[2,1,1][χ2; χ3] * 
                                         env.edges[2,1,1][χ3 DE1 DE2; χ4] * env.corners[3,1,1][χ4; χ5] * env.edges[3,1,1][χ5 DS1 DS2; χ6] * 
                                         env.corners[4,1,1][χ6; χ7] * env.edges[4,1,1][χ7 DW1 DW2; χ8] * 
@@ -110,11 +102,6 @@ function truncation_environment(
         AR_below = copy(A_trunc)
         AL_above = apply_isometry(A, Ws, [2])
         AR_above = apply_isometry(A, Ws, [4])
-        AL_above2 = apply_isometry(A, Ws, 2)
-        AR_above2 = apply_isometry(A, Ws, 4)
-        println("Differences:")
-        println(norm(AL_above-AL_above2))
-        println(norm(AR_above-AR_above2))
         t_hor = contract_34_patch(AL_above, AR_above, AL_below, AR_below, env)
 
         # Vertical truncation environment
@@ -122,11 +109,6 @@ function truncation_environment(
         AT_below = copy(A_trunc)
         AB_above = apply_isometry(A, Ws, [1])
         AT_above = apply_isometry(A, Ws, [3])
-        AB_above2 = apply_isometry(A, Ws, 1)
-        AT_above2 = apply_isometry(A, Ws, 3)
-        println("Differences:")
-        println(norm(AB_above-AB_above2))
-        println(norm(AT_above-AT_above2))
         t_ver = contract_43_patch(AB_above, AT_above, AB_below, AT_below, env)
         
         return t_hor, t_ver, num / denom

@@ -53,11 +53,11 @@ end
 
 # Find the pair of oblique projectors acting on the indices p1 of A1 and p2 of A2
 #=
-   ┌──┐        ┌──┐   
-   │  ├◄──  ─◄─┤  │   
-─◄─┤P1│        │P2├◄──
-   │  ├◄──  ─◄─┤  │   
-   └──┘        └──┘   
+    ┌──┐      ┌──┐    
+ ─◄─┤  │      │  ├◄── 
+    │P1├◄───◄─┤P2│    
+ ─◄─┤  │      │  ├◄── 
+    └──┘      └──┘    
 =#
 
 function find_P1P2(A1, A2, ind1, ind2, trunc; check_space=true)

@@ -34,18 +34,6 @@ function contract_PEPO(T, cluster, PEPO, spaces)
     end
     pspace = codomain(PEPO[(0,0,0,0)])[1]
     O = get_PEPO(T, pspace, PEPO, spaces)
-    # O_rot = rotl90_fermionic(O)
-    # for (key, value) = PEPO
-    #     shifted = tuple(circshift(collect(key), 2)...)
-    #     println("key = $(key) has shifted $(shifted)")
-    #     if shifted in PEPO.keys
-    #         error = norm(value-rotl180_fermionic(PEPO[shifted]))/norm(value)
-    #         println("error on key $(key) is $(error)")
-    #     else
-    #         println("key $(key) has no equivalent")
-    #     end
-    # end
-    # println("rot invariance of PEPO = $(norm(O-O_rot))/$(norm(O))")
 
     N = cluster.N
     contraction_indices = fill(0, N, 6)

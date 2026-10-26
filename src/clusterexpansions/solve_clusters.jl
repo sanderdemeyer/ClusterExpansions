@@ -27,7 +27,6 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; nn_
 
     exp_H = exponentiate_hamiltonian(twosite_op, onesite_op, cluster, β; nn_term)
     residual = contract_PEPO(T, cluster, PEPO, spaces)
-    # RHS = (exp_H/norm(exp_H) - residual/norm(exp_H))*norm(exp_H)
     RHS = exp_H - residual
 
     @assert !(any(isnan.(RHS.data))) "RHS contains elements that are NaN"
@@ -37,9 +36,8 @@ function solve_cluster(T, cluster, PEPO, β, twosite_op, onesite_op, spaces; nn_
         end
         return spaces
     end
-    if length(sites_to_update) == 4 && cluster.m > 0 # second condition to excluse the case where the previous solutions have not been found
+    if length(sites_to_update) == 4 && cluster.m > 0 # second condition to exclude the case where the previous solutions have not been found
         solutions, _ = solve_4_loop_optim(RHS, spaces, levels_to_update; verbosity, symmetry)
-        # solutions, _, spaces = solve_4_loop_SVD(RHS, spaces(-1), levels_to_update; verbosity = verbosity, symmetry = symmetry)
     elseif length(sites_to_update) ∈ [1, 2]
         A = get_A(T, cluster, PEPO, sites_to_update)
         dir, conjugated = get_update_dir(cluster.cluster, sites_to_update)
@@ -125,10 +123,12 @@ end
 
 function clusterexpansion(T, p, β, twosite_op, onesite_op; nn_term = nothing, levels_convention = "tree_depth", spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10, symmetry = nothing, verbosity = 2, solving_loops = true, svd = isnothing(symmetry))
     (p < 10) || error("Only cluster up until 9th order are implemented correctly")
+    p > 5 || @warn "Clusters higher than 5th order are not rigorously checked in the current code."
     dim(spaces(0)) == 1 || error("The zeroth space should be of dimension 1")
     ((symmetry == "C4v") != svd) || @warn "Highly encouraged to use `svd=false` for C4v and `svd=true` for nothing"
-    (!svd && T <: Real) && @warn "Using `svd = false`, while T <: Real is not guaranteed to succeed."
+    (!svd && T <: Real) && @warn "Using `svd = false`, while T <: Real can throw an `InexactError` when some of the eigenvalues are negative."
     ((BraidingStyle(sectortype(spaces(0))) isa Fermionic) && !isnothing(symmetry)) && @warn "spatial symmetries discouraged in fermionic code."
+    isnothing(nn_term) || @warn "Using a non-`nothing` diagonal term (`nn_term`) is higly discouraged due to the corresponding increase in norm and diverging strings. Only small diagonal terms will converge."
 
     pspace = domain(onesite_op)[1]
     PEPO₀ = init_PEPO(T, β, onesite_op, spaces(0))

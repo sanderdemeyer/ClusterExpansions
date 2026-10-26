@@ -14,40 +14,6 @@ struct ClusterExpansion <: EvolutionPEPO
     envspace
 end
 
-# function _envspace(sector)
-#     if sector == Trivial
-#         return χ -> ℂ^χ
-#     elseif sector == Z2Irrep
-#         χ -> Z2Space(0 => χ-div(χ,2), 1 => div(χ,2))
-#     elseif sector == SU2Irrep
-#         χ -> Vect[SU2Irrep](0 => χ-2*div(χ,4), 1 // 2 => div(χ,4), 1 => div(χ,4))
-#     elseif sector == FermionParity
-#         χ -> Vect[fℤ₂](0 => χ-div(χ,2), 1 => div(χ,2))
-#     elseif sector == ProductSector{Tuple{FermionParity, U1Irrep}}
-#         0
-#     end
-# end
-
-# function envspace(::ComplexSpace)
-#     return χ -> ℂ^χ
-# end
-
-# function envspace(::GradedSpace{ZNIrrep{N}, NTuple{N,Int}}) where {N}
-#     return χ -> ZNSpace{N}(0 => χ-(N-1)*div(χ,N), [i => div(χ,N) for i = 1:N-1]...)
-# end
-
-# function envspace(::GradedSpace{SU2Irrep, TensorKit.SortedVectorDict{SU2Irrep, Int64}})
-#     return Vect[SU2Irrep](0 => χ-2*div(χ,4), 1 // 2 => div(χ,4), 1 => div(χ,4))
-# end
-
-# function envspace(::GradedSpace{FermionParity, Tuple{Int64, Int64}})
-#     return Vect[FermionParity](0 => χ-div(χ,2), 1 => div(χ,2))
-# end
-
-# function envspace(space::GradedSpace{ProductSector{T},T2}) where {T <: Tuple, T2}    
-#     return χ -> Vect[sectortype(space)](ntuple(_ -> 0, fieldcount(T)) => χ)
-# end
-
 _envspace(::ComplexSpace) = χ -> ℂ^χ
 _envspace(::GradedSpace{ZNIrrep{N}, NTuple{N,Int}}) where {N} = χ -> ZNSpace{N}(0 => χ-(N-1)*div(χ,N), [i => div(χ,N) for i = 1:N-1]...)
 _envspace(::GradedSpace{U1Irrep, TensorKit.SortedVectorDict{U1Irrep, Int64}}) = χ -> Vect[U1Irrep](0 => χ-2*div(χ,4), 1 => div(χ,4), -1 => div(χ,4))
@@ -60,7 +26,7 @@ function ClusterExpansion(twosite_op, onesite_op; nn_term = nothing, p = 3, verb
 end
 
 function bond_dimension(ce_alg::ClusterExpansion)
-    return sum([dim(ce_alg.spaces(i)) for i = 0:div(ce_alg.p,2)]) + (ce_alg.p >= 4) * dim(ce_alg.spaces(-1)) + + (ce_alg.p >= 6) * dim(ce_alg.spaces(-2))
+    return sum([dim(ce_alg.spaces(i)) for i = 0:div(ce_alg.p,2)]) + (ce_alg.p >= 4) * dim(ce_alg.spaces(-1)) + (ce_alg.p >= 6) * dim(ce_alg.spaces(-2))
 end
 
 function spaces_ising(spin_symmetry, smaller_spaces; loop_space = nothing)
@@ -210,17 +176,9 @@ function spaces_heisenberg(spin_symmetry; loop_space = ℂ^4)
     return spaces, envspace
 end
 
-function heisenberg_XXX_operators(Jx; h = 0.0, spin = 1//2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = ℂ^4, kwargs...)
-    twosite_op = rmul!(SpinOperators.S_exchange(T, spin_symmetry; spin=spin), Jx)
-    onesite_op = rmul!(SpinOperators.S_z(spin_symmetry; spin=spin), T(h))
-    spaces, envspace = spaces_heisenberg(spin_symmetry; loop_space)
-    return ClusterExpansion(twosite_op, onesite_op; spaces, envspace, kwargs...)
-end
+heisenberg_XXX_operators(Jx; kwargs...) = heisenberg_operators(Jx, Jx, Jx, 0.0; kwargs...)
 
 function heisenberg_operators(Jx, Jy, Jz, h; spin = 1//2, spin_symmetry = Trivial, T = Complex{BigFloat}, loop_space = ℂ^4, kwargs...)
-    # if Jx == Jy == Jz && h == 0.0
-    #     return heisenberg_XXX_operators(Jx; spin=spin, spin_symmetry=spin_symmetry, T=T, loop_space=loop_space, kwargs...)
-    # end
     if spin_symmetry == Trivial
         twosite_op =  rmul!(SpinOperators.S_x_S_x(T, spin_symmetry; spin=spin), Jx) +
                 rmul!(SpinOperators.S_y_S_y(T, spin_symmetry; spin=spin), Jy) +

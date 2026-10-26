@@ -22,8 +22,7 @@ ctm_alg = SimultaneousCTMRG(; maxiter = 250, verbosity = 0)
 plt = plot()
 for spin_symmetry in [Trivial, SU2Irrep]
     ce_alg = heisenberg_operators(Jx, Jy, Jz, z; spin_symmetry, p = 3, T = ComplexF64)
-    H = localoperator_model(SpinOperators.spin_space(spin_symmetry), SpinOperators.S_exchange(spin_symmetry))
-    observables = PEPO_observables([H], ctm_alg)
+    observables = PEPO_observables([SpinOperators.S_exchange(spin_symmetry)], ctm_alg)
     observable = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
     
     # Perform the actual time evolution.

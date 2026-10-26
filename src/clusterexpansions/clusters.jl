@@ -15,13 +15,10 @@ function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
     bonds_sites, bonds_indices = get_bonds(cluster)
     diag_bonds_sites, diag_bonds_indices = get_diag_bonds(cluster)
     
-    # coordination_number = [sum(i .∈ bonds_indices) for i = 1:N]
-
     g = SimpleGraph(Graphs.SimpleEdge.(bonds_indices))
     g_dir = get_directed_graph(bonds_indices)
 
     longest_path, n = get_longest_path(g_dir, N)
-    # longest_cycle, m = get_longest_cycle(g_dir)
     cycles = cycle_basis(g)
     m = length(cycles)
 
@@ -76,7 +73,7 @@ function Cluster(cluster; levels_convention = "tree_depth", symmetry = nothing)
         coo = get_coordination_number(bonds_indices, N)
 
         if levels_convention == "initial"
-            @warn "using levels_convention = initial is highly discouraged"
+            @warn "using `levels_convention = initial` is highly discouraged"
             levels = get_levels(longest_path, n, bonds_indices, coo)
         elseif levels_convention == "tree_depth"
             levels = get_tree_depths(g, bonds_indices)
@@ -213,28 +210,6 @@ end
 # check whether 2 cycles (Tuples of length 4) have common indices
 function check_connectedness(cycle₁, cycle₂)
     return sum([e ∈ cycle₂ for e = cycle₁]) == 2
-end
-
-function get_longest_cycle(g_dir)
-    @error "Don't use this"
-    cycles = cycle_basis(g_dir)
-    length(cycles) == 0 && return (nothing, 0)
-    length(cycles) == 1 && return (cycles[1], 1)
-    length(cycles) >= 2 && return (cycles, 2)
-    edges = Vector{Int}()
-    for (i,cyc1) = enumerate(cycles)
-        for (j,cyc2) = enumerate(cycles[i:end])
-            if check_connectedness(cyc1, cyc2)
-                push!(edges, (i,j))
-                push!(edges, (j,i))
-            end
-        end
-    end
-
-    g_dir_cycles = SimpleDiGraph(Graphs.SimpleEdge.(edges))
-    longest_cycle_graph, m = find_longest_path(g_dir_cycles, length(edges))
-    longest_cycle = vcat([longest_cycle_graph[1].src], [l.dst for l = longest_cycle_graph])
-    return longest_cycle, m
 end
 
 # Get the levels of a line of size n without branches

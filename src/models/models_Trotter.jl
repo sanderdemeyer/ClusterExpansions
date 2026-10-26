@@ -35,11 +35,3 @@ function ising_operators_Trotter(J, g, z; spin_symmetry = Trivial, T = ComplexF6
     spaces = i -> i == 0 ? ℂ^1 : ℂ^2
     return GenericTrotterDecomposition(twosite_op, onesite_op, g, spaces)
 end
-
-# function ising_operators_Trotter(J, g, z; spin_symmetry = Trivial, T = ComplexF64)
-#     @assert z == 0 "Only z = 0 implemented. Probably easily extendable to nonzero z values"
-#     twosite_op = rmul!(PEPSKit.σᶻ(T, spin_symmetry), sqrt(J)) # This sqrt might be wrong
-#     onesite_op = PEPSKit.σˣ(T)
-#     spaces = i -> i == 0 ? ℂ^1 : ℂ^2
-#     return TrotterDecomposition(twosite_op, onesite_op, g, spaces)
-# end

@@ -22,7 +22,7 @@ t_alg = ising_operators_Trotter(1.0, g, 0.0; T = Float64)
 
 # Define observables
 vumps_alg = VUMPS(; maxiter = 100, verbosity = 0)
-ctm_alg = SequentialCTMRG(; maxiter = 300)
+ctm_alg = SimultaneousCTMRG(; maxiter = 300)
 observables = PEPO_observables([SpinOperators.σᶻ(), SpinOperators.σˣ(), :spectrum], vumps_alg)
 observable = (O, i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
 

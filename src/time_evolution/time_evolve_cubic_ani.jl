@@ -35,7 +35,6 @@ end
 
 function evolution_operator_cubic_anisotropic(ce_algs::NTuple{3,ClusterExpansion}, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)
     @assert allequal([ce_alg.onesite_op for ce_alg in ce_algs])
-    # @assert allequal([ce_alg.spaces(0) for ce_alg in ce_algs])
     @assert allequal([ce_alg.T for ce_alg in ce_algs])
     @assert allequal([ce_alg.p for ce_alg in ce_algs])
     for i = 0:ce_algs[1].p

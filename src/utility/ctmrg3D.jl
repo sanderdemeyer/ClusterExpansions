@@ -1,3 +1,5 @@
+# Implementation of the 3C-CTMRG algorithm from Orus 2012 (Phys. Rev. B 85, 205117 – Published 10 May, 2012)
+
 mutable struct CTMRG3D{T, S, TT <: AbstractTensorMap{T, S, 0, 6}, TA <: AbstractTensorMap{T, S, 1, 4}, TE <: AbstractTensorMap{T, S, 2, 2}, TC <: AbstractTensorMap{T, S, 0, 3}} <: CTMRG3D_alg
     O::TT
     A::Array{TA,1}
@@ -184,29 +186,6 @@ function renormalize_side(env::CTMRG3D, es, Ws)
     env.A[5] = flip(A′, [2 3 4 5])
 end
 
-# function renormalize_corner(ec, Uy, Uz)
-#     @tensor opt = true C′[u n e] :=
-#                         ec[UP1 UP2 NORTH1 NORTH2 e] * 
-#                         conj(Uy[UP1 UP2; u]) * conj(Uz[NORTH1 NORTH2; n])
-#     return permute(C′, ((),(1,2,3)))
-# end
-
-# function renormalize_edge(ee, U, W)
-#     @tensor opt = true E′[u n; d e] := 
-#                         ee[UP1 UP2 NORTH1 NORTH2; DOWN1 DOWN2 e] * 
-#                         U[UP1 UP2; u] * U[DOWN1 DOWN2; d] *
-#                         conj(W[NORTH1 NORTH2; n])
-#     return E′
-# end
-
-# function renormalize_side(es, Wy, Wz)
-#     @tensor opt = true A′[e; u n d s] := 
-#                         es[e; UP1 UP2 NORTH1 NORTH2 DOWN1 DOWN2 SOUTH1 SOUTH2] * 
-#                         Wz[UP1 UP2; u] * Wy[NORTH1 NORTH2; n] * 
-#                         Wz[DOWN1 DOWN2; d] * Wy[SOUTH1 SOUTH2; s]
-#     return A′
-# end
-
 function normalize!(env::CTMRG3D)
     for i = 1:8
         env.C[i] /= norm(env.C[i])
@@ -324,18 +303,12 @@ function calculate_universal_3D_spectrum(env::CTMRG3D)
                                 flip(env.C[4], [1 2 3])[A4 M4a A3] * env.C[1][A1 M1a A4] * flip(env.C[2], [1 2 3])[A2 M2 A1] * env.C[3][A3 M3 A2]
 
     @tensor opt=true mat_c[M1a; M1b] := mat_e[M1a M4; M1b M4]
-    println("mat_e = $(mat_e.space), mat_c = $(mat_c.space)")
     _, S_e, V = svd_full(permute(mat_e, ((1,3),(2,4))))
-    println("S_e = $(S_e)")
     S_e /= tr(S_e)
-    println("S_e = $(S_e)")
     _, S_c, V = svd_full(mat_c)
-    println("S_c = $(S_c)")
     S_c /= tr(S_c)
-    println("S_c = $(S_c)")
 
     EE_e = -tr(S_e * log(S_e))
     EE_c = -tr(S_c * log(S_c))
-    @info "EE_e = $(EE_e), EE_c = $(EE_c)"
     return EE_e - EE_c
 end

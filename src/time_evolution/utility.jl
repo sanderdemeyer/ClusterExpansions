@@ -1,3 +1,10 @@
+function _dag(O::AbstractTensorMap{E,S,2,4}) where {E,S}
+    @tensor O_conj[-1 -2; -3 -4 -5 -6] := conj(O[-2 -1; -3 -4 -5 -6])
+    isdual(codomain(O_conj)[1]) && twist!(O_conj, 1)
+    isdual(codomain(O_conj)[2]) || twist!(O_conj, 2)
+    return O_conj
+end
+
 # Fidelity functions
 
 function fidelity(A::InfinitePEPS, B::InfinitePEPS, ctm_alg::PEPSKit.CTMRGAlgorithm, envspace::ElementarySpace)
@@ -16,7 +23,7 @@ end
 
 function fidelity(A::InfinitePEPS, O::InfinitePEPO, B::InfinitePEPS, ctm_alg::PEPSKit.CTMRGAlgorithm, envspace::ElementarySpace)
     O_stack = repeat(O.A, 1, 1, 2)
-    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(O.A)))
+    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(_dag.(O.A)))
     OOdag = InfinitePEPO(O_stack)
     
     network_orig = InfiniteSquareNetwork(A, OOdag)
@@ -34,19 +41,20 @@ function fidelity(A::InfinitePEPS, O::InfinitePEPO, B::InfinitePEPS, ctm_alg::PE
 end
 
 function fidelity(A::InfinitePEPO, B::InfinitePEPO, C::InfinitePEPO, ctm_alg::PEPSKit.CTMRGAlgorithm, envspace::ElementarySpace)
+    error("Deprecated due to the use of the current version of PEPSKit.jl")
     O_stack = repeat(C.A, 1, 1, 2)
-    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(C.A)))
+    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(_dag.(C.A)))
     double_layer = InfinitePEPO(O_stack)
 
     O_stack = repeat(A.A, 1, 1, 3)
     O_stack[:, :, 2] .= B.A
-    O_stack[:, :, 3] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(C.A)))
+    O_stack[:, :, 3] .= PEPSKit.unitcell(InfinitePEPO(_dag.(C.A)))
     triple_layer = InfinitePEPO(O_stack)
     
     O_stack = repeat(A.A, 1, 1, 4)
     O_stack[:, :, 2] .= B.A
-    O_stack[:, :, 3] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(B.A)))
-    O_stack[:, :, 4] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(A.A)))
+    O_stack[:, :, 3] .= PEPSKit.unitcell(InfinitePEPO(_dag.(B.A)))
+    O_stack[:, :, 4] .= PEPSKit.unitcell(InfinitePEPO(_dag.(A.A)))
     quadruple_layer = InfinitePEPO(O_stack)
 
     network_orig = InfiniteSquareNetwork(quadruple_layer)
@@ -65,16 +73,17 @@ function fidelity(A::InfinitePEPO, B::InfinitePEPO, C::InfinitePEPO, ctm_alg::PE
 end
 
 function fidelity(A::InfinitePEPO, B::InfinitePEPO, ctm_alg::PEPSKit.CTMRGAlgorithm, envspace::ElementarySpace)
+    error("Deprecated due to the use of the current version of PEPSKit.jl")
     O_stack = repeat(A.A, 1, 1, 2)
-    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(B.A)))
+    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(_dag.(B.A)))
     overlap_layer = InfinitePEPO(O_stack)
 
     O_stack = repeat(A.A, 1, 1, 2)
-    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(A.A)))
+    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(_dag.(A.A)))
     top_layer = InfinitePEPO(O_stack)
 
     O_stack = repeat(B.A, 1, 1, 2)
-    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(PEPSKit._dag.(B.A)))
+    O_stack[:, :, 2] .= PEPSKit.unitcell(InfinitePEPO(_dag.(B.A)))
     bot_layer = InfinitePEPO(O_stack)
 
     network_top = InfiniteSquareNetwork(top_layer)
@@ -97,6 +106,7 @@ function fidelity(A::AbstractTensorMap{E,S,1,4}, B::AbstractTensorMap{E,S,1,4}, 
 end
 
 function fidelity(A::AbstractTensorMap{E,S,2,4}, B::AbstractTensorMap{E,S,2,4}, ctm_alg, envspace) where {E,S}
+    error("Deprecated due to the use of the current version of PEPSKit.jl")
     return fidelity(InfinitePEPO(A), InfinitePEPO(B), ctm_alg, envspace)
 end
 
@@ -109,6 +119,7 @@ function fidelity(A::Tuple{AbstractTensorMap{E,S,1,4},AbstractTensorMap{E,S,2,4}
 end
 
 function fidelity(A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,S,2,4}}, B::AbstractTensorMap{E,S,2,4}, ctm_alg, envspace) where {E,S}
+    error("Deprecated due to the use of the current version of PEPSKit.jl")
     return fidelity(A..., B, ctm_alg, envspace)
 end
 
@@ -138,10 +149,6 @@ function apply_isometry(A::Tuple{AbstractTensorMap{E,S,2,4},AbstractTensorMap{E,
     end
     return A_new
 end
-
-# function get_initial_isometry(T, orig_space::ProductSpace, trunc_space::ElementarySpace)
-#     return [dir > 2 ? isometry(T, orig_space, trunc_space)' : isometry(T, orig_space, trunc_space) for dir = 1:4]
-# end
 
 function get_initial_isometry(T, orig_space_h::ProductSpace, orig_space_v::ProductSpace, trunc_space_h::ElementarySpace, trunc_space_v::ElementarySpace)
     return [isometry(T, orig_space_v, trunc_space_v), isometry(T, orig_space_h, trunc_space_h), isometry(T, orig_space_v, trunc_space_v)', isometry(T, orig_space_h, trunc_space_h)']

@@ -1,3 +1,4 @@
+# Implementation of the `Verstraete-gauge`. Its use is discouraged throughout the whole codebase.
 struct Canonicalization
     decomposition_alg
     maxiter::Int

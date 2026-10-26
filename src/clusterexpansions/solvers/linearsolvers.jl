@@ -240,7 +240,8 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
                     @warn "Hermiticicing: Change is of order $(norm(x-x')/(2*norm(x)))"
                 end
             end
-            eigval, eigvec = eig_trunc(x; trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
+            eigval, eigvec = eigh_trunc(x; trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
+            eigval = complex(eigval)
             x1 = eigvec * sqrt(eigval)
             x2 = sqrt(eigval) * eigvec'
             if norm(x - x1 * x2) > eps(real(T))*1e2 

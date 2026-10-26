@@ -123,7 +123,7 @@ end
 
 function clusterexpansion(T, p, β, twosite_op, onesite_op; nn_term = nothing, levels_convention = "tree_depth", spaces = i -> (i >= 0) ? ℂ^(2^(2*i)) : ℂ^10, symmetry = nothing, verbosity = 2, solving_loops = true, svd = isnothing(symmetry))
     (p < 10) || error("Only cluster up until 9th order are implemented correctly")
-    p > 5 || @warn "Clusters higher than 5th order are not rigorously checked in the current code."
+    (p > 5) && @warn "Clusters higher than 5th order are not rigorously checked in the current code."
     dim(spaces(0)) == 1 || error("The zeroth space should be of dimension 1")
     ((symmetry == "C4v") != svd) || @warn "Highly encouraged to use `svd=false` for C4v and `svd=true` for nothing"
     (!svd && T <: Real) && @warn "Using `svd = false`, while T <: Real can throw an `InexactError` when some of the eigenvalues are negative."

@@ -49,7 +49,7 @@ end
 @testset "Quantum Ising model" begin
     # Set up the classical Ising model
     (J, g, z) = (1.0, 2.5, 0.0)
-    ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4_manifest")
+    ce_alg = ising_operators(J, g, z; T = Complex{BigFloat}, symmetry = "C4v")
 
     # Perform the time evolution.
     βs, expvals, Os = time_evolve(ce_alg, time_alg, trunc_alg, obs_function)

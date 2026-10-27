@@ -20,7 +20,7 @@ maxiter = 10
 time_alg = UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 0)
 ctm_alg = SimultaneousCTMRG(; maxiter = 500, verbosity = 1)
 
-pmax = 4
+ps = [3, 4]
 
 for (i,(model,param,symmetries,operator)) in enumerate(zip(models,params,symmetry_list,operators))
     es = []
@@ -30,7 +30,7 @@ for (i,(model,param,symmetries,operator)) in enumerate(zip(models,params,symmetr
         for model_symmetry in symmetries
             kw = (i < 3) ? (spin_symmetry = model_symmetry,) : ()
             for T = Ts
-                for p = 2:pmax
+                for p = ps
                     @info "$(model), $(symmetry), $(model_symmetry), $(T), p=$(p)"
                     ce_alg = model(param...; kw..., p, T, symmetry)
                     observables = PEPO_observables([operator(kw[1])], ctm_alg)

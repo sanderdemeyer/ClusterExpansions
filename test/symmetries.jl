@@ -3,6 +3,9 @@ using ClusterExpansions
 using PEPSKit
 using TensorKitTensors
 using Test
+using Random
+
+Random.seed!(14071789)
 
 models = [ising_operators, heisenberg_operators, spinless_fermion_operators]
 params = [(1.0, 0.0, 0.0), (1.0, 1.0, 1.0, 0.0), (1.0, 1.0, 0.5)]

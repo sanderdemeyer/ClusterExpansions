@@ -17,14 +17,14 @@ trunc_alg = NoEnvTruncation(truncrank(Dcut))
 χenv = 20 # Environment bond dimension used in the calculation of expectation values
 
 # Set up time evolution algorithm
-β = 0.01
+β = 0.05
 ctm_alg = SimultaneousCTMRG(; maxiter = 1500, verbosity = 1)
 
 ps = [3, 4]
 
 for (i,(model,param,symmetries,operator)) in enumerate(zip(models,params,symmetry_list,operators))
     es = []
-    for (i,symmetry) in enumerate([nothing, "C4v"])
+    for symmetry in [nothing, "C4v"]
         Ts_base = [Float64, BigFloat]
         Ts = isnothing(symmetry) ? Ts_base : complex.(Ts_base)
         for model_symmetry in symmetries

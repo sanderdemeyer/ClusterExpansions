@@ -14,12 +14,12 @@ operators = [SpinOperators.S_z_S_z, SpinOperators.S_exchange, FermionOperators.f
 # Parameters in the truncation scheme
 Dcut = 4
 trunc_alg = NoEnvTruncation(truncrank(Dcut))
-χenv = 16 # Environment bond dimension used in the calculation of expectation values
+χenv = 20 # Environment bond dimension used in the calculation of expectation values
 
 # Set up time evolution algorithm
-β₀ = 0.02
-Δβ = 0.02
-maxiter = 10
+β₀ = 0.01
+Δβ = 0.01
+maxiter = 0
 time_alg = UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 0)
 ctm_alg = SimultaneousCTMRG(; maxiter = 1500, verbosity = 1)
 

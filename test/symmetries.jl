@@ -17,10 +17,7 @@ trunc_alg = NoEnvTruncation(truncrank(Dcut))
 χenv = 20 # Environment bond dimension used in the calculation of expectation values
 
 # Set up time evolution algorithm
-β₀ = 0.01
-Δβ = 0.01
-maxiter = 0
-time_alg = UniformTimeEvolution(β₀, Δβ, maxiter; verbosity = 0)
+β = 0.01
 ctm_alg = SimultaneousCTMRG(; maxiter = 1500, verbosity = 1)
 
 ps = [3, 4]
@@ -37,11 +34,12 @@ for (i,(model,param,symmetries,operator)) in enumerate(zip(models,params,symmetr
                     @info "$(model), $(symmetry), $(model_symmetry), $(T), p=$(p)"
                     ce_alg = model(param...; kw..., p, T, symmetry)
                     observables = PEPO_observables([operator(kw[1])], ctm_alg)
-                    observable = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
-                    
-                    βs, expvals, = time_evolve(ce_alg, time_alg, trunc_alg, observable)
+                    O = evolution_operator(ce_alg, β)
+                    energies = ClusterExpansions.calculate_observables(O, χenv, observables)[1]
+                    # observable = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
+                    # βs, expvals, = time_evolve(ce_alg, time_alg, trunc_alg, observable)
 
-                    energies = [e[1] for e in expvals]
+                    # energies = [e[1] for e in expvals]
                     @info "energies = $(energies)"
 
                     # @assert norm(imag.(energies)) < 1e-10

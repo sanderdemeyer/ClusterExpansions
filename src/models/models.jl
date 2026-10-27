@@ -143,7 +143,7 @@ function spaces_heisenberg(spin_symmetry; loop_space = ℂ^4)
         elseif i == 1
             Vect[U1Irrep](0 => 2, 1 => 1, -1 => 1)
         elseif i == 2
-            Vect[U1Irrep](1 => 2^(2*i-1), -1 => 2^(2*i-1))
+            Vect[U1Irrep](1 => 2^(2*i-2), -1 => 2^(2*i-2))
         else
             loop_space
         end

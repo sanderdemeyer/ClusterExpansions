@@ -24,16 +24,21 @@ ps = [3, 4]
 
 for (i,(model,param,symmetries,operator)) in enumerate(zip(models,params,symmetry_list,operators))
     es = []
-    for symmetry in [nothing, "C4v"]
-        Ts_base = [Float64, BigFloat]
-        Ts = isnothing(symmetry) ? Ts_base : complex.(Ts_base)
+    spatial_symmetries = (i < 3) ? [nothing, "C4v"] : [nothing]
+    for symmetry in spatial_symmetries
         for model_symmetry in symmetries
-            kw = (i < 3) ? (spin_symmetry = model_symmetry,) : ()
+        kw = (i < 3) ? (spin_symmetry = model_symmetry,) : ()
+            Ts_base = [Float64, BigFloat]
+            Ts = isnothing(symmetry) ? Ts_base : complex.(Ts_base)
             for T = Ts
                 for p = ps
                     @info "$(model), $(symmetry), $(model_symmetry), $(T), p=$(p)"
                     ce_alg = model(param...; kw..., p, T, symmetry)
-                    observables = PEPO_observables([operator(kw[1])], ctm_alg)
+                    if i < 3
+                        observables = PEPO_observables([operator(kw[1])], ctm_alg)
+                    else
+                        observables = PEPO_observables([operator()], ctm_alg)
+                    end
                     O = evolution_operator(ce_alg, β)
                     energies = ClusterExpansions.calculate_observables(O, χenv, observables)[1]
                     # observable = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
@@ -55,6 +60,6 @@ for (i,(model,param,symmetries,operator)) in enumerate(zip(models,params,symmetr
     lo = reduce((a, b) -> min.(a, b), es)
     spread = hi .- lo
     @info "spread = $(spread)"
-    # @test maximum(spread) < 5e-5
+    @test maximum(spread) < 5e-5
 end
 

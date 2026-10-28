@@ -234,18 +234,18 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             else
                 error("TBA - other direction than (3,1). dir = $(dir)")
             end
-            if !(TensorKit.ishermitian(x))
-                x = (x + x')/2
-                if verbosity > 0
-                    @warn "Hermiticicing: Change is of order $(norm(x-x')/(2*norm(x)))"
-                end
+            x_sym = (x + transpose_flip(x))/2
+            if norm(x - x_sym)/norm(x) > eps(real(T))*1e2 && verbosity > 0
+                @warn "Symmetrising: Change is of order $(norm(x - x_sym)/norm(x))"
             end
-            eigval, eigvec = eigh_trunc(x; trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
-            eigval = complex(eigval)
-            x1 = eigvec * sqrt(eigval)
-            x2 = sqrt(eigval) * eigvec'
-            if norm(x - x1 * x2) > eps(real(T))*1e2 
-                @warn "Error made on the eigenvalue decomposition is of the order $(norm(x - x1 * x2))"
+            println("takagi")
+            x = x_sym
+            W, Σ = takagi_trunc(x; trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
+            println("types are $(typeof(x)), $(typeof(W)), $(typeof(Σ))")
+            x1 = W * sqrt(Σ)
+            x2 = transpose_flip(x1)
+            if norm(x - x1 * x2)/norm(x) > eps(real(T))*1e2 && verbosity > 0
+                @warn "Error made on the Takagi decomposition is of the order $(norm(x - x1 * x2)/norm(x))"
             end
             if dir == (3,1)
                 x1 = flip(x1, (2,3,4))

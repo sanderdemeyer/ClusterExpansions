@@ -59,7 +59,7 @@ export ApproximateEnvTruncation, NoEnvTruncation
 export VOPEPO_CTMRG, VOPEPO_VUMPS
 export approximate_state
 
-export ClusterExpansion, evolution_operator
+export ClusterExpansion
 export ising_operators
 export spinless_fermion_operators, spinless_fermion_model
 export heisenberg_operators, heisenberg_XXX_operators
@@ -76,6 +76,7 @@ export UniformGroundStateTimeEvolution, SquaringGroundStateTimeEvolution
 export time_evolve, get_time_array, time_scan
 export time_evolve_model, time_scan_model
 
+export evolution_operator_cubic, time_evolve_cubic
 export CTMRG3D
 
 export SUWeight3D, InfiniteWeightPEPS3D, InfinitePEPS3D, product_peps3D

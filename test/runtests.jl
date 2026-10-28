@@ -39,5 +39,6 @@ end
 #     include("exact_exponential.jl")
 # end
 
-
-
+@time @safetestset "3D CTMRG" begin
+    include("3d_symmetries.jl")
+end

@@ -53,7 +53,7 @@ function evolution_operator_cubic(ce_alg::ClusterExpansion, β::Number; T_conv =
         t = id(T_conv, pspace ⊗ vspace ⊗ vspace ⊗ vspace)
         return permute(t, ((1,5),(6,7,8,2,3,4)))
     end
-    PEPO_2D, = clusterexpansion(ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; nn_term = ce_alg.nn_term, spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = ce_alg.symmetry, solving_loops = ce_alg.solving_loops, svd = ce_alg.svd)
+    PEPO_2D, = clusterexpansion(ce_alg.T, ce_alg.p, β, ce_alg.twosite_op, ce_alg.onesite_op; nn_term = ce_alg.nn_term, spaces = ce_alg.spaces, verbosity = ce_alg.verbosity, symmetry = (ce_alg.symmetry == "Oh") ? "C4v" : nothing , solving_loops = ce_alg.solving_loops, svd = ce_alg.svd)
     PEPO_3D = construct_cubic_CE(PEPO_2D)
     O_clust_full = get_PEPO_cubic(ce_alg.T, pspace, PEPO_3D, ce_alg.spaces)
 
@@ -64,4 +64,79 @@ function evolution_operator_cubic(ce_alg::ClusterExpansion, β::Number; T_conv =
         f_conv[2] .= f_full[2]
     end
     return O # Don't normalize, otherwise Atsushi will be mad.
+end
+
+function time_evolve_cubic(
+    ce_alg::Union{ClusterExpansion,TrotterDecomposition},
+    time_alg::StaticTimeEvolution,
+    trunc_alg::EnvTruncation,
+    observable;
+    finalize! = nothing,
+    A0 = nothing,
+    canoc_alg::Union{Canonicalization,Nothing} = nothing,
+    skip_first::Bool = false,
+    initial_guesses = i -> nothing,
+    saving::Bool = true,
+    saving_frequency::Int = 1,
+    normalizing::Bool = true,
+    trunc_alg_start = nothing
+)
+    if isnothing(trunc_alg_start)
+        As = AbstractTensorMap[evolution_operator_cubic(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
+    else
+        As = AbstractTensorMap[approximate_state(evolution_operator_cubic(ce_alg, β; canoc_alg), trunc_alg_start; rot_invariance = trunc_alg.rot_invariance)[1] for β = time_alg.βs_helper]
+    end
+    times = copy(time_alg.βs_helper)
+    if isnothing(A0)
+        A = evolution_operator_cubic(ce_alg, time_alg.β₀; canoc_alg)
+    else
+        A = canonicalize(A0, canoc_alg)
+    end
+    if skip_first
+        obs = nothing
+        expvals = []
+    else
+        obs = observable(A, 0)
+        expvals = [obs]
+    end
+    push!(As, copy(A))
+    push!(times, time_alg.β₀)
+    errors = []
+    for (i,ind) in enumerate(time_alg.update_list)
+        if ind <= length(As)
+            A, ϵ = approximate_state((A, As[ind]), trunc_alg; rot_invariance = trunc_alg.rot_invariance)
+        elseif ind == i
+            A, ϵ = approximate_state((A, A), trunc_alg; rot_invariance = trunc_alg.rot_invariance)
+        else
+            error("Cannot perform time evolution without saving intermediaire steps for this time algorithm")
+        end
+        if normalizing
+            A /= norm(A)
+        end
+        A = canonicalize(A, canoc_alg)
+        obs = observable(A, i)
+        push!(errors, ϵ)
+        push!(times, times[end] + times[ind])
+        if saving
+            push!(expvals, obs)
+            if mod(i, saving_frequency) == 0
+                push!(As, copy(A))
+            end
+        end
+        if time_alg.verbosity > 1
+            @info "Time evolution step $(i) with β = $(times[end]), obs = $(obs)"
+            @info "Bond dimension is now $(dim(domain(A)[1]))"
+            if time_alg.verbosity > 2
+                @info "Current norm is $(norm(A))"
+            end
+        end
+        if !isnothing(finalize!)
+            finalize!(As, expvals, i)
+        end
+    end
+    if saving
+        return times[length(time_alg.βs_helper)+1:end], expvals, As[length(time_alg.βs_helper)+1:end], errors
+    else
+        return times[end], obs, A, errors
+    end
 end

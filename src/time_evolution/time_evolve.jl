@@ -126,7 +126,7 @@ function MPSKit.time_evolve(
     if isnothing(trunc_alg_start)
         As = AbstractTensorMap[evolution_operator(ce_alg, β; canoc_alg) for β = time_alg.βs_helper]
     else
-        As = AbstractTensorMap[approximate_state(evolution_operator(ce_alg, β; canoc_alg), trunc_alg_start)[1] for β = time_alg.βs_helper]
+        As = AbstractTensorMap[approximate_state(evolution_operator(ce_alg, β; canoc_alg), trunc_alg_start; rot_invariance = trunc_alg.rot_invariance)[1] for β = time_alg.βs_helper]
     end
     times = copy(time_alg.βs_helper)
     if isnothing(A0)
@@ -162,9 +162,9 @@ function MPSKit.time_evolve(
             end
         else
             if ind <= length(As)
-                A, ϵ = approximate_state((A, As[ind]), trunc_alg)
+                A, ϵ = approximate_state((A, As[ind]), trunc_alg; rot_invariance = trunc_alg.rot_invariance)
             elseif ind == i
-                A, ϵ = approximate_state((A, A), trunc_alg)
+                A, ϵ = approximate_state((A, A), trunc_alg; rot_invariance = trunc_alg.rot_invariance)
             else
                 error("Cannot perform time evolution without saving intermediaire steps for this time algorithm")
             end
@@ -224,7 +224,7 @@ function time_evolve_filling(
         if time_alg.verbosity > 2
             @info "At step $i, μ = $(μ), n = $(expvals[end][1])"
         end
-        A, _ = approximate_state((A, evolution_operator(ce_alg(μ), time_alg.Δβ)), trunc_alg)
+        A, _ = approximate_state((A, evolution_operator(ce_alg(μ), time_alg.Δβ)), trunc_alg; rot_invariance = trunc_alg.rot_invariance)
         A /= norm(A)
         A = canonicalize(A, canoc_alg)
         obs = observable(A)
@@ -302,7 +302,7 @@ function PEPSKit.fixedpoint(
             end
             A, env_double, env_triple, _ = approximate_state((A, As[ind]), env_double, env_triple, trunc_alg; iter = i)
         else
-            A, _ = approximate_state((A, As[ind]), trunc_alg)
+            A, _ = approximate_state((A, As[ind]), trunc_alg; rot_invariance = trunc_alg.rot_invariance)
         end
         A /= norm(A)
         A = canonicalize(A, canoc_alg)

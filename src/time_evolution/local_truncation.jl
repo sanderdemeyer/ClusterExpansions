@@ -31,31 +31,31 @@ transpose_flip(X) = flip(permute(X, (domainind(X), codomainind(X))), Tuple(1:num
 # Takagi factorisation of a symmetric mat = transpose_flip(mat) as mat ≈ W * S * transpose_flip(W'),
 # with W an isometry and S ≥ 0 the (truncated) singular values
 function takagi_trunc(mat; trunc)
-    U, S, Vᴴ = svd_trunc(mat; trunc)
+    U, S, Vᴴ, ϵ = svd_trunc(mat; trunc)
 
     # For symmetric mat, conj(V) = U * Z with Z a symmetric unitary commuting with S
     Z = U' * transpose_flip(Vᴴ)
     W = U * sqrt(Z)
-    return W, S
+    return W, S, ϵ
 end
 
 function oblique_projector(R1, R2, trunc; proj = :svd)
     mat = R1 * R2
     if proj == :takagi
-        W, S = takagi_trunc(mat; trunc)
+        W, S, ϵ = takagi_trunc(mat; trunc)
         P2 = inv(sqrt(S)) * W' * R1
         P1 = transpose_flip(P2) # = R2 * conj(W) * inv(sqrt(S)) when R2 = transpose_flip(R1)
     elseif proj == :svd
-        U, S, Vt = svd_trunc(mat; trunc)
+        U, S, Vt, ϵ = svd_trunc(mat; trunc)
         P1 = R2 * adjoint(Vt) * inv(sqrt(S))
         P2 = inv(sqrt(S)) * adjoint(U) * R1
     elseif proj == :eig
-        D, V = eig_trunc(mat; trunc)
+        D, V, ϵ = eig_trunc(mat; trunc)
         D = complex(D)
         P1 = R2 * V * inv(sqrt(D))
         P2 = inv(sqrt(D)) * adjoint(V) * R1
     end
-    return P1, P2
+    return P1, P2, ϵ
 end
 
 function QR_two_pepo_left(::Square,O1,O2,ind)

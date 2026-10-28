@@ -45,7 +45,7 @@ function evolve_CE(obs, Δβ_iter, Δβ_obs, maxiter_obs, D, chipeps, chienv; J 
         @info "At step $i / $(maxiter_obs)"
         # Do the time evolution
         for _ = 1:nsteps
-            O, = approximate_state((O,ΔO), trunc_alg; rot_invariant = false)
+            O, = approximate_state((O,ΔO), trunc_alg; rot_invariance = false)
         end
         # Calculate the CTMRG environment and the expectation value
         m, = MPSKit.expectation_value(O, [obs], pepsspace, envspace; miniter=3, maxiter=80, tol=1e-7, verbosity=0)
@@ -114,7 +114,8 @@ obs = SpinOperators.σᶻ(T, spin_symmetry)
 # parameters for time evolution
 Δβ_iter = 0.005
 Δβ_obs = 0.01
-maxiter_obs = 34
+# maxiter_obs = 34
+maxiter_obs = 5
 
 βs, ms = evolve_CE(obs, Δβ_iter, Δβ_obs, maxiter_obs, D_CE, chipeps, chienv; J = 1.0, g = 0.0, spin_symmetry)
 βs_SU, ms_SU = evolve_SU(obs, Δβ_iter, Δβ_obs, maxiter_obs / 2, D_SU, chipeps, chienv; J = 1.0, g = 0.0, spin_symmetry)

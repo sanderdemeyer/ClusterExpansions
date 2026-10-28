@@ -41,18 +41,10 @@ for (i,(model,param,symmetries,operator)) in enumerate(zip(models,params,symmetr
                             observables = PEPO_observables([operator()], ctm_alg)
                         end
                         O = evolution_operator(ce_alg, β)
-                        energies = ClusterExpansions.calculate_observables(O, χenv, observables)[1]
-                        # observable = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
-                        # βs, expvals, = time_evolve(ce_alg, time_alg, trunc_alg, observable)
+                        expvals = ClusterExpansions.calculate_observables(O, χenv, observables)[1]
 
-                        # energies = [e[1] for e in expvals]
-                        @info "energies = $(energies)"
-
-                        # @assert norm(imag.(energies)) < 1e-10
-                        if norm(imag.(energies)) > 1e-10
-                            @warn "imag = $(norm(imag.(energies)))"
-                        end
-                        push!(es, real.(energies))
+                        @assert norm(imag.(expvals)) < 1e-8
+                        push!(es, real.(expvals))
                     end
                 end
             end
@@ -61,7 +53,6 @@ for (i,(model,param,symmetries,operator)) in enumerate(zip(models,params,symmetr
     hi = reduce((a, b) -> max.(a, b), es)
     lo = reduce((a, b) -> min.(a, b), es)
     spread = hi .- lo
-    @info "spread = $(spread)"
     @test maximum(spread) < 5e-5
 end
 

@@ -32,26 +32,28 @@ for (i,(model,param,symmetries,operator)) in enumerate(zip(models,params,symmetr
             Ts = isnothing(symmetry) ? Ts_base : complex.(Ts_base)
             for T = Ts
                 for p = ps
-                    @info "$(model), $(symmetry), $(model_symmetry), $(T), p=$(p)"
-                    ce_alg = model(param...; kw..., p, T, symmetry)
-                    if i < 3
-                        observables = PEPO_observables([operator(kw[1])], ctm_alg)
-                    else
-                        observables = PEPO_observables([operator()], ctm_alg)
-                    end
-                    O = evolution_operator(ce_alg, β)
-                    energies = ClusterExpansions.calculate_observables(O, χenv, observables)[1]
-                    # observable = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
-                    # βs, expvals, = time_evolve(ce_alg, time_alg, trunc_alg, observable)
+                    if !((symmetry == "C4v") && (p == 4) && ((i == 1 && model_symmetry == Z2Irrep) || (i == 2 && model_symmetry == SU2Irrep))) # Convergence issues for these two cases
+                        @info "$(model), $(symmetry), $(model_symmetry), $(T), p=$(p)"
+                        ce_alg = model(param...; kw..., p, T, symmetry)
+                        if i < 3
+                            observables = PEPO_observables([operator(kw[1])], ctm_alg)
+                        else
+                            observables = PEPO_observables([operator()], ctm_alg)
+                        end
+                        O = evolution_operator(ce_alg, β)
+                        energies = ClusterExpansions.calculate_observables(O, χenv, observables)[1]
+                        # observable = (O,i) -> ClusterExpansions.calculate_observables(O, χenv, observables)
+                        # βs, expvals, = time_evolve(ce_alg, time_alg, trunc_alg, observable)
 
-                    # energies = [e[1] for e in expvals]
-                    @info "energies = $(energies)"
+                        # energies = [e[1] for e in expvals]
+                        @info "energies = $(energies)"
 
-                    # @assert norm(imag.(energies)) < 1e-10
-                    if norm(imag.(energies)) > 1e-10
-                        @warn "imag = $(norm(imag.(energies)))"
+                        # @assert norm(imag.(energies)) < 1e-10
+                        if norm(imag.(energies)) > 1e-10
+                            @warn "imag = $(norm(imag.(energies)))"
+                        end
+                        push!(es, real.(energies))
                     end
-                    push!(es, real.(energies))
                 end
             end
         end

@@ -32,12 +32,10 @@ transpose_flip(X) = flip(permute(X, (domainind(X), codomainind(X))), Tuple(1:num
 # with W an isometry and S ≥ 0 the (truncated) singular values
 function takagi_trunc(mat; trunc)
     U, S, Vᴴ = svd_trunc(mat; trunc)
-    println("types are $(typeof(U)), $(typeof(S)), $(typeof(Vᴴ))")
 
     # For symmetric mat, conj(V) = U * Z with Z a symmetric unitary commuting with S
     Z = U' * transpose_flip(Vᴴ)
     W = U * sqrt(Z)
-    println("here: z = $(Z), sqrtZ = $(typeof(sqrt(Z))), W = $(typeof(W))")
     return W, S
 end
 

@@ -238,10 +238,8 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
             if norm(x - x_sym)/norm(x) > eps(real(T))*1e2 && verbosity > 0
                 @warn "Symmetrising: Change is of order $(norm(x - x_sym)/norm(x))"
             end
-            println("takagi")
             x = x_sym
             W, Σ = takagi_trunc(x; trunc = truncspace(spaces(levels_to_update[1][dir[1]])))
-            println("types are $(typeof(x)), $(typeof(W)), $(typeof(Σ))")
             x1 = W * sqrt(Σ)
             x2 = transpose_flip(x1)
             if norm(x - x1 * x2)/norm(x) > eps(real(T))*1e2 && verbosity > 0

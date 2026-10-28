@@ -146,13 +146,13 @@ function approximate_state(
 ) where {E,S<:ElementarySpace}
     proj = rot_invariance ? :takagi : :svd
     lattice = Square()
-    PN,PS,ϵv = find_P1P2(lattice,A,3,5,trunc_alg.trscheme);
+    PN,PS,ϵv = find_P1P2(lattice,A,3,5,trunc_alg.trscheme; proj);
     if rot_invariance
         PE = copy(PN)
         PW = copy(PS)
         ϵh = ϵv
     else
-        PE,PW,ϵh = find_P1P2(lattice,A,4,6,trunc_alg.trscheme);
+        PE,PW,ϵh = find_P1P2(lattice,A,4,6,trunc_alg.trscheme; proj);
     end
     @tensor opt=true Onew[-1 -2; -3 -4 -5 -6] := A[1][1 -2; 7 8 9 10] * A[2][-1 1; 3 4 5 6] * PN[3 7; -3] * PE[4 8; -4] * PS[-5; 5 9] * PW[-6; 6 10]
     return Onew, maximum([ϵv,ϵh])
@@ -164,13 +164,13 @@ function approximate_state(
 ) where {E,S<:ElementarySpace}
     proj = rot_invariance ? :takagi : :svd
     lattice = Square()
-    PN,PS,ϵv = find_P1P2(lattice,A,3,5,trunc_alg.trscheme);
+    PN,PS,ϵv = find_P1P2(lattice,A,3,5,trunc_alg.trscheme; proj);
     if rot_invariance
         PE = copy(PN)
         PW = copy(PS)
         ϵh = ϵv
     else
-        PE,PW,ϵh = find_P1P2(lattice,A,4,6,trunc_alg.trscheme);
+        PE,PW,ϵh = find_P1P2(lattice,A,4,6,trunc_alg.trscheme; proj);
     end
     @tensor opt=true Onew[-1; -3 -4 -5 -6] := A[1][1; 7 8 9 10] * A[2][-1 1; 3 4 5 6] * PN[3 7; -3] * PE[4 8; -4] * PS[-5; 5 9] * PW[-6; 6 10]
     return Onew, maximum([ϵv,ϵh])
@@ -182,13 +182,13 @@ function approximate_state(
 ) where {E,S<:ElementarySpace}
     proj = rot_invariance ? :takagi : :svd
     lattice = Square()
-    PN,PS,ϵv = find_P1P2(lattice,(A,),3,5,trunc_alg.trscheme);
+    PN,PS,ϵv = find_P1P2(lattice,(A,),3,5,trunc_alg.trscheme; proj);
     if rot_invariance
         PE = copy(PN)
         PW = copy(PS)
         ϵh = ϵv
     else
-        PE,PW,ϵh = find_P1P2(lattice,(A,),4,6,trunc_alg.trscheme);
+        PE,PW,ϵh = find_P1P2(lattice,(A,),4,6,trunc_alg.trscheme; proj);
     end
     @tensor opt=true Onew[-1 -2; -3 -4 -5 -6] := A[-1 -2; 1 2 3 4] * PN[1; -3] * PE[2; -4] * PS[-5; 3] * PW[-6; 4]
     return Onew, maximum([ϵv,ϵh])

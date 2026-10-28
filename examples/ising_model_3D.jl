@@ -8,6 +8,7 @@ using Random
 using LinearAlgebra
 
 Random.seed!(123456789)
+setprecision(128)
 
 const βc_exact = 0.2216546 # voor g = 0.0
 
@@ -34,18 +35,19 @@ function evolve_CE(obs, Δβ_iter, Δβ_obs, maxiter_obs, D, chipeps, chienv; J 
     trunc_alg = NoEnvTruncation(truncrank(D))
 
     # define cluster-expansion algorithm. p = 3 is default.
-    ce_alg = ising_operators(J, g, 0.0; T = BigFloat, symmetry = nothing)
-    ΔO = ClusterExpansions.evolution_operator_cubic(ce_alg, Δβ_iter; T_conv = Float64);
+    ce_alg = ising_operators(J, g, 0.0; T = BigFloat, symmetry = "Oh")
+    ΔO = evolution_operator_cubic(ce_alg, Δβ_iter; T_conv = Float64);
     
     # start with density operator at β = 0
-    O = ClusterExpansions.evolution_operator_cubic(ce_alg, 0.0; T_conv = Float64);
+    O = evolution_operator_cubic(ce_alg, 0.0; T_conv = Float64);
 
     ms = []
     for i = 1:maxiter_obs
         @info "At step $i / $(maxiter_obs)"
         # Do the time evolution
         for _ = 1:nsteps
-            O, = approximate_state((O,ΔO), trunc_alg; rot_invariant = false)
+            println("types: $(typeof(O)),  $(typeof(ΔO))")
+            O, = approximate_state((O,ΔO), trunc_alg; rot_invariance = false)
         end
         # Calculate the CTMRG environment and the expectation value
         m, = MPSKit.expectation_value(O, [obs], pepsspace, envspace; miniter=3, maxiter=80, tol=1e-7, verbosity=0)

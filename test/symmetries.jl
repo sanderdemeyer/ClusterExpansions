@@ -43,6 +43,7 @@ for (i,(model,param,symmetries,operator)) in enumerate(zip(models,params,symmetr
                         O = evolution_operator(ce_alg, β)
                         expvals = ClusterExpansions.calculate_observables(O, χenv, observables)[1]
 
+                        @info norm(imag.(expvals))
                         @assert norm(imag.(expvals)) < 1e-8
                         push!(es, real.(expvals))
                     end

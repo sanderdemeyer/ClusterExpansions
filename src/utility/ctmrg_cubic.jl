@@ -37,13 +37,13 @@ function MPSKit.leading_boundary(env::CTMRG3D_alg)
     return env, ϵs
 end
 
-function MPSKit.expectation_value(PEPO::AbstractTensorMap{A,S,2,6}, obss, bpepsspace, envspace; ctm_alg = CTMRG3D, miniter = 5, maxiter = 150, tol = 1e-8, verbosity = 0) where {A,S}
+function MPSKit.expectation_value(PEPO::AbstractTensorMap{A,S,2,6}, obss, bpepsspace, envspace; ctm_alg = CTMRG3D, miniter = 5, maxiter = 150, tol = 1e-8, verbosity = 0, sqrts = true) where {A,S}
     @tensor O[-1 -2 -3 -4 -5 -6] := twist(PEPO, 2)[1 1; -1 -2 -3 -4 -5 -6]
     O = flip(permute(O, ((),(1,2,3,4,5,6))), [4 5 6])
     
     trunc_bpeps = truncrank(dim(bpepsspace))
     trunc_env = truncrank(dim(envspace))
-    env = ctm_alg(O; trunc_env, trunc_bpeps, Vbp = bpepsspace, Vv = envspace, miniter, maxiter, tol, verbosity)
+    env = ctm_alg(O; trunc_env, trunc_bpeps, Vbp = bpepsspace, Vv = envspace, miniter, maxiter, tol, verbosity, sqrts)
     env, ϵs = leading_boundary(env);
     expvals = []
     for obs = obss

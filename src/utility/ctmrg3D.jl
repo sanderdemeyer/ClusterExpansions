@@ -95,10 +95,11 @@ mutable struct CTMRG3D{T, S, TT <: AbstractTensorMap{T, S, 0, 6}, TA <: Abstract
     maxiter::Int
     tol::Float64
     verbosity::Int
+    sqrts::Bool
 
-    function CTMRG3D(O::TT; trunc_bpeps = notrunc(), trunc_env = notrunc(), Vp = space(O)[1]', Vbp = oneunit(Vp), Vv = oneunit(Vp), miniter::Int = 5, maxiter::Int = 150, tol::Float64 = 1e-8, verbosity::Int = 0) where {T, S, TT <: AbstractTensorMap{T, S, 0, 6}}
+    function CTMRG3D(O::TT; trunc_bpeps = notrunc(), trunc_env = notrunc(), Vp = space(O)[1]', Vbp = oneunit(Vp), Vv = oneunit(Vp), miniter::Int = 5, maxiter::Int = 150, tol::Float64 = 1e-8, verbosity::Int = 0, sqrts::Bool = true) where {T, S, TT <: AbstractTensorMap{T, S, 0, 6}}
         A, E, C = CTMRG3D_init(O; Vp, Vbp, Vv)
-        new{T, S, TT, typeof(A[1]), typeof(E[1]), typeof(C[1])}(O, A, E, C, trunc_bpeps, trunc_env, miniter, maxiter, tol, verbosity)
+        new{T, S, TT, typeof(A[1]), typeof(E[1]), typeof(C[1])}(O, A, E, C, trunc_bpeps, trunc_env, miniter, maxiter, tol, verbosity, sqrts)
     end
 end
 
@@ -206,37 +207,45 @@ end
 # The projectors are isometries U: one side of a new bond gets conj(U), the other side U, so
 # the bond carries the projector conj(U) * transpose(U), which is exact without truncation.
 # (Using U * sqrt(S) instead would insert conj(U) * S * transpose(U), biasing every absorption.)
-function get_projectors_corner(ecs, trunc)
+function get_projectors_corner(ecs, trunc; sqrts = true)
     Uys = []
     Uzs = []
     for i = 1:4
         Uy, Sy, Vyᴴ = svd_trunc(permute(ecs[i], ((1,2),(3,4,5))); trunc)
         Uz, Sz, Vzᴴ = svd_trunc(permute(ecs[i], ((3,4),(1,2,5))); trunc)
 
-        push!(Uys, Uy * sqrt(Sy))
-        push!(Uzs, Uz * sqrt(Sz))
+        if sqrts
+            push!(Uys, Uy * sqrt(Sy))
+            push!(Uzs, Uz * sqrt(Sz))
+        else
+            push!(Uys, Uy)
+            push!(Uzs, Uz)
+        end
     end
     return Uys, Uzs
 end
 
-function get_projectors_edge(ees, trunc)
+function get_projectors_edge(ees, trunc; sqrts = true)
     Ws = []
     for i = 1:4
         W, S, M = svd_trunc(permute(ees[i], ((3,4),(1,2,5,6,7))); trunc)
 
-        push!(Ws, W * sqrt(S))
+        if sqrts
+            push!(Ws, W * sqrt(S))
+        else
+            push!(Ws, W)
+        end
     end
     return Ws
 end
-
 
 function partial_ctmrgstep(env::CTMRG3D)
     ecs = enlarged_corners(env)
     ees = enlarged_edges(env)
     es = enlarged_side(env)
 
-    Uys, Uzs = get_projectors_corner(ecs, env.trunc_env)
-    Ws = get_projectors_edge(ees, env.trunc_bpeps)
+    Uys, Uzs = get_projectors_corner(ecs, env.trunc_env; sqrts = env.sqrts)
+    Ws = get_projectors_edge(ees, env.trunc_bpeps; sqrts = env.sqrts)
 
     renormalize_corners(env, ecs, Uys, Uzs)
     renormalize_edges(env, ees, Uys, Uzs, Ws)

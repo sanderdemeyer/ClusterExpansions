@@ -177,11 +177,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         included_sites = setdiff(1:N, sites_to_update)
         exp_H_flipped = permute(exp_H, ((included_sites..., (included_sites .+ N)...), (sites_to_update..., (sites_to_update .+ N)...)))
 
-        if scalartype(exp_H) == Complex{BigFloat}
-            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-36)))
-        else
-            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000))
-        end
+        x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 2000, tol = eps(one(real(T)))*1e5))
         error_sol = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
         if error_sol > 1e-10 && verbosity > 0
             @warn "Error made on the solution is of the order $(error_sol)"
@@ -196,11 +192,7 @@ function solve_index(T, A, exp_H, conjugated, sites_to_update, levels_to_update,
         included_sites = setdiff(1:N, sites_to_update[1])
         exp_H_flipped = permute(exp_H, ((included_sites..., (included_sites .+ N)...), (sites_to_update[1], sites_to_update[1]+N)))
 
-        if scalartype(exp_H) == Complex{BigFloat}
-            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 2000, tol = BigFloat(1e-36)))
-        else
-            x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 1000))
-        end
+        x, info = lssolve(apply_A, exp_H_flipped, LSMR(verbosity = verbosity, maxiter = 2000, tol = eps(one(real(T)))*1e5))
         error_sol = norm(apply_A(x, Val(false)) - exp_H_flipped)/norm(exp_H_flipped)
         if error_sol > 1e-10 && verbosity > 0
             @warn "Error made on the solution is of the order $(error_sol)"

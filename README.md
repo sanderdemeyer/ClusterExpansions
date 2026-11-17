@@ -1,6 +1,7 @@
 # ClusterExpansions.jl
 
 [![CI](https://github.com/sanderdemeyer/ClusterExpansions/actions/workflows/CI.yml/badge.svg)](https://github.com/sanderdemeyer/ClusterExpansions/actions/workflows/CI.yml)
+[![Phys. Rev. B](https://img.shields.io/badge/Phys.%20Rev.%20B-114%2C%20175113-blue.svg)](https://journals.aps.org/prb/abstract/10.1103/16gn-ysxt)
 [![arXiv](https://img.shields.io/badge/arXiv-2602.22113-b31b1b.svg)](https://arxiv.org/abs/2602.22113)
 
 A Julia package for constructing **projected entangled-pair operator (PEPO)** approximations of the imaginary-time evolution operator `exp(-βH)` using **cluster expansions**, and for using them to simulate **finite-temperature** (and ground-state) properties of two-dimensional quantum lattice models, both **bosonic** and **fermionic**.
@@ -103,14 +104,18 @@ The [`examples`](examples) folder contains complete scripts:
 If you use this package in your research, please cite:
 
 ```bibtex
-@misc{demeyer2026lowering,
-  title         = {Lowering the temperature of two-dimensional fermionic tensor networks with cluster expansions},
-  author        = {De Meyer, Sander and Ueda, Atsushi and He, Yuchi and Bultinck, Nick and Haegeman, Jutho},
-  year          = {2026},
-  eprint        = {2602.22113},
-  archivePrefix = {arXiv},
-  primaryClass  = {cond-mat.str-el},
-  url           = {https://arxiv.org/abs/2602.22113}
+@article{demeyer2026lowering,
+  title     = {Lowering the temperature of two-dimensional fermionic tensor networks with cluster expansions},
+  author    = {De Meyer, Sander and Ueda, Atsushi and He, Yuchi and Bultinck, Nick and Haegeman, Jutho},
+  journal   = {Phys. Rev. B},
+  volume    = {114},
+  pages     = {175113},
+  year      = {2026},
+  publisher = {American Physical Society},
+  doi       = {10.1103/16gn-ysxt},
+  url       = {https://journals.aps.org/prb/abstract/10.1103/16gn-ysxt},
+  eprint    = {2602.22113},
+  archivePrefix = {arXiv}
 }
 ```
 

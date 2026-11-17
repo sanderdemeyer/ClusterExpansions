@@ -93,7 +93,7 @@ The [`examples`](examples) folder contains complete scripts:
 
 | Script | Description |
 | --- | --- |
-| [`ising_model.jl`](examples/ising_model.jl) | Finite-temperature transition of the 2D transverse-field Ising model; cluster expansion vs. Trotter, compared with QMC. |
+| [`ising_model.jl`](examples/ising_model.jl) | Finite-temperature transition of the 2D transverse-field Ising model; cluster expansions compared with QMC. |
 | [`SF_model.jl`](examples/SF_model.jl) | Charge-density-wave transition of spinless fermions with nearest-neighbour repulsion. |
 | [`heisenberg_model.jl`](examples/heisenberg_model.jl) | Energy of the Heisenberg model with and without `SU2` symmetry. |
 | [`ising_model_3D.jl`](examples/ising_model_3D.jl) | 3D Ising model on the cubic lattice; cluster expansion vs. simple update. |

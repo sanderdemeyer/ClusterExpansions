@@ -8,7 +8,7 @@ A Julia package for constructing **projected entangled-pair operator (PEPO)** ap
 
 Compared to the usual Suzuki–Trotter decomposition, the cluster expansion keeps the full non-commuting nature of the operators into account. As a result, it is more accurate for a given step size `Δβ`, extends naturally to higher orders, and preserves the internal and lattice symmetries of the Hamiltonian, including full translation invariance.
 
-The package is built on top of the [TensorKit.jl](https://github.com/Jutho/TensorKit.jl) ecosystem ([PEPSKit.jl](https://github.com/QuantumKitHub/PEPSKit.jl), [MPSKit.jl](https://github.com/QuantumKitHub/MPSKit.jl), [TensorKitTensors.jl](https://github.com/QuantumKitHub/TensorKitTensors.jl)), so symmetric and fermionic tensors are supported out of the box.
+The package is built on top of the [QuantumKitHub](https://github.com/QuantumKitHub) ecosystem, so symmetric and fermionic tensors are supported out of the box.
 
 ## Features
 
@@ -97,7 +97,8 @@ The [`examples`](examples) folder contains complete scripts:
 | [`ising_model.jl`](examples/ising_model.jl) | Finite-temperature transition of the 2D transverse-field Ising model; cluster expansions compared with QMC. |
 | [`SF_model.jl`](examples/SF_model.jl) | Charge-density-wave transition of spinless fermions with nearest-neighbour repulsion. |
 | [`heisenberg_model.jl`](examples/heisenberg_model.jl) | Energy of the Heisenberg model with and without `SU2` symmetry. |
-| [`ising_model_3D.jl`](examples/ising_model_3D.jl) | 3D Ising model on the cubic lattice; cluster expansion vs. simple update. |
+| [`ising_model_3D_CTMRG.jl`](examples/ising_model_3D_CTMRG.jl) | 3D Ising model on the cubic lattice, where observables are calculated using 3DCTMRG. |
+| [`ising_model_3D_vbPEPS.jl`](examples/ising_model_3D_vbPEPS.jl) | 3D Ising model on the cubic lattice, where observables are calculated using the variational boundary PEPS (vbPEPS) method. |
 
 ## Citation
 

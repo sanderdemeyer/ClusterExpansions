@@ -8,7 +8,7 @@ using Random
 using LinearAlgebra
 
 Random.seed!(123456789)
-setprecision(128)
+setprecision(100)
 
 const βc_exact = 0.2216546 # voor g = 0.0
 
@@ -35,7 +35,7 @@ function evolve_CE(obs, Δβ_iter, Δβ_obs, maxiter_obs, D, chipeps, chienv; J 
     trunc_alg = NoEnvTruncation(truncrank(D))
 
     # define cluster-expansion algorithm. p = 3 is default.
-    ce_alg = ising_operators(J, g, 0.0; T = BigFloat, symmetry = "Oh")
+    ce_alg = ising_operators(J, g, 0.0; T = BigFloat, symmetry = "Oh", verbosity = 1, p = 3)
     ΔO = evolution_operator_cubic(ce_alg, Δβ_iter; T_conv = Float64);
     
     # start with density operator at β = 0
@@ -50,7 +50,7 @@ function evolve_CE(obs, Δβ_iter, Δβ_obs, maxiter_obs, D, chipeps, chienv; J 
             O, = approximate_state((O,ΔO), trunc_alg; rot_invariance = false)
         end
         # Calculate the CTMRG environment and the expectation value
-        m, = MPSKit.expectation_value(O, [obs], pepsspace, envspace; miniter=3, maxiter=80, tol=1e-7, verbosity=0)
+        m, = MPSKit.expectation_value(O, [obs], pepsspace, envspace; miniter=3, maxiter=80, tol=1e-7, verbosity=3, sqrts = true, krylov = true)
         push!(ms, m)
         @info "magn is $(ms[end])"
     end
@@ -107,8 +107,8 @@ end
 # values of the bond dimension of the density operator, and the two environment bond dimensions of CTMRG (these are quite low)
 D_CE = 4
 D_SU = 2
-chipeps = 4
-chienv = 6
+chipeps = 3
+chienv = 5
 
 # Which observable do you want to calculate?
 obs = SpinOperators.σᶻ(T, spin_symmetry)
@@ -116,10 +116,10 @@ obs = SpinOperators.σᶻ(T, spin_symmetry)
 # parameters for time evolution
 Δβ_iter = 0.005
 Δβ_obs = 0.01
-maxiter_obs = 34
+maxiter_obs = 3
 
-βs, ms = evolve_CE(obs, Δβ_iter, Δβ_obs, maxiter_obs, D_CE, chipeps, chienv; J = 1.0, g = 0.0, spin_symmetry)
-βs_SU, ms_SU = evolve_SU(obs, Δβ_iter, Δβ_obs, maxiter_obs / 2, D_SU, chipeps, chienv; J = 1.0, g = 0.0, spin_symmetry)
+βs, ms = evolve_CE(obs, Δβ_iter, Δβ_obs, maxiter_obs, D_CE, chipeps, chienv; J = 1.0, g, spin_symmetry)
+# βs_SU, ms_SU = evolve_SU(obs, Δβ_iter, Δβ_obs, maxiter_obs / 2, D_SU, chipeps, chienv; J = 1.0, g = 0.0, spin_symmetry)
 
 # The exact results for the critical temperature
 βc = if g == 0.0
@@ -135,7 +135,7 @@ end
 # Make plot
 plt = plot()
 scatter!(plt, βs, abs.(ms), label = "CE + CTMRG")
-scatter!(plt, βs_SU, abs.(ms_SU), label = "SU + CTMRG")
+# scatter!(plt, βs_SU, abs.(ms_SU), label = "SU + CTMRG")
 vline!(plt, [βc], label = "QMC")
 xlabel!("β")
 ylabel!("Magnetization")

@@ -19,6 +19,8 @@ include("utility/observables.jl")
 include("utility/observables_cubic_bpeps.jl")
 include("utility/ctmrg_cubic.jl")
 include("utility/ctmrg3D.jl")
+include("utility/vbpeps/tools_vbpeps.jl")
+include("utility/vbpeps/vbpeps.jl")
 
 include("time_evolution/utility.jl")
 include("time_evolution/global_truncation.jl")
@@ -78,6 +80,7 @@ export time_evolve_model, time_scan_model
 
 export evolution_operator_cubic, time_evolve_cubic
 export CTMRG3D
+export vbpeps
 
 export SUWeight3D, InfiniteWeightPEPS3D, InfinitePEPS3D, product_peps3D
 export CubicHamiltonian, SimpleUpdate3D, simpleupdate3D, su_iter3D

@@ -4,9 +4,9 @@
 [![Phys. Rev. B](https://img.shields.io/badge/Phys.%20Rev.%20B-114%2C%20175113-blue.svg)](https://journals.aps.org/prb/abstract/10.1103/16gn-ysxt)
 [![arXiv](https://img.shields.io/badge/arXiv-2602.22113-b31b1b.svg)](https://arxiv.org/abs/2602.22113)
 
-A Julia package for constructing **projected entangled-pair operator (PEPO)** approximations of the imaginary-time evolution operator `exp(-βH)` using **cluster expansions**, and for using them to simulate **finite-temperature** (and ground-state) properties of two-dimensional quantum lattice models, both **bosonic** and **fermionic**.
+A Julia package for constructing **projected entangled-pair operator (PEPO)** approximations of the imaginary-time evolution operator `exp(-βH)` using **cluster expansions**, and for using them to simulate finite-temperature (and ground-state) properties of two-dimensional and three-dimensional quantum lattice models, both bosonic and fermionic.
 
-Compared to the usual Suzuki–Trotter decomposition, the cluster expansion keeps the result extensive by organising contributions according to the size of connected clusters. As a result it is more accurate for a given step size `Δβ`, extends naturally to higher orders, and preserves the internal and lattice symmetries of the Hamiltonian, including full translation invariance.
+Compared to the usual Suzuki–Trotter decomposition, the cluster expansion keeps the full non-commuting nature of the operators into account. As a result, it is more accurate for a given step size `Δβ`, extends naturally to higher orders, and preserves the internal and lattice symmetries of the Hamiltonian, including full translation invariance.
 
 The package is built on top of the [TensorKit.jl](https://github.com/Jutho/TensorKit.jl) ecosystem ([PEPSKit.jl](https://github.com/QuantumKitHub/PEPSKit.jl), [MPSKit.jl](https://github.com/QuantumKitHub/MPSKit.jl), [TensorKitTensors.jl](https://github.com/QuantumKitHub/TensorKitTensors.jl)), so symmetric and fermionic tensors are supported out of the box.
 

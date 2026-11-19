@@ -82,7 +82,7 @@ export vbpeps
 
 export SUWeight3D, InfiniteWeightPEPS3D, InfinitePEPS3D, product_peps3D
 export CubicHamiltonian, SimpleUpdate3D, simpleupdate3D
-export energy_per_site
+export onesite_rdm, energy_per_site
 
 export DensityMatrixSpace, vectorize, unvectorize
 export ThermalCubicHamiltonian, thermal_gate, infinite_temperature_peps3D

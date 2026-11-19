@@ -27,7 +27,6 @@ function construct_cubic_ani_CE(O_2Ds)
 
         push!(keys_3D, construct_levels(key)...)
         tensors = (tens_1,tens_2,tens_3)
-        println("ok")
         push!(tensors_3D, construct_tensors_ani(tensors, TS)...)
     end
     return Dict(zip(keys_3D, tensors_3D))
@@ -66,5 +65,5 @@ function evolution_operator_cubic_anisotropic(ce_algs::NTuple{3,ClusterExpansion
     for (f_full, f_conv) in zip(blocks(O_canoc), blocks(O))
         f_conv[2] .= f_full[2]
     end
-    return O # Don't normalize, otherwise Atsushi will be mad.
+    return O # no normalization
 end

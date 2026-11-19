@@ -53,7 +53,6 @@ function get_correlation_length_optimkit(PEPO, χpeps, χenv)
             end
             λ3 = network_value(n3, env3)
             λ2 = network_value(n2, env2)
-            println("λ3 = $λ3, λ2 = $λ2")
             return -log(abs(λ3 / λ2))
             # return -log(real(λ3 / λ2))
         end
@@ -73,7 +72,6 @@ function get_correlation_length_peps(peps, envspace, vumps_alg)
             envspace * pspace * pspace',
             envspace,
         )])
-    # println("n = $(n[1,1][1].space), mps.AL = $(mps.AL[1].space)")
     mps, env, _ = leading_boundary(mps, T, vumps_alg)
     return marek_gap(mps; num_vals = 20)
 end

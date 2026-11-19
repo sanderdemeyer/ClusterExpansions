@@ -37,7 +37,7 @@ for spin_symmetry in [Trivial, SU2Irrep]
 
     scatter!(plt, Float64.(βs), real.(energies), label = "Symmetry = $(spin_symmetry)")
 end
-xlabel!("T")
+xlabel!("β")
 ylabel!("Energy")
 title!("Heisenberg model")
 display(plt)

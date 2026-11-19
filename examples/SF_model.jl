@@ -3,7 +3,7 @@ using TensorKitTensors
 using MPSKit
 using ClusterExpansions
 using PEPSKit
-using Test
+using Plots
 
 V = -2.5
 Dcut = 8

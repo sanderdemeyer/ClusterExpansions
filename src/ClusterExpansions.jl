@@ -38,8 +38,6 @@ include("time_evolution/time_evolve_cubic.jl")
 include("time_evolution/time_evolve_cubic_ani.jl")
 include("models/time_evolve_models.jl")
 
-include("models/data_generation.jl")
-
 include("clusterexpansions/generate_trees.jl")
 include("clusterexpansions/generate_loops.jl")
 include("clusterexpansions/clusters.jl")
@@ -83,15 +81,12 @@ export CTMRG3D
 export vbpeps
 
 export SUWeight3D, InfiniteWeightPEPS3D, InfinitePEPS3D, product_peps3D
-export CubicHamiltonian, SimpleUpdate3D, simpleupdate3D, su_iter3D
-export onesite_rdm, bond_rdm, energy_per_site, canonicalize3D
+export CubicHamiltonian, SimpleUpdate3D, simpleupdate3D
+export energy_per_site
 
 export DensityMatrixSpace, vectorize, unvectorize
 export ThermalCubicHamiltonian, thermal_gate, infinite_temperature_peps3D
 export cubic_pepo, cubic_pepo_purified
-
-export data_generation_SF_CE, data_generation_ising_CE
-export data_generation_SF_SU, data_generation_ising_SU
 
 export clusterexpansion
 

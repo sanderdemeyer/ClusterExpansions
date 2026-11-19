@@ -52,6 +52,8 @@ function spaces_ising(spin_symmetry, smaller_spaces; loop_space = nothing)
             loop_space
         end
         envspace = χ -> Z2Space(0 => χ - div(χ,2), 1 => div(χ,2))
+    else
+        error("Symmetry for the Ising model can be either `Trivial` or `Z2Irrep`.")
     end
     return spaces, envspace
 end
@@ -125,9 +127,11 @@ function spinless_fermion_model(t, V, μ; T = ComplexF64, Nr = 1, Nc = 1)
     )
 end
 
-function spaces_heisenberg(spin_symmetry; loop_space = ℂ^4)
+function spaces_heisenberg(spin_symmetry; loop_space = nothing)
     if spin_symmetry == Trivial
-        loop_space = ℂ^4
+        if isnothing(loop_space)
+            loop_space = ℂ^4
+        end
         spaces = i -> if i == 0
             ℂ^1
         elseif i > 0
@@ -290,9 +294,9 @@ function spaces_tJ(particle_symmetry, spin_symmetry; loop_space = Vect[fℤ₂](
     return spaces, envspace
 end
 
-function tJ_operators(t, J, μ; t′ = 0.0, h = 0.0, particle_symmetry = Trivial, spin_symmetry = Trivial, slave_fermion = false, T = Complex{BigFloat}, filling = 1, kwargs...)
-    if spin_symmetry != Trivial
-        @assert values(kwargs)[:p] < 4 "Non-trivial spin symmetry is currently only supported up to p = 3 for the t-J model"
+function tJ_operators(t, J, μ; t′ = 0.0, h = 0.0, particle_symmetry = Trivial, spin_symmetry = Trivial, slave_fermion = false, T = Complex{BigFloat}, filling = 1, p = 3, kwargs...)
+    if spin_symmetry != Trivial && p >= 4
+        throw(ArgumentError("Non-trivial spin symmetry is currently only supported up to p = 3 for the t-J model"))
     end
     hopping_operator = TJOperators.e_hop(T, particle_symmetry, spin_symmetry; slave_fermion)
     number_operator = TJOperators.e_num(T, particle_symmetry, spin_symmetry; slave_fermion)
@@ -314,7 +318,7 @@ function tJ_operators(t, J, μ; t′ = 0.0, h = 0.0, particle_symmetry = Trivial
     else
         nn_term = rmul!(hopping_operator, -T(t′))
     end
-    return ClusterExpansion(twosite_op, onesite_op; nn_term, T, spaces, envspace, kwargs...)
+    return ClusterExpansion(twosite_op, onesite_op; nn_term, T, spaces, envspace, p, kwargs...)
 end
 
 function tJ_σ_operators(t, J, μ; t′ = 0.0, particle_symmetry = Trivial, spin_symmetry = Trivial, slave_fermion = false, T = Complex{BigFloat}, filling = 1, kwargs...)

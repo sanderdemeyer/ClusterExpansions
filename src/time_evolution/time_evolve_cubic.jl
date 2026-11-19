@@ -63,7 +63,7 @@ function evolution_operator_cubic(ce_alg::ClusterExpansion, β::Number; T_conv =
     for (f_full, f_conv) in zip(blocks(O_canoc), blocks(O))
         f_conv[2] .= f_full[2]
     end
-    return O # Don't normalize, otherwise Atsushi will be mad.
+    return O # no normalization
 end
 
 function time_evolve_cubic(

@@ -89,7 +89,7 @@ function evolution_operator(ce_alg::ClusterExpansion, β::Number; T_conv = Compl
     for (f_full, f_conv) in zip(blocks(O_canoc), blocks(O))
         f_conv[2] .= f_full[2]
     end
-    return O # Don't normalize, otherwise Atsushi will be mad.
+    return O # no normalization
 end
 
 function evolution_operator(td_alg::GenericTrotterDecomposition, β::Number; T_conv = ComplexF64, canoc_alg::Union{Nothing,Canonicalization} = nothing)

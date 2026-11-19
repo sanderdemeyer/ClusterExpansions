@@ -77,7 +77,7 @@ maxiter_obs = 27
 
 # Make plot
 plt = plot()
-scatter!(plt, βs, abs.(ms), label = "CE + CTMRG")
+scatter!(plt, βs, abs.(ms), label = "CE + vbPEPS")
 vline!(plt, [βc], label = "QMC")
 xlabel!("β")
 ylabel!("Magnetization")
